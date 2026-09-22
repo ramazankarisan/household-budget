@@ -8,8 +8,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useId, useRef, useState } from 'react';
 
-import { uploadImport } from '../api/client';
-import { describeRowError } from '../i18n/importErrors';
+import { ApiError, uploadImport } from '../api/client';
+import { describeFileError, describeRowError } from '../i18n/importErrors';
 
 interface ImportPanelProps {
   readonly accountId: string;
@@ -21,6 +21,14 @@ type PanelState =
   | { readonly status: 'uploading' }
   | { readonly status: 'done'; readonly summary: ImportSummary }
   | { readonly status: 'error'; readonly message: string };
+
+/** A rejected file states a code; the wording for it lives in `src/i18n`. */
+function describeFailure(error: unknown): string {
+  if (error instanceof ApiError) {
+    return describeFileError(error.code, error.columns);
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
   const [state, setState] = useState<PanelState>({ status: 'idle' });
@@ -42,10 +50,7 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
         onImported();
       })
       .catch((error: unknown) => {
-        setState({
-          status: 'error',
-          message: error instanceof Error ? error.message : String(error),
-        });
+        setState({ status: 'error', message: describeFailure(error) });
       });
   }
 

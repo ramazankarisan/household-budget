@@ -1,7 +1,7 @@
 import { type RowError } from '@household-budget/core';
 import { describe, expect, it } from 'vitest';
 
-import { describeRowError } from './importErrors';
+import { describeFileError, describeRowError } from './importErrors';
 
 describe('describeRowError', () => {
   const error: RowError = {
@@ -40,5 +40,31 @@ describe('describeRowError', () => {
       expect(describeRowError({ code, line: 1 })).not.toContain('undefined');
       expect(describeRowError({ code, line: 1 }, 'en')).not.toContain('undefined');
     }
+  });
+});
+
+describe('describeFileError', () => {
+  it('names the columns a rejected header is missing', () => {
+    expect(describeFileError('REQUIRED_COLUMN_MISSING', ['Betrag', 'Buchungstag'])).toBe(
+      'Pflichtspalte fehlt: Betrag, Buchungstag',
+    );
+  });
+
+  it('words a csv-parse structural code', () => {
+    expect(describeFileError('CSV_QUOTE_NOT_CLOSED')).toBe(
+      'Ein Anführungszeichen in der Datei wird nie geschlossen',
+    );
+  });
+
+  it('says the same thing in English', () => {
+    expect(describeFileError('HEADER_NOT_FOUND', [], 'en')).toBe(
+      'no header row found — is this a Sparkasse CSV-CAMT export?',
+    );
+  });
+
+  it('still shows an unknown code rather than swallowing it', () => {
+    // csv-parse's code list is open-ended, and a code the user can quote is worth more
+    // than a generic "import failed".
+    expect(describeFileError('CSV_SOMETHING_NEW')).toBe('Datei nicht lesbar (CSV_SOMETHING_NEW)');
   });
 });
