@@ -10,7 +10,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { createAccount, listAccounts, listTransactions } from '../api/client';
 import { ImportPanel } from './ImportPanel';
@@ -45,14 +45,40 @@ export function AccountPage() {
     };
   }, [fail]);
 
+  // The load in flight, so switching accounts twice in a row cannot land the first
+  // account's rows under the third one's name: the older request is aborted, and a
+  // response that arrives anyway is dropped.
+  const inFlight = useRef<AbortController | undefined>(undefined);
+
   const refreshTransactions = useCallback(() => {
+    inFlight.current?.abort();
+    inFlight.current = undefined;
     if (accountId === '') {
       return;
     }
-    listTransactions(accountId).then(setTransactions).catch(fail);
+
+    const controller = new AbortController();
+    inFlight.current = controller;
+
+    listTransactions(accountId, controller.signal)
+      .then((loaded) => {
+        if (!controller.signal.aborted) {
+          setTransactions(loaded);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          fail(cause);
+        }
+      });
   }, [accountId, fail]);
 
-  useEffect(refreshTransactions, [refreshTransactions]);
+  useEffect(() => {
+    refreshTransactions();
+    return () => {
+      inFlight.current?.abort();
+    };
+  }, [refreshTransactions]);
 
   async function addAccount(iban: string, name: string): Promise<void> {
     const created = await createAccount(iban, name);
