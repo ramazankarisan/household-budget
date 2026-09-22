@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./csv": {
+      "types": "./dist/csv/index.d.ts",
+      "default": "./dist/csv/index.js"
     }
   },
   "files": [
@@ -26,5 +30,8 @@
   "devDependencies": {
     "typescript": "~6.0.3",
     "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.2"
   }
 }

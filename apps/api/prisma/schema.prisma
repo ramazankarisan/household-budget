@@ -2,7 +2,7 @@
 // Docs: https://pris.ly/d/prisma-schema
 //
 // The connection URL lives in ../prisma.config.ts (Prisma 7 moved it out of
-// this file). Domain models land here with the first real feature.
+// this file).
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +11,80 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+}
+
+/// A bank account the user imports statements for. Chosen before an upload — never
+/// inferred from a file, which is what keeps rows out of the wrong account.
+model Account {
+  id           String        @id @default(cuid())
+  iban         String        @unique
+  name         String
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  imports      ImportBatch[]
+}
+
+/// One upload. Provenance lives here rather than repeated on every row, and an import
+/// that produced zero new rows is exactly the one worth having a record of.
+model ImportBatch {
+  id           String        @id @default(cuid())
+  accountId    String
+  account      Account       @relation(fields: [accountId], references: [id])
+  fileName     String
+  /// sha256 of the raw bytes, before decoding.
+  fileHash     String
+  /// 'utf-8' | 'windows-1252' — the encoding the bytes were actually decoded with.
+  encoding     String
+  importedAt   DateTime      @default(now())
+  rowsParsed   Int
+  rowsImported Int
+  rowsSkipped  Int
+  rowsRestored Int
+  rowsFailed   Int
+  transactions Transaction[]
+
+  /// Powers "you already uploaded this file".
+  @@index([accountId, fileHash])
+}
+
+model Transaction {
+  id            String      @id @default(cuid())
+  accountId     String
+  account       Account     @relation(fields: [accountId], references: [id])
+  importBatchId String
+  importBatch   ImportBatch @relation(fields: [importBatchId], references: [id])
+
+  /// NULL for pending rows — they are a replaceable snapshot and never fingerprinted.
+  /// SQLite treats NULLs as distinct, so any number of them coexist under the unique index.
+  dedupKey    String?
+  /// Auftragskonto. Provenance and cross-check; may differ from the chosen account's IBAN.
+  accountIban String
+  /// 'YYYY-MM-DD'. Never a DateTime: a booking date has no time and no zone.
+  bookingDate String
+  valueDate   String?
+  amountCents Int
+  currency    String
+  /// 'booked' | 'pending'
+  status      String
+
+  counterpartyName String?
+  counterpartyIban String?
+  counterpartyBic  String?
+  purpose          String?
+  bookingText      String?
+  endToEndRef      String?
+  mandateRef       String?
+  creditorId       String?
+  bankCategory     String?
+
+  lineNumber Int
+  /// The row verbatim as JSON, so a normalization change can re-key without a re-download.
+  raw        String
+  /// Soft delete. The unique index below covers these rows too, which is why a re-import
+  /// restores rather than inserts.
+  deletedAt  DateTime?
+
+  @@unique([accountId, dedupKey])
+  @@index([accountId, bookingDate])
+  @@index([accountId, status])
 }

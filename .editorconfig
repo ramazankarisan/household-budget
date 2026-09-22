@@ -10,3 +10,12 @@ trim_trailing_whitespace = true
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Bank CSV fixtures are byte-exact test data. The [*] rules above would re-encode the
+# Windows-1252 fixture to UTF-8 and rewrite its CRLF line endings on save, which makes
+# the encoding tests pass for the wrong reason.
+[fixtures/**.csv]
+charset = unset
+end_of_line = unset
+trim_trailing_whitespace = false
+insert_final_newline = false
