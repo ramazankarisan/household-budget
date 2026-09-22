@@ -59,6 +59,17 @@ module.exports = {
      * on react.
      */
     doNotFollow: { path: 'node_modules' },
+    /*
+     * Teaches the resolver to read a package's "exports" map. Without it a subpath export
+     * such as `csv-parse/sync` is unresolvable — the bare package name resolves, the subpath
+     * does not — and `not-to-unresolvable` reports it. That would be a false positive: the
+     * import is real, resolvable by Node, tsc and Vite alike. The point of this block is to
+     * keep the tripwire meaningful rather than to switch it off.
+     */
+    enhancedResolveOptions: {
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'require', 'node', 'default'],
+    },
     reporterOptions: {
       text: { highlightFocused: true },
     },

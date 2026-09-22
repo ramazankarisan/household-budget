@@ -1,7 +1,14 @@
 export type { BuildHelloPayloadOptions, DbStatus, HelloPayload } from './hello.js';
 export { buildHelloPayload, describeHello } from './hello.js';
 
-export type { ImportErrorCode, RowError } from './csv/errors.js';
+/*
+ * The CSV parser is deliberately absent: it pulls in csv-parse's Node build, which uses
+ * `Buffer`. It lives behind the `@household-budget/core/csv` subpath, which only
+ * `apps/api` imports. Everything exported here is browser-safe, because `apps/web`
+ * bundles it.
+ */
+export type { ImportErrorCode, ImportFileErrorCode, RowError } from './csv/errors.js';
+export { CsvFileError } from './csv/errors.js';
 export type { ParseGermanDateOptions } from './csv/fields.js';
 export { parseGermanAmount, parseGermanDate } from './csv/fields.js';
 export type {

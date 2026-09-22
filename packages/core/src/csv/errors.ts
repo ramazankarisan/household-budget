@@ -23,3 +23,24 @@ export interface RowError {
   /** The offending raw value. Never a whole row — that is the user's spending history. */
   readonly value?: string;
 }
+
+/** A file that cannot be read at all, as opposed to a row that cannot be understood. */
+export type ImportFileErrorCode = 'HEADER_NOT_FOUND' | 'REQUIRED_COLUMN_MISSING';
+
+/**
+ * Thrown rather than returned. Row failures degrade — the good rows still import —
+ * but a file with no recognisable header has no good rows to salvage, so the whole
+ * request fails, and `apps/api` turns this into a 4xx rather than a 500.
+ */
+export class CsvFileError extends Error {
+  readonly code: ImportFileErrorCode;
+  /** The missing column names, for `REQUIRED_COLUMN_MISSING`. */
+  readonly columns: readonly string[];
+
+  constructor(code: ImportFileErrorCode, columns: readonly string[] = []) {
+    super(columns.length > 0 ? `${code}: ${columns.join(', ')}` : code);
+    this.name = 'CsvFileError';
+    this.code = code;
+    this.columns = columns;
+  }
+}

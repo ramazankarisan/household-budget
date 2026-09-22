@@ -19,13 +19,13 @@ taken from documentation. Do not re-derive them.
 
 ## Acceptance Criteria
 
-- [ ] Both primary fixtures parse to **identical** `Transaction` values, except `bankCategory` is
+- [x] Both primary fixtures parse to **identical** `Transaction` values, except `bankCategory` is
       absent from the 17-column one.
 - [ ] Umlauts survive a Windows-1252 file end to end: `Müller GmbH` reaches the browser intact,
       never `M�ller` (cp1252 bytes read as UTF-8) or `MÃ¼ller` (UTF-8 read as cp1252).
-- [ ] `832,9` parses to `83290` cents and `-190` to `-19000`. No float touches an amount.
-- [ ] `"24.03.14";"01.04.2014"` in one row yields `2014-03-24` and `2014-04-01`.
-- [ ] A quoted field containing `;`, a quoted field containing a newline, and doubled quotes all
+- [x] `832,9` parses to `83290` cents and `-190` to `-19000`. No float touches an amount.
+- [x] `"24.03.14";"01.04.2014"` in one row yields `2014-03-24` and `2014-04-01`.
+- [x] A quoted field containing `;`, a quoted field containing a newline, and doubled quotes all
       parse correctly. An unterminated quote **fails loudly** rather than swallowing the file.
 - [ ] Re-importing the same file imports **0** new rows.
 - [ ] Two distinct same-day, same-amount, same-merchant rows both survive import, and survive a
@@ -33,7 +33,7 @@ taken from documentation. Do not re-derive them.
 - [ ] A pending row is replaced rather than duplicated on re-import; when it books it becomes one
       booked row with no pending twin left behind.
 - [ ] Deleting a transaction and re-importing the file brings it back.
-- [ ] A file with 3 unparseable rows imports the rest and reports the 3 with line numbers and
+- [x] A file with 3 unparseable rows imports the rest and reports the 3 with line numbers and
       machine codes.
 - [ ] `pnpm check` is green at the end of every phase; `pnpm check:all` is green at the end.
 
@@ -283,7 +283,7 @@ Turn text into transactions. The two primary fixtures must converge on identical
 
 **Tasks**:
 
-- [ ] **Gate task, do this first.** Add `csv-parse@^7` to `packages/core` dependencies, then
+- [x] **Gate task, do this first.** Add `csv-parse@^7` to `packages/core` dependencies, then
       immediately verify three things before writing any parser code:
   1. `pnpm lint:deps` still passes — the `not-to-unresolvable` rule fails on unresolvable subpath
      imports, and `csv-parse/sync` is one.
@@ -293,12 +293,12 @@ Turn text into transactions. The two primary fixtures must converge on identical
      `index.ts` and give core a separate `./csv` export consumed only by `apps/api`, or import
      `csv-parse/browser/esm/sync`. csv-parse ships a browser entry for exactly this reason, and
      research §1 is the whole argument for why core must stay browser-safe.
-- [ ] Add `packages/core/src/csv/header.ts`:
+- [x] Add `packages/core/src/csv/header.ts`:
   - `findHeaderLine(text)` — scan the first ~30 lines for the first containing both
     `Auftragskonto` and `Betrag` after quote-stripping. Returns the index or a file-level error.
   - `mapColumns(headerTokens)` — name → index map, quote-stripped and whitespace-normalized.
     Missing required columns are a file-level error; missing `Kategorie` is fine.
-- [ ] Add `packages/core/src/csv/parse.ts` exporting
+- [x] Add `packages/core/src/csv/parse.ts` exporting
       `parseSparkasseCsv(text, ctx): { transactions, errors }`, where `ctx` carries `fileName`,
       `encoding` and `referenceYear`.
   - csv-parse options: `{ delimiter: ';', bom: true, skip_empty_lines: true, trim: false,
@@ -312,25 +312,25 @@ relax_column_count: false, from_line }`. `skip_empty_lines` is **required** — 
     `booked`.
   - a row whose amount or date fails yields a `RowError` and is **skipped**, not defaulted.
   - preserve the verbatim row in `source.raw` and the 1-based file line in `source.lineNumber`.
-- [ ] Write `parse.test.ts` reading **`sparkasse-camt-18-utf8.csv`** and the 17-column file. Core
+- [x] Write `parse.test.ts` reading **`sparkasse-camt-18-utf8.csv`** and the 17-column file. Core
       has `"types": []`, so `node:fs` and `TextDecoder` do not typecheck there — import the
       fixture as a string via Vite's `?raw` suffix, or inline the sample text in the test. The
       cp1252 path is asserted in Phase 4, in `apps/api`, which has `types: ["node"]`.
 
 **Automated Verification**:
 
-- [ ] Parsing the 18- and 17-column fixtures yields deep-equal `Transaction[]` after removing
+- [x] Parsing the 18- and 17-column fixtures yields deep-equal `Transaction[]` after removing
       `bankCategory` and `source`. This is the phase's central test.
-- [ ] `"REWE SAGT DANKE; FILIALE 42"` parses as one field, semicolon intact.
-- [ ] The embedded-newline field parses as one field containing `\n`.
-- [ ] `""Nord""` unescapes to `"Nord"`.
-- [ ] Blank lines produce no transactions and no errors.
-- [ ] `sparkasse-camt-malformed.csv` **throws**, asserted on the csv-parse error code, not a
+- [x] `"REWE SAGT DANKE; FILIALE 42"` parses as one field, semicolon intact.
+- [x] The embedded-newline field parses as one field containing `\n`.
+- [x] `""Nord""` unescapes to `"Nord"`.
+- [x] Blank lines produce no transactions and no errors.
+- [x] `sparkasse-camt-malformed.csv` **throws**, asserted on the csv-parse error code, not a
       generic catch.
-- [ ] The `Umsatz vorgemerkt` row yields `status: 'pending'`.
-- [ ] `sparkasse-camt-18-bad-rows.csv` yields exactly 3 `RowError`s with the expected codes and
+- [x] The `Umsatz vorgemerkt` row yields `status: 'pending'`.
+- [x] `sparkasse-camt-18-bad-rows.csv` yields exactly 3 `RowError`s with the expected codes and
       line numbers, and the remaining rows parse.
-- [ ] `pnpm check` green, `lint:deps` included.
+- [x] `pnpm check` green, `lint:deps` included.
 
 ### Phase 3: Fingerprint and occurrence assignment
 
@@ -632,6 +632,50 @@ Household Budget                    [DE89…3000 ▾]
   rewrote three of this plan's `ts` fences into inline code, and `format:check` then failed on
   its own output. Those three blocks were moved to the left margin. Worth knowing before
   adding a nested code block to a plan.
+
+### Phase 2
+
+The gate task caught two of the three things it was written to catch.
+
+- **Gate 1 failed, and the fix was the resolver, not the rule.** `pnpm lint:deps` reported
+  `not-to-unresolvable: packages/core/src/csv/parse.ts → csv-parse/sync`. The bare specifier
+  `csv-parse` resolved; only the subpath did — dependency-cruiser was not reading the package's
+  `exports` map. `.dependency-cruiser.cjs` now sets `enhancedResolveOptions.exportsFields` and
+  `conditionNames`. This is not the check being weakened: a genuinely missing package and a
+  type-only `@nestjs/common` import were both re-confirmed to still fail after the change.
+- **Gate 3 failed: the Node build of csv-parse puts `Buffer` in the web bundle.** Forcing
+  `apps/web` to reference the parser produced a bundle with four `Buffer` references from
+  csv-parse's own code — `Buffer.allocUnsafe`, `Buffer.isBuffer` — which is an undefined global
+  in a browser. `csv-parse/browser/esm/sync` removes the crash but bundles a `buffer` polyfill
+  instead, still leaving `Buffer` in the output and costing ~22 kB.
+  **Took the plan's first remedy: `parse.ts` is not exported from the package root.** It lives
+  behind a new `@household-budget/core/csv` subpath (`packages/core/src/csv/index.ts`) that only
+  `apps/api` imports. Re-verified: forcing `apps/web` to reference the root entry emits a bundle
+  with **zero** `Buffer` references and no csv-parse bytes, at the baseline 362 kB. The root
+  entry stays browser-safe and keeps the types the UI needs; the API gets csv-parse's proper
+  Node build. Tree-shaking would probably have hidden this, which is exactly why relying on it
+  would have been the wrong answer.
+- **csv-parse's `info.lines` is wrong for this repo's fixtures.** It counts a CRLF inside a
+  quoted field as two lines, so every row after a multi-line `Verwendungszweck` is reported one
+  line too high — and a real export is CRLF with multi-line purposes. Measured: with a CRLF
+  file, an embedded LF reports correctly and an embedded CRLF does not. `parse.ts` computes
+  line numbers itself by walking the source text with each record's verbatim `raw` slice.
+  A second quirk showed up there: a record that follows a skipped empty line arrives with the
+  blank line's leftover `\r` glued to the front of its `raw`, which then matches nothing in the
+  source. The leading newline characters are stripped before the search.
+- No conditional spread was needed for the csv-parse options after all — every value is a
+  literal, so `exactOptionalPropertyTypes` has nothing to reject. The plan's warning applies
+  the moment one of them becomes `string | undefined`.
+- File-level failures are thrown, not returned: `CsvFileError` for `HEADER_NOT_FOUND` and
+  `REQUIRED_COLUMN_MISSING`, alongside csv-parse's own `CsvError`. One error channel for the
+  two file-level cases is what lets Phase 4 map both to a single 4xx.
+- `FIELD_COUNT_MISMATCH` is unreachable while `relax_column_count` is false — csv-parse throws
+  `CSV_RECORD_INCONSISTENT_FIELDS_LENGTH` first. The check is kept as a guard: if that option
+  ever relaxes, a ragged row degrades to a reported row rather than to silently shifted columns.
+- A row reports its **first** failure and is skipped. The bad-rows fixture has one defect per
+  row, so this is invisible there, but a row with two defects reports one.
+- Core needed a hand-written `declare module '*?raw'`: `vite/client` is not in scope under
+  `"types": []`, and pulling it in would put DOM and Node globals back within core's reach.
 
 ## References
 
