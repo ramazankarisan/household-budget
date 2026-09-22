@@ -141,3 +141,19 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- household-budget ---------------------------------------------------
+# Local data and SQLite databases (never commit a developer's budget data)
+data/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Prisma client is generated on install, not committed
+apps/api/src/generated/
+
+# Crash dumps at the repo root. Anchored with a leading slash so this does
+# NOT match packages/core.
+/core
+/core.*

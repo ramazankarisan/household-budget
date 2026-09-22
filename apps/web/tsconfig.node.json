@@ -1,0 +1,12 @@
+{
+  "//": "Covers the build-tooling files, which run in Node rather than the browser.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["vite.config.ts"]
+}

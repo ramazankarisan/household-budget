@@ -1,0 +1,5 @@
+{
+  "//": "Emits dist/. Tests are type-checked by `pnpm typecheck` but never shipped.",
+  "extends": "./tsconfig.json",
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+}

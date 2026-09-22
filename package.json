@@ -1,0 +1,33 @@
+{
+  "name": "household-budget",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "core:build": "pnpm --filter @household-budget/core build",
+    "dev": "pnpm core:build && pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm core:build && pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm core:build && pnpm -r test",
+    "clean": "pnpm -r exec rm -rf dist node_modules/.vite && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.2",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.8",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1"
+  }
+}
