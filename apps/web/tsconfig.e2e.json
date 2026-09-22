@@ -1,0 +1,13 @@
+{
+  "//": "Playwright specs run in Node, not the browser, and live outside src/ — so neither tsconfig.json (src only, DOM libs) nor tsconfig.node.json (vite.config.ts only) covers them.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["e2e", "playwright.config.ts"],
+  "exclude": ["node_modules"]
+}

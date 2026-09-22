@@ -19,7 +19,8 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --reporter=dot",
+    "test:fast": "vitest run --reporter=dot --bail=1",
     "test:watch": "vitest"
   },
   "devDependencies": {

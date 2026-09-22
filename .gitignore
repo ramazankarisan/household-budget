@@ -150,6 +150,16 @@ data/
 *.sqlite
 *.sqlite3
 
+# Bank CSV exports. Synthetic test data under fixtures/ is the one exception,
+# and scripts/check-staged-data.mjs blocks the rest at commit time.
+*.csv
+!fixtures/**/*.csv
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+
 # Prisma client is generated on install, not committed
 apps/api/src/generated/
 
