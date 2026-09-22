@@ -8,3 +8,7 @@ data
 test-results
 playwright-report
 blob-report
+
+# Vendored agent skills, installed and pinned by skills-lock.json. Reformatting them
+# would change the files upstream hashes them against, so leave them byte-identical.
+.agents

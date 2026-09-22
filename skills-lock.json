@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "skills": {
+    "rpi-implement": {
+      "source": "git@github.com:MaibornWolff/acf-research-plan-implement-skills.git",
+      "sourceUrl": "git@github.com:MaibornWolff/acf-research-plan-implement-skills.git",
+      "sourceType": "git",
+      "skillPath": "skills/rpi-implement/SKILL.md",
+      "computedHash": "7655f1786a280ad7ce0c7ab79ba40ac6ff787f99379b1de0e689e21b4d3d7097"
+    },
+    "rpi-plan": {
+      "source": "git@github.com:MaibornWolff/acf-research-plan-implement-skills.git",
+      "sourceUrl": "git@github.com:MaibornWolff/acf-research-plan-implement-skills.git",
+      "sourceType": "git",
+      "skillPath": "skills/rpi-plan/SKILL.md",
+      "computedHash": "49ee780a1460360b6cb0bedb62479a3681b8e85271a200a0961a9b683dc3ad9d"
+    },
+    "rpi-research": {
+      "source": "git@github.com:MaibornWolff/acf-research-plan-implement-skills.git",
+      "sourceUrl": "git@github.com:MaibornWolff/acf-research-plan-implement-skills.git",
+      "sourceType": "git",
+      "skillPath": "skills/rpi-research/SKILL.md",
+      "computedHash": "ce48dd1ab600e592b56beca7bd3bcb28a370a2f42f51a8d127bf792f3fde66a9"
+    }
+  }
+}
