@@ -1,0 +1,12 @@
+Auftragskonto;"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Glaeubiger ID";"Mandatsreferenz";"Kundenreferenz (End-to-End)";"Sammlerreferenz";"Lastschrift Ursprungsbetrag";"Auslagenersatz Ruecklastschrift";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"BIC (SWIFT-Code)";"Betrag";"Waehrung";"Info"
+DE89370400440532013000;"22.09.25";"22.09.25";"FOLGELASTSCHRIFT";"Rechnung 4711 Möbel für die Küche";"DE98ZZZ09999999999";"M-0815";"E2E-4711";"";"";"";"Müller GmbH";"DE02120300000000202051";"BYLADEM1001";"-832,9";"EUR";"Umsatz gebucht"
+DE89370400440532013000;"21.09.25";"21.09.25";"KARTENZAHLUNG";"Einkauf Lebensmittel";"";"";"";"";"";"";"REWE SAGT DANKE; FILIALE 42";"DE35500105174205498273";"INGDDEFF";"-42,17";"EUR";"Umsatz gebucht"
+DE89370400440532013000;"21.09.25";"21.09.25";"KARTENZAHLUNG";"Einkauf Lebensmittel";"";"";"";"";"";"";"REWE SAGT DANKE; FILIALE 42";"DE35500105174205498273";"INGDDEFF";"-42,17";"EUR";"Umsatz gebucht"
+
+DE89370400440532013000;"20.09.25";"20.09.25";"DAUERAUFTRAG";"Miete Oktober
+Hauptstraße 12";"";"";"";"";"";"";"Hausverwaltung Süd GmbH";"DE44500105175407324931";"COBADEFFXXX";"-1.150,00";"EUR";"Umsatz gebucht"
+DE89370400440532013000;"19.09.25";"19.09.25";"SEPA-UEBERWEISUNG";"Rechnung Übernachtung";"";"";"";"";"";"";"Hotel ""Nord"" GmbH";"DE12500105170648489890";"PBNKDEFF";"-128,5";"EUR";"Umsatz gebucht"
+DE89370400440532013000;"24.03.14";"01.04.2014";"SEPA-UEBERWEISUNG";"Altvertrag Schlusszahlung";"";"";"";"";"";"";"Versicherung Nord AG";"DE89500105175498761234";"MALADE51MNZ";"-1143,41";"EUR";"Umsatz gebucht"
+DE89370400440532013000;"18.09.25";"18.09.25";"ENTGELTABSCHLUSS";"Jahresbeitrag Kreditkarte";"";"";"";"";"";"";"Sparkasse Musterstadt";"DE89370400440532013000";"COBADEFFXXX";"-190";"EUR";"Umsatz gebucht"
+DE89370400440532013000;"20.09.25";"20.09.25";"KARTENZAHLUNG";"Gebühr Praxisbesuch";"";"";"";"";"";"";"Ärzte GmbH";"DE22500105175487654321";"MALADE51MNZ";"-19";"EUR";"Umsatz vorgemerkt"
+DE89370400440532013000;"15.09.25";"15.09.25";"LOHN/GEHALT";"Gehalt September";"";"";"";"";"";"";"Beispiel AG";"DE75512108001245126199";"SOLADEST600";"2.450,00";"EUR";"Umsatz gebucht"
