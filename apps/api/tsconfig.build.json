@@ -1,5 +1,5 @@
 {
   "//": "Used by `nest build`. Tests are type-checked by `pnpm typecheck` but never compiled into dist.",
   "extends": "./tsconfig.json",
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "test"]
+  "exclude": ["dist", "node_modules", "src/generated", "**/*.test.ts", "test"]
 }

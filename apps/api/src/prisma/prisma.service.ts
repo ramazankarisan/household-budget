@@ -4,9 +4,8 @@ import { mkdirSync } from 'node:fs';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
+import { resolveDatabaseUrl } from '../config/database.js';
 import { PrismaClient } from '../generated/prisma/client.js';
-
-const DEFAULT_DATABASE_URL = 'file:./data/budget.db';
 
 /**
  * better-sqlite3 creates the database file but not the directory holding it,
@@ -23,7 +22,7 @@ function ensureDatabaseDirectory(url: string): string {
 }
 
 function databaseUrl(): string {
-  return ensureDatabaseDirectory(process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL);
+  return ensureDatabaseDirectory(resolveDatabaseUrl());
 }
 
 @Injectable()

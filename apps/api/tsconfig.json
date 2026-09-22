@@ -16,5 +16,6 @@
     "declaration": false
   },
   "include": ["src"],
-  "exclude": ["dist", "node_modules"]
+  "//": "src/generated holds the Prisma client, which is not written to this project's strict settings.",
+  "exclude": ["dist", "node_modules", "src/generated"]
 }
