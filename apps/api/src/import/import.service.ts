@@ -137,7 +137,7 @@ export class ImportService {
 
     const dedupKeys = this.dedupKeysFor(booked);
     const { toInsert, toRestore, skipped } = await this.classify(account.id, dedupKeys);
-    const stale = await this.isStaleExport(account.id, transactions);
+    const stale = await this.isStaleExport(account.id, booked);
     const pendingToStore = stale ? [] : pending;
 
     const batchId = await this.prisma.$transaction(async (tx) => {
@@ -236,18 +236,24 @@ export class ImportService {
   }
 
   /**
-   * An export is a snapshot as of its newest booking date, and the pending set is only ever
+   * An export is a snapshot as of its newest *booked* date, and the pending set is only ever
    * replaced wholesale. That is right for the newest file and wrong for any older one:
    * re-importing last month's statement would otherwise delete pending rows it never saw,
    * and reinstate the ones it still shows as pending. Its booked rows still import — they
    * are a ledger, and dedup handles them.
+   *
+   * Booked rows on both sides of the comparison, deliberately. A pending row carries the
+   * date the bank expects to book it, which for a standing order is in the future: counting
+   * those would park the watermark ahead of every later export, and the pending set would
+   * stay frozen — a cancelled standing order still on screen, still counted — until that
+   * date passed.
    */
   private async isStaleExport(
     accountId: string,
-    transactions: readonly ParsedTransaction[],
+    booked: readonly ParsedTransaction[],
   ): Promise<boolean> {
     const newestStored = await this.prisma.transaction.findFirst({
-      where: { accountId, deletedAt: null },
+      where: { accountId, deletedAt: null, status: 'booked' },
       orderBy: { bookingDate: 'desc' },
       select: { bookingDate: true },
     });
@@ -255,16 +261,16 @@ export class ImportService {
       return false;
     }
 
-    // 'YYYY-MM-DD' compares lexicographically. A file with no readable row at all has no
+    // 'YYYY-MM-DD' compares lexicographically. A file with no booked row at all has no
     // newest date, sorts below everything, and so is treated as stale rather than allowed
     // to empty the pending set.
-    const newestParsed = transactions.reduce(
+    const newestBooked = booked.reduce(
       (latest, transaction) =>
         transaction.bookingDate > latest ? transaction.bookingDate : latest,
       '',
     );
 
-    return newestParsed < newestStored.bookingDate;
+    return newestBooked < newestStored.bookingDate;
   }
 
   private dedupKeysFor(

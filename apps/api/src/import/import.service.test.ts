@@ -158,6 +158,36 @@ describe('ImportService', () => {
     expect(summary.imported).toBeGreaterThan(0);
   });
 
+  it('replaces a pending row the next export dropped, even when its date is in the future', async () => {
+    // A pending row carries the date the bank expects to book it, which for a standing
+    // order is in the future. If that date counted as the account's high-water mark, every
+    // export until then would look stale and the pending set would freeze — a standing
+    // order the user cancelled would stay on screen, and stay in the budget.
+    const accountId = await account();
+    const header =
+      'Auftragskonto;"Buchungstag";"Beguenstigter/Zahlungspflichtiger";' +
+      '"Betrag";"Waehrung";"Info"';
+    const booked = 'DE89370400440532013000;"20.09.25";"REWE";"-42,17";"EUR";"Umsatz gebucht"';
+    const scheduled =
+      'DE89370400440532013000;"30.09.25";"Vermieter";"-830,00";"EUR";"Umsatz vorgemerkt"';
+    const later = 'DE89370400440532013000;"24.09.25";"Baeckerei";"-8,90";"EUR";"Umsatz gebucht"';
+
+    const importText = (fileName: string, lines: readonly string[]) =>
+      imports.importCsv({
+        accountId,
+        fileName,
+        bytes: new TextEncoder().encode(`${[header, ...lines].join('\r\n')}\r\n`),
+        referenceYear,
+      });
+
+    await importText('with-standing-order.csv', [booked, scheduled]);
+    // The standing order is cancelled, so the next export simply stops listing it.
+    const summary = await importText('after-cancellation.csv', [booked, later]);
+
+    expect(await prisma.transaction.count({ where: { accountId, status: 'pending' } })).toBe(0);
+    expect(summary.pendingReplaced).toBe(0);
+  });
+
   it('brings a deleted transaction back on re-import instead of failing on the unique index', async () => {
     // The unique index covers soft-deleted rows, so a plain insert would raise P2002.
     const accountId = await account();
