@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AccountModule } from './accounts/account.module.js';
-import { HelloModule } from './hello/hello.module.js';
 import { ImportModule } from './import/import.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -12,7 +11,6 @@ import { PrismaModule } from './prisma/prisma.module.js';
     ConfigModule.forRoot({ isGlobal: true }),
     // PrismaModule is @Global(), which covers the provider — not the registration.
     PrismaModule,
-    HelloModule,
     AccountModule,
     ImportModule,
   ],

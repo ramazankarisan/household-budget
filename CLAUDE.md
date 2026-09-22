@@ -9,18 +9,31 @@ pnpm 12 monorepo, Node >=24, strict TypeScript `~6.0.3` everywhere.
 ```
 packages/core   Domain logic: CSV parsing, categorization rules, budget math.
                 Pure TypeScript, no framework deps. Compiles to dist/ (ESM + .d.ts).
+                Two entry points — the root is browser-safe; `/csv` holds the parser.
 apps/api        NestJS 12 REST API. SQLite via Prisma 7 (driver adapter, no Rust engine).
                 Global route prefix `api`; listens on :3000.
-apps/web        React 19 + Vite 8 + MUI 9. Dev server on :5173, proxies /api to :3000.
+apps/web        React 19 + Vite 8 + MUI 9 + react-router. Dev server on :5173,
+                proxies /api to :3000.
+fixtures/       Synthetic bank CSVs, byte-exact: CRLF, and Windows-1252 for the
+                primary one. .gitattributes and .editorconfig keep them that way.
 ```
 
 Both apps depend on `@household-budget/core` as `workspace:*` and import its **built**
-`dist/`, never its source. Types declared once in core (for example `HelloPayload`) are the
-contract between API responses and the UI that renders them.
+`dist/`, never its source. Types declared once in core (`AccountPayload`,
+`TransactionPayload`, `ImportSummary`) are the contract between API responses and the UI
+that renders them.
 
-Status: skeleton. `GET /api/hello` is a wiring proof, not a feature. No budget features yet.
+Status: CSV import works end to end. `POST /api/imports` takes a Sparkasse CSV-CAMT
+upload scoped to an account, decodes it (UTF-8, falling back to Windows-1252), parses it
+by column **name**, and stores the rows — deduplicated by a content fingerprint plus an
+occurrence index, so an overlapping export imports only what is new. Bad rows are
+reported with their line number while the rest of the file imports; an unparseable file
+is a 4xx. Categorization and reporting are not built yet.
 
 Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
+[docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the
+format; [docs/plans/01-csv-import.md](docs/plans/01-csv-import.md) records what was built
+and what was learned building it.
 
 ## HOW
 
@@ -52,8 +65,8 @@ Single package, single file, single test:
 
 ```bash
 pnpm --filter @household-budget/api test
-pnpm --filter @household-budget/api exec vitest run src/hello/hello.controller.test.ts
-pnpm --filter @household-budget/core exec vitest run -t 'uses the supplied clock'
+pnpm --filter @household-budget/api exec vitest run src/import/import.service.test.ts
+pnpm --filter @household-budget/core exec vitest run -t 'parses both date widths'
 ```
 
 Each package owns its `vitest.config.ts`; there is no root Vitest config, so Vitest must run

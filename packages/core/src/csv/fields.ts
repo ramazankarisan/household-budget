@@ -49,7 +49,7 @@ export function parseGermanAmount(raw: string): Cents | undefined {
 export interface ParseGermanDateOptions {
   /**
    * The year two-digit dates are resolved against. Injected rather than read from a
-   * clock, following `buildHelloPayload({ now })`, so this module stays pure.
+   * clock, so this module stays pure and a test is not a different test in December.
    */
   readonly referenceYear: number;
 }

@@ -1,7 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const WEB_URL = 'http://localhost:5173';
-const API_READY_URL = 'http://localhost:3000/api/hello';
+// Playwright accepts 200 <= status < 404, and this route answers [] on an empty
+// database. Whatever it points at has to exist: an unreachable probe does not fail
+// fast, it waits out the 120 s timeout below.
+const API_READY_URL = 'http://localhost:3000/api/accounts';
+
+/** The e2e run gets its own SQLite file — see the note on webServer below. */
+const E2E_DATABASE_URL = 'file:./data/e2e.db';
 
 /**
  * End-to-end config for apps/web. Unit tests stay in Vitest (see vite.config.ts) — this
@@ -35,6 +41,13 @@ export default defineConfig({
       timeout: 120_000,
       stdout: 'ignore',
       stderr: 'pipe',
+      /*
+       * Its own database, deleted by the test:e2e script before db:push. Without this
+       * the suite passes once and then fails: Account.iban is @unique, so the second
+       * run's account creation conflicts, and "0 imported on the second upload" becomes
+       * true on the *first* upload of run two.
+       */
+      env: { DATABASE_URL: E2E_DATABASE_URL },
     },
     {
       // --strictPort: without it Vite silently binds 5174 when 5173 is taken, and every

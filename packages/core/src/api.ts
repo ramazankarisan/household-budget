@@ -1,9 +1,9 @@
 /**
  * The shapes `apps/api` returns and `apps/web` renders.
  *
- * Declared once here for the same reason `HelloPayload` was: it is the contract
- * between the two, and a contract that lives in one of them is a contract only one of
- * them can change. Browser-safe — plain data, no `Date`, amounts in integer cents.
+ * Declared once here because it is the contract between the two, and a contract that
+ * lives in one of them is a contract only one of them can change. Browser-safe — plain
+ * data, no `Date`, amounts in integer cents.
  */
 import type { BankFileEncoding, BookingStatus } from './csv/transaction.js';
 import type { RowError } from './csv/errors.js';

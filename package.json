@@ -18,7 +18,7 @@
     "format:check": "prettier --check .",
     "test": "pnpm core:build && pnpm -r test",
     "test:fast": "pnpm core:build && pnpm --filter @household-budget/core --filter @household-budget/api test:fast",
-    "test:e2e": "pnpm core:build && pnpm --filter @household-budget/api db:push && pnpm --filter @household-budget/web exec playwright test",
+    "test:e2e": "pnpm core:build && node scripts/reset-e2e-db.mjs && pnpm --filter @household-budget/web exec playwright test",
     "e2e:install": "pnpm --filter @household-budget/web exec playwright install chromium",
     "check": "node scripts/check.mjs",
     "check:all": "node scripts/check.mjs --all",

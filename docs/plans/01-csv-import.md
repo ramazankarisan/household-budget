@@ -4,7 +4,7 @@ git_commit: 3c2b27a97f7c12d586e6ac03c29795a9b7b8360d
 branch: docs/csv-import-research
 topic: 'CSV import for Sparkasse CSV-CAMT V8 exports'
 tags: [plan, csv-import, packages-core, apps-api, apps-web, prisma]
-status: draft
+status: implemented
 ---
 
 # PLAN: CSV import for Sparkasse CSV-CAMT V8 exports
@@ -35,7 +35,7 @@ taken from documentation. Do not re-derive them.
 - [x] Deleting a transaction and re-importing the file brings it back.
 - [x] A file with 3 unparseable rows imports the rest and reports the 3 with line numbers and
       machine codes.
-- [ ] `pnpm check` is green at the end of every phase; `pnpm check:all` is green at the end.
+- [x] `pnpm check` is green at the end of every phase; `pnpm check:all` is green at the end.
 
 ## Technical Key Decisions and Tradeoffs
 
@@ -544,54 +544,54 @@ Household Budget                    [DE89…3000 ▾]
 
 **Tasks**:
 
-- [ ] Install `react-router` in `apps/web` with an explicit version pin, so it lands in the
+- [x] Install `react-router` in `apps/web` with an explicit version pin, so it lands in the
       lockfile deliberately.
-- [ ] Add the router; `/` renders the account page.
-- [ ] **Repoint Playwright's readiness probe first.** Change `API_READY_URL` in
+- [x] Add the router; `/` renders the account page.
+- [x] **Repoint Playwright's readiness probe first.** Change `API_READY_URL` in
       `apps/web/playwright.config.ts:5` from `/api/hello` to `/api/accounts`, which returns `200`
       with `[]`. Doing this before removing the hello route keeps `check:all` green throughout.
-- [ ] Retire the hello slice in one step: delete `packages/core/src/hello.ts` and `hello.test.ts`
+- [x] Retire the hello slice in one step: delete `packages/core/src/hello.ts` and `hello.test.ts`
       and their exports from `index.ts`; delete `apps/api/src/hello/` and its import in
       `app.module.ts:4,12`; delete `apps/web/src/pages/HelloPage.tsx` and `HelloPage.test.tsx`;
       remove `fetchHello` and the `HelloPayload` import from `apps/web/src/api/client.ts:1,8`;
       update `App.tsx`.
-- [ ] Extend `apps/web/src/api/client.ts` with `listAccounts`, `createAccount`, `uploadImport`
+- [x] Extend `apps/web/src/api/client.ts` with `listAccounts`, `createAccount`, `uploadImport`
       (multipart `FormData`) and `listTransactions`. Keep relative `/api` paths.
-- [ ] Add an account selector; if no account exists, show a create form first.
-- [ ] Add `ImportPanel.tsx` — file input plus drag-and-drop, disabled while uploading, then the
+- [x] Add an account selector; if no account exists, show a create form first.
+- [x] Add `ImportPanel.tsx` — file input plus drag-and-drop, disabled while uploading, then the
       summary. Render the detected encoding as a chip, and render `duplicateOfBatchId` as a "you
       already uploaded this file" notice. Failures render as a list with line numbers, not behind
       a toggle.
-- [ ] Add `TransactionList.tsx`. Format amounts with
+- [x] Add `TransactionList.tsx`. Format amounts with
       `Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })` and dates with
       `Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })` — the
       default `de-DE` date format is `22.9.2025`, unpadded. Badge pending rows with
       `aria-label="vorgemerkt"` so the e2e test has a stable handle.
-- [ ] Localize `ImportErrorCode` to German and English strings in the web app. Core returns codes;
+- [x] Localize `ImportErrorCode` to German and English strings in the web app. Core returns codes;
       the UI owns the wording.
-- [ ] Give the e2e run its own database: set `DATABASE_URL=file:./data/e2e.db` in the
+- [x] Give the e2e run its own database: set `DATABASE_URL=file:./data/e2e.db` in the
       `webServer.env` of the API entry in `playwright.config.ts`, and delete that file before
       `db:push` in the `test:e2e` script. Without this the suite passes once and then fails —
       `Account.iban` is `@unique`, so the second run's account creation 500s, and "0 imported on
       the second upload" becomes true on the _first_ upload of run two.
-- [ ] Rewrite `apps/web/e2e/smoke.spec.ts` for the new root page, and add
+- [x] Rewrite `apps/web/e2e/smoke.spec.ts` for the new root page, and add
       `apps/web/e2e/import.spec.ts` that creates an account, uploads `fixtures/sparkasse-camt-18.csv`
       via `setInputFiles`, and asserts the result.
-- [ ] Update `CLAUDE.md` — replace "Status: skeleton" and the `GET /api/hello` description with
+- [x] Update `CLAUDE.md` — replace "Status: skeleton" and the `GET /api/hello` description with
       the import feature, and add `fixtures/` to the repo map. Update `README.md`'s layout and
       "How the pieces connect" sections for the same reason, and add `binaries.prisma.sh` to
       Prerequisites.
 
 **Automated Verification**:
 
-- [ ] The e2e test uploads the cp1252 fixture and asserts `Müller GmbH` is visible — the full
+- [x] The e2e test uploads the cp1252 fixture and asserts `Müller GmbH` is visible — the full
       Windows-1252 → browser path, which no unit test covers.
-- [ ] The e2e test asserts an amount renders as `-832,90 €` — **U+002D hyphen-minus and U+00A0
+- [x] The e2e test asserts an amount renders as `-832,90 €` — **U+002D hyphen-minus and U+00A0
       no-break space**, verified on this machine. Assert with a normalizing comparison
       (`text.replace(/ /g, ' ')`) or a regex on `832,90` rather than pasting the literal.
-- [ ] The e2e test asserts the pending row via `getByLabel('vorgemerkt')`.
-- [ ] Uploading the same fixture twice shows `0 imported` and the duplicate-file notice.
-- [ ] `pnpm check:all` green, Playwright included.
+- [x] The e2e test asserts the pending row via `getByLabel('vorgemerkt')`.
+- [x] Uploading the same fixture twice shows `0 imported` and the duplicate-file notice.
+- [x] `pnpm check:all` green, Playwright included.
 
 **Manual Verification**:
 
@@ -717,6 +717,33 @@ The gate task caught two of the three things it was written to catch.
   fixture returns `imported: 8`, a second upload returns `imported: 0` with `duplicateOfBatchId`
   set, `GET /api/accounts/:id/transactions` renders `Müller GmbH` and `-83290`, and the
   malformed fixture returns **400** `{"code":"CSV_QUOTE_NOT_CLOSED"}`.
+
+### Phase 5
+
+- **`apps/web` had no tests left once `HelloPage.test.tsx` went.** Vitest exits 1 on an empty
+  suite, so `pnpm test` failed for the package. Three unit tests were added rather than setting
+  `passWithNoTests`: `format.test.ts` (the currency and date formatting, including the UTC
+  midnight trap), `TransactionList.test.tsx`, and `importErrors.test.ts` — which also asserts
+  that every `ImportErrorCode` has wording in both languages, so adding a code to core without
+  adding a string here fails.
+- **The e2e database reset is its own script**, `scripts/reset-e2e-db.mjs`, called by
+  `test:e2e` in place of the plain `db:push`. It deletes `apps/api/data/e2e.db` and pushes the
+  schema with `--url`. Proven by running `pnpm test:e2e` twice in a row: 3 passed, then 3 passed.
+  Without it the second run would have been the failure the plan predicted.
+- The two import specs are `test.describe.serial`. The second case is "upload the same file
+  again", which only means anything after the first one ran, and `fullyParallel` is on.
+- `formatBookingDate` splits the ISO string by hand instead of calling `new Date('2025-09-22')`.
+  The plan says to format with `Intl.DateTimeFormat('de-DE', …)`, and that is what it does — but
+  the language parses a bare `YYYY-MM-DD` as **UTC** midnight, so west of Greenwich the
+  formatter renders the day before. Decision 7 is about storage; this is the same bug arriving
+  at the very last step.
+- `react-hooks/set-state-in-effect` rejected clearing the transaction list inside the effect
+  that reloads it. It is cleared in the account-selector's change handler instead, which is
+  where React's own guidance puts it, and which also avoids one render showing the previous
+  account's rows under the new account's name.
+- The two `MANUAL VERIFICATION` items are the only ones left unchecked. They need a real
+  Sparkasse export, which cannot be committed and is not something this implementation can
+  produce.
 
 ## References
 

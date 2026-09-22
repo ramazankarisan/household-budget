@@ -1,8 +1,9 @@
 # household-budget
 
-A pnpm monorepo for a household budgeting app. This is currently a **skeleton**:
-the packages are wired together and one vertical slice (`GET /api/hello` rendered
-by the web app) exists to prove the wiring. No budget features yet.
+A pnpm monorepo for a household budgeting app, for one person's own bank data on
+their own machine. The first of the three product steps — import, categorize,
+report — is built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and
+listed, with duplicate detection that survives overlapping exports.
 
 ## Layout
 
@@ -11,15 +12,22 @@ packages/core   Pure TypeScript domain logic — CSV parsing, categorization
                 rules, budget math. No framework dependencies. Compiles to
                 dist/ (ESM + .d.ts); both apps import the built output.
 apps/api        NestJS 12 REST API. SQLite via Prisma 7.
-apps/web        React 19 + Vite 8 + MUI 9.
+apps/web        React 19 + Vite 8 + MUI 9 + react-router.
+fixtures/       Synthetic bank CSVs. Byte-exact test data: CRLF endings and,
+                for the primary fixture, Windows-1252. Never real statements.
+docs/           research/ and plans/, one Markdown file per topic.
 ```
 
-Both apps depend on `@household-budget/core` as `workspace:*`.
+Both apps depend on `@household-budget/core` as `workspace:*`. core has two entry
+points: the root one is browser-safe, and `@household-budget/core/csv` holds the
+CSV parser, which pulls in csv-parse's Node build and is imported only by `apps/api`.
 
 ## Prerequisites
 
 - Node 24 (`.nvmrc`)
 - pnpm 12 (`corepack enable`)
+- Network access to `binaries.prisma.sh` on install — `prisma generate` and
+  `prisma db push` fetch their binaries from it.
 
 ## Getting started
 
@@ -30,8 +38,9 @@ pnpm --filter @household-budget/api db:push   # creates apps/api/data/budget.db
 pnpm dev
 ```
 
-Then open http://localhost:5173. The page calls `GET /api/hello` and renders the
-response, including whether the API could reach SQLite.
+Then open http://localhost:5173. Create an account, drop a Sparkasse CSV export on
+the import panel, and the transactions appear below it. `fixtures/sparkasse-camt-18.csv`
+is a synthetic export to try it with.
 
 ## Scripts
 
@@ -48,7 +57,7 @@ Run from the repo root:
 | `pnpm lint:deps` | dependency-cruiser — keeps `packages/core` framework-free                  |
 | `pnpm test`      | Vitest in all three packages                                               |
 | `pnpm test:fast` | core + api only, dot reporter, stops at the first failure                  |
-| `pnpm test:e2e`  | Playwright, booting the API and web servers itself                         |
+| `pnpm test:e2e`  | Playwright, booting the API and web servers against a throwaway database   |
 | `pnpm format`    | Prettier write                                                             |
 
 `dev`, `typecheck`, and `test` build `packages/core` first, because the apps
@@ -56,13 +65,19 @@ consume its compiled `.d.ts` rather than its source.
 
 ## How the pieces connect
 
-- **core → apps.** `HelloPayload` is defined once in core; `apps/api` builds it
-  and `apps/web` renders it. A break in either import path fails `pnpm typecheck`.
+- **core → apps.** The response shapes (`AccountPayload`, `TransactionPayload`,
+  `ImportSummary`) are defined once in core; `apps/api` builds them and `apps/web`
+  renders them. A break in either import path fails `pnpm typecheck`.
 - **web → api.** The Vite dev server proxies `/api` to `localhost:3000`, so the
   browser only ever talks to one origin. There is no API base URL to configure.
 - **api → SQLite.** Prisma 7 is driver-adapter based (`@prisma/adapter-better-sqlite3`),
-  so there is no Rust query engine at runtime. `GET /api/hello` runs `SELECT 1`
-  and reports `db: "ok"` or `db: "unavailable"`.
+  so there is no Rust query engine at runtime. `Account`, `ImportBatch` and
+  `Transaction` live there; transactions are soft-deleted so a re-import can bring
+  them back.
+- **bytes → core.** `apps/api` decodes the upload (UTF-8, falling back to
+  Windows-1252) and hashes it; core takes a `string` and returns transactions. That
+  split is not a preference: core sets `"types": []`, so it has neither
+  `TextDecoder` nor `node:crypto`, and `apps/web` bundles it.
 
 ## Conventions worth knowing
 
