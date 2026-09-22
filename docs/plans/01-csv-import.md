@@ -704,6 +704,20 @@ The gate task caught two of the three things it was written to catch.
   They are reported separately as `pendingReplaced`.
 - A restored row keeps its original `importBatchId`. It was first seen by that import, and
   overwriting it would lose the provenance the batch exists to record.
+- **`ImportSummary` carries two fields the plan's step 7 response does not list**: `parsed`
+  (rows the parser understood, booked and pending together) and `pendingReplaced`. Both exist
+  in the plan's logging example; both belong in the response for the same reason they belong
+  in the log. `parsed` is what makes a partial import readable — `parsed: 9, imported: 8,
+failed: []` says the file held nine rows and one of them was the pending snapshot, where
+  `imported` alone cannot. They are additions to the plan's shape, not changes to it.
+- **A deleted _pending_ row comes back as a new row, not a restored one.** `deleteMany` for
+  the pending set is not filtered by `deletedAt`, so a pending row the user deleted is
+  cleared along with the rest and re-inserted from the file with a new id. The booked path
+  restores in place and keeps the id. Both satisfy the acceptance criterion "deleting a
+  transaction and re-importing brings it back"; only pending cannot keep its identity, since
+  those rows carry `dedupKey: null` and there is nothing to match an incoming row against.
+  The consequence worth knowing: a pending row cannot be made to _stay_ deleted while the
+  export still lists it.
 - **`prisma db push --skip-generate` does not exist in Prisma 7** — it exits 1 with "unknown or
   unexpected option". The test setup passes `--url` instead, which is also stronger than setting
   `DATABASE_URL`: `prisma.config.ts` loads `apps/api/.env`, and an explicit flag is the one

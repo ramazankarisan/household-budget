@@ -145,6 +145,12 @@ export class ImportService {
       // so the stored set is replaced wholesale rather than reconciled. Inside the
       // transaction, so a crash cannot leave them deleted but not reinserted. An older
       // export is not the newest anything, so it replaces nothing.
+      //
+      // Deliberately unfiltered by `deletedAt`: a pending row the user deleted is removed
+      // with the rest and comes back as a *new* row when the file still lists it, where a
+      // deleted booked row is restored in place and keeps its id. Both honour "delete
+      // locally, re-import, get it back"; only pending cannot keep the id, because it
+      // carries no dedupKey to match the incoming row against.
       if (!stale) {
         await tx.transaction.deleteMany({
           where: { accountId: account.id, status: 'pending' },

@@ -206,6 +206,30 @@ describe('ImportService', () => {
     expect(await liveRows(accountId)).toHaveLength(before.length);
   });
 
+  it('brings a deleted pending row back too, as a new row rather than a restored one', async () => {
+    // The booked path restores the stored row and keeps its id; the pending path cannot,
+    // because the pending set is replaced wholesale and its rows carry no dedupKey to
+    // match on. Both honour "delete locally, re-import, get it back" — this pins the one
+    // way they differ, so a future reader does not read the missing restore as a bug.
+    const accountId = await account();
+
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const pendingRow = (await liveRows(accountId)).find((row) => row.status === 'pending');
+    await accounts.softDeleteTransaction(pendingRow?.id ?? '');
+
+    expect((await liveRows(accountId)).filter((row) => row.status === 'pending')).toHaveLength(0);
+
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const live = (await liveRows(accountId)).filter((row) => row.status === 'pending');
+
+    expect(live).toHaveLength(1);
+    // A new row, not the restored one, and the soft-deleted original is gone for good.
+    expect(live[0]?.id).not.toBe(pendingRow?.id);
+    expect(summary.restored).toBe(0);
+    expect(summary.pendingReplaced).toBe(1);
+    expect(await prisma.transaction.count({ where: { id: pendingRow?.id ?? '' } })).toBe(0);
+  });
+
   it('restores one of a duplicate pair without colliding with its twin', async () => {
     // Deleting the n:0 row and re-importing must restore that row, not insert a third
     // one under a key the surviving n:1 row already holds.
