@@ -10,7 +10,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --reporter=dot",
+    "test:fast": "vitest run --reporter=dot --bail=1",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push"

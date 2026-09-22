@@ -1,0 +1,42 @@
+# Git hooks. Installed by the root `prepare` script, so a fresh clone gets them from
+# `pnpm install`.
+#
+# The split is deliberate: pre-commit stays fast enough that nobody wants to skip it, and the
+# expensive end-to-end run waits until pre-push, where a slow gate costs you once per push
+# rather than once per commit.
+#
+# To bypass in a genuine emergency: `LEFTHOOK=0 git commit ...`, or skip a single job with
+# `LEFTHOOK_EXCLUDE=gitleaks git commit ...`.
+
+# Seconds-scale. Order matters: the data and secret gates run first, because a commit that
+# leaks a bank statement is the one failure that is expensive to undo.
+pre-commit:
+  piped: true # stop at the first failing job
+  jobs:
+    - name: data-guard
+      run: node scripts/check-staged-data.mjs
+
+    - name: gitleaks
+      run: ./scripts/gitleaks.sh
+
+    - name: format
+      glob: '*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml}'
+      run: pnpm exec prettier --check {staged_files}
+
+    - name: lint
+      glob: '*.{ts,tsx}'
+      run: pnpm exec eslint {staged_files}
+
+    # Not scoped to staged files: tsc is whole-project by nature, and typecheck is the real
+    # strictness gate in this repo (lint is deliberately not type-aware).
+    - name: typecheck
+      run: pnpm typecheck
+
+    - name: core-tests
+      run: pnpm --filter @household-budget/core test:fast
+
+# The full suite, Playwright included.
+pre-push:
+  jobs:
+    - name: check
+      run: pnpm check:all

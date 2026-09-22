@@ -37,14 +37,19 @@ response, including whether the API could reach SQLite.
 
 Run from the repo root:
 
-| Script           | What it does                                                  |
-| ---------------- | ------------------------------------------------------------- |
-| `pnpm dev`       | core in watch mode + api on :3000 + web on :5173, in parallel |
-| `pnpm build`     | builds every package in dependency order                      |
-| `pnpm typecheck` | `tsc --noEmit` across all three packages                      |
-| `pnpm lint`      | ESLint over the whole workspace (one flat config at the root) |
-| `pnpm test`      | Vitest in all three packages                                  |
-| `pnpm format`    | Prettier write                                                |
+| Script           | What it does                                                               |
+| ---------------- | -------------------------------------------------------------------------- |
+| `pnpm check`     | format, lint, import boundaries, typecheck, unit tests — one line per step |
+| `pnpm check:all` | the above plus the Playwright smoke test                                   |
+| `pnpm dev`       | core in watch mode + api on :3000 + web on :5173, in parallel              |
+| `pnpm build`     | builds every package in dependency order                                   |
+| `pnpm typecheck` | `tsc --noEmit` across all three packages                                   |
+| `pnpm lint`      | ESLint over the whole workspace (one flat config at the root)              |
+| `pnpm lint:deps` | dependency-cruiser — keeps `packages/core` framework-free                  |
+| `pnpm test`      | Vitest in all three packages                                               |
+| `pnpm test:fast` | core + api only, dot reporter, stops at the first failure                  |
+| `pnpm test:e2e`  | Playwright, booting the API and web servers itself                         |
+| `pnpm format`    | Prettier write                                                             |
 
 `dev`, `typecheck`, and `test` build `packages/core` first, because the apps
 consume its compiled `.d.ts` rather than its source.
@@ -66,8 +71,16 @@ consume its compiled `.d.ts` rather than its source.
   each package only adds `module`/`lib`/`jsx`/output settings.
 - **`packages/core` and `apps/api` are ESM** (NestJS 12 is ESM-only), so relative
   imports there need explicit `.js` extensions.
-- **Lint is not type-aware** on purpose — `pnpm typecheck` already runs full tsc,
-  so ESLint stays fast and avoids "file is not in any project" failures.
+- **Lint is mostly not type-aware** on purpose — `pnpm typecheck` already runs full
+  tsc, so ESLint stays fast and avoids "file is not in any project" failures. The
+  one exception is a small overlay enabling `no-floating-promises` and
+  `no-misused-promises`, scoped to `*/src/**` and the Playwright specs. Those two
+  rules need type information and catch the one thing tsc does not: a promise
+  nobody awaited. The scoping is what keeps `vite.config.ts` and `prisma.config.ts`
+  out of the project service.
+- **Prerequisites for the commit hooks.** `gitleaks` is a Go binary, not an npm
+  package — `brew install gitleaks`. Playwright browsers are a separate download —
+  `pnpm e2e:install`.
 - **`@typescript-eslint/consistent-type-imports` is off in `apps/api`.** A Nest
   constructor parameter type looks type-only to that rule, but Nest reads it at
   runtime via `design:paramtypes`; rewriting those to `import type` breaks DI.

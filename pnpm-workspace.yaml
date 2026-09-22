@@ -3,11 +3,13 @@ packages:
   - 'apps/*'
 
 # pnpm >=10 blocks lifecycle scripts unless the package is allowlisted here.
-# Prisma needs them to place its engines; swc and better-sqlite3 are native modules.
+# Prisma needs them to place its engines; swc and better-sqlite3 are native modules;
+# lefthook downloads the platform binary that runs the git hooks.
 allowBuilds:
   '@prisma/engines': true
   '@swc/core': true
   better-sqlite3: true
+  lefthook: true
   prisma: true
 
 # pnpm 12 quarantines very recently published versions by default.
