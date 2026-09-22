@@ -157,3 +157,8 @@ apps/api/src/generated/
 # NOT match packages/core.
 /core
 /core.*
+
+# Claude Code: personal settings and the status-line script they point at.
+# Shared project settings would live in .claude/settings.json, which stays tracked.
+.claude/settings.local.json
+.claude/statusline-command.sh
