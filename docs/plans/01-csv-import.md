@@ -338,10 +338,10 @@ Dependencies: Phase 2. Both functions pure, both in core, no database.
 
 **Tasks**:
 
-- [ ] Add `packages/core/src/csv/fingerprint.ts` with `fingerprintInput(t): string` per research
+- [x] Add `packages/core/src/csv/fingerprint.ts` with `fingerprintInput(t): string` per research
       §8 — fixed-order array, `'v1'` schema tag first, NFKC + whitespace collapse + `toLowerCase`,
       amount as integer cents.
-- [ ] Add `assignOccurrences` in the same file:
+- [x] Add `assignOccurrences` in the same file:
 
 ```ts
 /** Index of each row among rows sharing its fingerprint, in file order. Pure. */
@@ -352,18 +352,18 @@ export function assignOccurrences(fileFingerprints: readonly string[]): readonly
       re-import produces the same keys and matches. See Decision 10 for why this is equivalent to
       the research's multiset-difference framing and simpler.
 
-- [ ] Write `fingerprint.test.ts`.
+- [x] Write `fingerprint.test.ts`.
 
 **Automated Verification**:
 
-- [ ] Two transactions differing only in `source` produce the same `fingerprintInput`.
-- [ ] `Müller GmbH` and `müller  gmbh` produce the same fingerprint.
-- [ ] Differing amount, date or purpose produce different fingerprints.
-- [ ] `fingerprintInput` is stable across object key insertion order.
-- [ ] `assignOccurrences(['a','a'])` → `[0, 1]`.
-- [ ] `assignOccurrences(['a','b','a'])` → `[0, 0, 1]`.
-- [ ] Running `assignOccurrences` twice on the same input returns identical output.
-- [ ] `pnpm check` green.
+- [x] Two transactions differing only in `source` produce the same `fingerprintInput`.
+- [x] `Müller GmbH` and `müller  gmbh` produce the same fingerprint.
+- [x] Differing amount, date or purpose produce different fingerprints.
+- [x] `fingerprintInput` is stable across object key insertion order.
+- [x] `assignOccurrences(['a','a'])` → `[0, 1]`.
+- [x] `assignOccurrences(['a','b','a'])` → `[0, 0, 1]`.
+- [x] Running `assignOccurrences` twice on the same input returns identical output.
+- [x] `pnpm check` green.
 
 ### Phase 4: Persistence and the import endpoint
 
@@ -676,6 +676,17 @@ The gate task caught two of the three things it was written to catch.
   row, so this is invisible there, but a row with two defects reports one.
 - Core needed a hand-written `declare module '*?raw'`: `vite/client` is not in scope under
   `"types": []`, and pulling it in would put DOM and Node globals back within core's reach.
+
+### Phase 3
+
+- Added a third export, `dedupKeyInput(fingerprint, occurrence)`, so the `f|n:i` format lives
+  next to the two functions that produce its parts rather than as a template string in
+  `import.service.ts`. Phase 4 calls `sha256Hex(dedupKeyInput(…))`.
+- `fingerprint.ts` is exported from the package **root**, not the `./csv` subpath. It is pure
+  and browser-safe — the split from Phase 2 exists only to keep csv-parse out of the bundle.
+- One test the plan did not list: a `Verwendungszweck` containing `", "` must not be able to
+  forge a field boundary. `JSON.stringify` over a fixed-order array is what prevents it, and
+  the test is what stops someone replacing that with `join('|')` later.
 
 ## References
 

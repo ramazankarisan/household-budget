@@ -11,6 +11,7 @@ export type { ImportErrorCode, ImportFileErrorCode, RowError } from './csv/error
 export { CsvFileError } from './csv/errors.js';
 export type { ParseGermanDateOptions } from './csv/fields.js';
 export { parseGermanAmount, parseGermanDate } from './csv/fields.js';
+export { assignOccurrences, dedupKeyInput, fingerprintInput } from './csv/fingerprint.js';
 export type {
   BankFileEncoding,
   BookingStatus,
