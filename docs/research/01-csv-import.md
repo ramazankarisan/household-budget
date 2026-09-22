@@ -92,10 +92,12 @@ they change what gets built.
    disagree on the legacy count — which is precisely why a fixed skip count is the wrong
    mechanism.
 
-**Unresolved assumption:** the brief left the bank as `[DKB/Sparkasse — insert yours]`. This
-report treats Sparkasse CSV-CAMT as primary (it matches the supplied header) and DKB as
-secondary. Confirm before implementation, since DKB's format is not a variant of Sparkasse's —
-it differs on every axis.
+**Resolved since writing:** the brief left the bank as `[DKB/Sparkasse — insert yours]`. The
+user has since confirmed **Sparkasse CSV-CAMT only**, and that **`Kategorie` is real** — it is
+one of the export options Sparkasse offers. Correction 1 above therefore stands as a statement
+about the public record, not about this repo's target: both a 17- and an 18-column CSV-CAMT
+exist, which is exactly why columns must be matched by name. DKB content is retained below for
+the day it is added, and clearly marked out of scope. See "Decisions confirmed".
 
 ## Detailed findings
 
@@ -318,7 +320,10 @@ export type Cents = number & { readonly __brand: 'Cents' };
 export type BookingStatus = 'booked' | 'pending';
 
 export interface Transaction {
-  /** Own account, IBAN, spaces stripped. */
+  /**
+   * Own account, IBAN, spaces stripped. Provenance and cross-checking only — the account an
+   * import belongs to is chosen by the user before upload, never inferred from this.
+   */
   readonly accountIban: string;
   /** Booking date, 'YYYY-MM-DD'. Primary date for budgeting. */
   readonly bookingDate: string;
@@ -353,7 +358,8 @@ export interface Transaction {
 }
 
 export interface TransactionSource {
-  readonly dialect: 'sparkasse-camt' | 'dkb-current' | 'dkb-legacy';
+  /** Only Sparkasse CSV-CAMT is in scope today; the union exists so adding one is additive. */
+  readonly dialect: 'sparkasse-camt';
   readonly fileName: string;
   readonly lineNumber: number;
   /** Encoding actually used to decode the file. Log it. */
@@ -459,10 +465,17 @@ case — you download "last 30 days" every month — and within-file indexing re
 everything, so all rows look new. This is hledger's "skip the first N records on that date",
 which is the one mechanism in this space that demonstrably survives same-day repeats.
 
-**Persist alongside the key:** provenance (file name, line number, whole-file hash), the raw
-row verbatim, and a deliberate soft-delete policy. Firefly III looks up hashes
-`withTrashed()`, so a deleted transaction blocks re-import forever — a perennial source of
-confusion. Decide that behaviour rather than inheriting it.
+**Persist alongside the key:** provenance (file name, line number, whole-file hash) and the raw
+row verbatim — so a later change to normalization can re-key from stored data instead of asking
+the user to re-download. That is Firefly III's single largest support burden.
+
+**Soft-delete policy — decided.** The dedup lookup **excludes** soft-deleted rows, so deleting
+a transaction and re-importing the same file brings it back. Deletion is local; the file is the
+source of truth. This is deliberately the opposite of Firefly III, which looks up hashes
+`withTrashed()` and therefore blocks re-import forever — a documented, perennial source of
+confusion. The cost of this choice is the mirror image: a user who deletes a row to "get rid of
+it" will see it return after the next overlapping import. If that becomes a complaint, the fix
+is Actual Budget's: make it configurable rather than flipping the default.
 
 ### 9. Bilingual (German / English)
 
@@ -490,33 +503,59 @@ Secondary, but it touches three things in import specifically:
 - `apps/web/src/pages/HelloPage.tsx` — proves core is browser-bundled
 - `CLAUDE.md` RULES — core stays framework-free; never commit real bank data; fixtures synthetic
 
+## Decisions confirmed (2026-09-22)
+
+Four of the six open questions were answered directly by the user.
+
+1. **Scope is Sparkasse CSV-CAMT only.** DKB is out of scope. The multi-dialect machinery in
+   this report is therefore **not** needed on day one — but the header-scan approach and
+   name-based column matching stay, because they cost nothing now and are what make a second
+   dialect additive later rather than a rewrite.
+2. **`Kategorie` is real.** The user confirms it is one of the CSV export options Sparkasse
+   offers. So **both an 17-column and an 18-column CSV-CAMT shape exist in the wild** — the
+   documented one ending at `Info`, and the one with `Kategorie`. This makes name-based column
+   matching mandatory rather than merely advisable, and it is why the two required fixtures are
+   these two shapes (see below).
+3. **The account is chosen by the user before upload.** Imports are scoped to a pre-selected
+   account; `Auftragskonto` is stored for provenance and cross-checking, but is never used to
+   create or pick an account. This removes a whole class of silent "landed in the wrong
+   account" failures.
+4. **Deleted transactions come back on re-import.** Deletion is local; the bank file is the
+   source of truth. Concretely: the dedup lookup must **exclude** soft-deleted rows — the
+   opposite of Firefly III's `withTrashed()`, whose behaviour of blocking re-import forever is
+   a documented and perennial source of user confusion.
+
 ## Open questions
 
-1. **Which bank is actually yours?** The brief's placeholder was never filled. Sparkasse is
-   assumed primary from the header; DKB is assumed secondary from "2 formats".
-2. **Does your export really have `Kategorie`?** No primary source documents it. Paste the
-   first two lines of a real export (amounts redacted) and it can be settled.
-3. **Sparkasse CSV-CAMT V2 vs V8** — no column-level difference could be confirmed. V8 is the
+1. **Sparkasse CSV-CAMT V2 vs V8** — no column-level difference could be confirmed. V8 is the
    forward-looking choice; the Deutsche Kreditwirtschaft required migration by November 2025.
-4. **Does any target export carry a running balance?** It materially improves the dedup
-   discriminator. Neither Sparkasse CSV-CAMT nor DKB appears to, but this was not confirmed.
-5. **Multi-account** — `Auftragskonto` implies one account per file, but the data model should
-   decide now whether an import is scoped to a pre-selected account or infers it.
-6. **Soft-delete policy on re-import** — deliberate decision required, see §8.
+   Worth checking which one your export option produces, since it may also explain the
+   `Kategorie` column.
+2. **Does the export carry a running balance?** It would materially improve the dedup
+   discriminator — a balance is unique per booking, so it disambiguates genuinely identical
+   same-day rows without needing occurrence counting. Sparkasse CSV-CAMT does not appear to,
+   but this was not confirmed.
+3. **Are pending rows (`Umsatz vorgemerkt`) present in your export option?** If the export only
+   ever contains booked rows, §8's pending-row handling is dead code and can be dropped.
 
 ## Next step: the implementation plan
 
 The plan that follows this research **must** include synthetic fixture CSVs, and they are the
 first deliverable, not the last — the parser should be written against them.
 
-**Required fixtures — both formats:**
+**Required fixtures — two formats.** Since scope is now Sparkasse-only, the two formats are
+the two CSV-CAMT shapes that genuinely exist, not two banks. This is the better test anyway:
+it exercises name-based column matching, which is the mechanism everything else depends on.
 
-- `fixtures/sparkasse-camt.csv` — header on line 1, mixed quoting with `Auftragskonto`
-  unquoted, Windows-1252 encoded
-- `fixtures/dkb-current.csv` — 4 preamble lines, UTF-8 **with BOM**, `DD.MM.YY` dates,
-  `Betrag (€)` with embedded € symbol
-- Optionally `fixtures/dkb-legacy.csv` — ~6 preamble lines, ISO-8859-1, `DD.MM.YYYY`,
-  `Betrag (EUR)`
+- `fixtures/sparkasse-camt-18.csv` — **18 columns, ending with `Kategorie`.** The user's own
+  export option. Header on line 1, `Auftragskonto` unquoted with the rest quoted,
+  Windows-1252, `DD.MM.YY` dates.
+- `fixtures/sparkasse-camt-17.csv` — **17 columns, ending at `Info`.** The shape every public
+  sample shows. Same content otherwise, so a single parser must produce identical
+  `Transaction` values from both, with `bankCategory` simply absent from the 17-column one.
+
+If DKB is ever added, `fixtures/dkb-current.csv` (4 preamble lines, UTF-8 **with BOM**,
+`Betrag (€)` with embedded € symbol) is the fixture to write — but it is out of scope today.
 
 **Required edge cases**, spread across those files or as focused extra fixtures:
 
