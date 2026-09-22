@@ -137,14 +137,19 @@ export class ImportService {
 
     const dedupKeys = this.dedupKeysFor(booked);
     const { toInsert, toRestore, skipped } = await this.classify(account.id, dedupKeys);
+    const stale = await this.isStaleExport(account.id, transactions);
+    const pendingToStore = stale ? [] : pending;
 
     const batchId = await this.prisma.$transaction(async (tx) => {
       // Pending rows are a snapshot, not a ledger: the newest export is always right,
       // so the stored set is replaced wholesale rather than reconciled. Inside the
-      // transaction, so a crash cannot leave them deleted but not reinserted.
-      await tx.transaction.deleteMany({
-        where: { accountId: account.id, status: 'pending' },
-      });
+      // transaction, so a crash cannot leave them deleted but not reinserted. An older
+      // export is not the newest anything, so it replaces nothing.
+      if (!stale) {
+        await tx.transaction.deleteMany({
+          where: { accountId: account.id, status: 'pending' },
+        });
+      }
 
       const batch = await tx.importBatch.create({
         data: {
@@ -178,9 +183,9 @@ export class ImportService {
         });
       }
 
-      if (pending.length > 0) {
+      if (pendingToStore.length > 0) {
         await tx.transaction.createMany({
-          data: pending.map((transaction) => toRow(transaction, account.id, batch.id, null)),
+          data: pendingToStore.map((transaction) => toRow(transaction, account.id, batch.id, null)),
         });
       }
 
@@ -189,7 +194,8 @@ export class ImportService {
 
     this.logger.log(
       `import ${batchId} imported=${String(toInsert.length)} skipped=${String(skipped)} ` +
-        `restored=${String(toRestore.length)} pendingReplaced=${String(pending.length)}`,
+        `restored=${String(toRestore.length)} pendingReplaced=${String(pendingToStore.length)}` +
+        (stale ? ' (older export: pending left untouched)' : ''),
     );
 
     return {
@@ -198,7 +204,7 @@ export class ImportService {
       imported: toInsert.length,
       skipped,
       restored: toRestore.length,
-      pendingReplaced: pending.length,
+      pendingReplaced: pendingToStore.length,
       failed: errors,
       encoding,
       ...(priorBatch === null ? {} : { duplicateOfBatchId: priorBatch.id }),
@@ -227,6 +233,38 @@ export class ImportService {
       }
       throw error;
     }
+  }
+
+  /**
+   * An export is a snapshot as of its newest booking date, and the pending set is only ever
+   * replaced wholesale. That is right for the newest file and wrong for any older one:
+   * re-importing last month's statement would otherwise delete pending rows it never saw,
+   * and reinstate the ones it still shows as pending. Its booked rows still import — they
+   * are a ledger, and dedup handles them.
+   */
+  private async isStaleExport(
+    accountId: string,
+    transactions: readonly ParsedTransaction[],
+  ): Promise<boolean> {
+    const newestStored = await this.prisma.transaction.findFirst({
+      where: { accountId, deletedAt: null },
+      orderBy: { bookingDate: 'desc' },
+      select: { bookingDate: true },
+    });
+    if (newestStored === null) {
+      return false;
+    }
+
+    // 'YYYY-MM-DD' compares lexicographically. A file with no readable row at all has no
+    // newest date, sorts below everything, and so is treated as stale rather than allowed
+    // to empty the pending set.
+    const newestParsed = transactions.reduce(
+      (latest, transaction) =>
+        transaction.bookingDate > latest ? transaction.bookingDate : latest,
+      '',
+    );
+
+    return newestParsed < newestStored.bookingDate;
   }
 
   private dedupKeysFor(

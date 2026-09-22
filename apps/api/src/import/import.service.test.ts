@@ -141,6 +141,23 @@ describe('ImportService', () => {
     expect(summary.skipped).toBe(3);
   });
 
+  it('leaves the pending set alone when an older export is imported after a newer one', async () => {
+    // The newest export owns the pending set; an older one saw a different day. Replacing
+    // wholesale from a stale file would delete pending rows it never covered, and put back
+    // the ones it still shows as pending — both of which the user would read as the bank
+    // changing its mind.
+    const accountId = await account();
+
+    await importFile(accountId, 'sparkasse-camt-18-next.csv');
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const rows = await liveRows(accountId);
+
+    expect(rows.filter((row) => row.status === 'pending')).toHaveLength(0);
+    expect(summary.pendingReplaced).toBe(0);
+    // Its booked rows are a ledger and still import.
+    expect(summary.imported).toBeGreaterThan(0);
+  });
+
   it('brings a deleted transaction back on re-import instead of failing on the unique index', async () => {
     // The unique index covers soft-deleted rows, so a plain insert would raise P2002.
     const accountId = await account();
