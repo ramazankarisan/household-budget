@@ -7,6 +7,7 @@ export { buildHelloPayload, describeHello } from './hello.js';
  * `apps/api` imports. Everything exported here is browser-safe, because `apps/web`
  * bundles it.
  */
+export type { AccountPayload, ImportSummary, TransactionPayload } from './api.js';
 export type { ImportErrorCode, ImportFileErrorCode, RowError } from './csv/errors.js';
 export { CsvFileError } from './csv/errors.js';
 export type { ParseGermanDateOptions } from './csv/fields.js';

@@ -21,18 +21,18 @@ taken from documentation. Do not re-derive them.
 
 - [x] Both primary fixtures parse to **identical** `Transaction` values, except `bankCategory` is
       absent from the 17-column one.
-- [ ] Umlauts survive a Windows-1252 file end to end: `Müller GmbH` reaches the browser intact,
+- [x] Umlauts survive a Windows-1252 file end to end: `Müller GmbH` reaches the browser intact,
       never `M�ller` (cp1252 bytes read as UTF-8) or `MÃ¼ller` (UTF-8 read as cp1252).
 - [x] `832,9` parses to `83290` cents and `-190` to `-19000`. No float touches an amount.
 - [x] `"24.03.14";"01.04.2014"` in one row yields `2014-03-24` and `2014-04-01`.
 - [x] A quoted field containing `;`, a quoted field containing a newline, and doubled quotes all
       parse correctly. An unterminated quote **fails loudly** rather than swallowing the file.
-- [ ] Re-importing the same file imports **0** new rows.
-- [ ] Two distinct same-day, same-amount, same-merchant rows both survive import, and survive a
+- [x] Re-importing the same file imports **0** new rows.
+- [x] Two distinct same-day, same-amount, same-merchant rows both survive import, and survive a
       re-import without duplicating.
-- [ ] A pending row is replaced rather than duplicated on re-import; when it books it becomes one
+- [x] A pending row is replaced rather than duplicated on re-import; when it books it becomes one
       booked row with no pending twin left behind.
-- [ ] Deleting a transaction and re-importing the file brings it back.
+- [x] Deleting a transaction and re-importing the file brings it back.
 - [x] A file with 3 unparseable rows imports the rest and reports the 3 with line numbers and
       machine codes.
 - [ ] `pnpm check` is green at the end of every phase; `pnpm check:all` is green at the end.
@@ -371,7 +371,7 @@ Dependencies: Phase 3. Where `schema.prisma` stops being empty.
 
 **Tasks**:
 
-- [ ] Write the Prisma schema:
+- [x] Write the Prisma schema:
       ```prisma
       model Account {
       id String @id @default(cuid())
@@ -438,15 +438,15 @@ Dependencies: Phase 3. Where `schema.prisma` stops being empty.
       rows coexist; and the index **does** cover soft-deleted rows, which is precisely why
       re-import must restore rather than insert.
 
-- [ ] Apply with `pnpm --filter @household-budget/api db:push` — **not** `prisma migrate`. The
+- [x] Apply with `pnpm --filter @household-budget/api db:push` — **not** `prisma migrate`. The
       repo standardizes on `db:push` (`README.md:29`, `package.json:21` `test:e2e`), there is no
       `prisma/migrations/` directory, and introducing migrations would mean `test:e2e` pushes over
       a migrated schema every run. Requires `binaries.prisma.sh` to be reachable.
-- [ ] Add `apps/api/src/import/decode.ts` — `decodeBankCsv(bytes)` per research §2.
-- [ ] Add `apps/api/src/import/hash.ts` — `sha256Hex(input)` via `crypto.hash('sha256', …, 'hex')`;
+- [x] Add `apps/api/src/import/decode.ts` — `decodeBankCsv(bytes)` per research §2.
+- [x] Add `apps/api/src/import/hash.ts` — `sha256Hex(input)` via `crypto.hash('sha256', …, 'hex')`;
       truncated to 32 chars for dedup keys, full length for the file hash.
-- [ ] Add `apps/api/src/accounts/` — `POST /api/accounts`, `GET /api/accounts`.
-- [ ] Add `apps/api/src/import/import.service.ts`:
+- [x] Add `apps/api/src/accounts/` — `POST /api/accounts`, `GET /api/accounts`.
+- [x] Add `apps/api/src/import/import.service.ts`:
   1. hash raw bytes → `fileHash`; look for a prior `ImportBatch` with the same
      `(accountId, fileHash)` and carry its id into the response as `duplicateOfBatchId`
   2. decode → `{ text, encoding }`; `parseSparkasseCsv(text, { fileName, encoding, referenceYear })`
@@ -459,7 +459,7 @@ Dependencies: Phase 3. Where `schema.prisma` stops being empty.
   6. write the `ImportBatch` row with the counts
   7. return `{ batchId, imported, skipped, restored, failed, encoding, duplicateOfBatchId? }`
   - wrap 4–6 in one `$transaction` so a crash cannot leave pending rows deleted but not reinserted
-- [ ] Add `import.controller.ts` with `POST /api/imports` (multipart, `accountId` field). Type the
+- [x] Add `import.controller.ts` with `POST /api/imports` (multipart, `accountId` field). Type the
       uploaded file with a **local interface** — `@types/multer` is not installed and
       `apps/api/tsconfig.json:7` pins `types: ["node"]`, so the global `Express.Multer.File` does
       not exist:
@@ -476,47 +476,47 @@ interface UploadedCsv {
       Reject files over 10 MB, and accept `text/csv` plus `application/vnd.ms-excel` — Sparkasse
       sends the latter.
 
-- [ ] Map csv-parse's file-level errors (`CSV_QUOTE_NOT_CLOSED`,
+- [x] Map csv-parse's file-level errors (`CSV_QUOTE_NOT_CLOSED`,
       `CSV_RECORD_INCONSISTENT_FIELDS_LENGTH`) and missing-required-column errors to
       `BadRequestException`, so they surface as 4xx rather than an unhandled 500.
-- [ ] Add `GET /api/accounts/:id/transactions` — `bookingDate` desc, excluding soft-deleted,
+- [x] Add `GET /api/accounts/:id/transactions` — `bookingDate` desc, excluding soft-deleted,
       including `status`.
-- [ ] Add `DELETE /api/transactions/:id` — sets `deletedAt`, never hard-deletes.
-- [ ] Register `AccountsModule` and `ImportModule` in `apps/api/src/app.module.ts`. `PrismaModule`
+- [x] Add `DELETE /api/transactions/:id` — sets `deletedAt`, never hard-deletes.
+- [x] Register `AccountsModule` and `ImportModule` in `apps/api/src/app.module.ts`. `PrismaModule`
       being `@Global()` covers the _provider_, not module registration.
-- [ ] Add a Vitest `globalSetup` for `apps/api` that points `DATABASE_URL` at a temp file and runs
+- [x] Add a Vitest `globalSetup` for `apps/api` that points `DATABASE_URL` at a temp file and runs
       `prisma db push` before the suite. `resolveDatabaseUrl()` is read at `PrismaService`
       construction (`apps/api/src/config/database.ts:16-19`), so the env var must be set before the
       testing module is created. Mocking Prisma would test nothing here — the dedup behaviour
       lives in the query.
-- [ ] Write `import.service.test.ts` against that real SQLite file.
+- [x] Write `import.service.test.ts` against that real SQLite file.
 
 **Automated Verification**:
 
-- [ ] Importing `sparkasse-camt-18.csv` twice: the second reports `imported: 0`, and its response
+- [x] Importing `sparkasse-camt-18.csv` twice: the second reports `imported: 0`, and its response
       carries `duplicateOfBatchId` set to the first batch.
-- [ ] The two identical-looking rows both exist after the first import, and still exactly two
+- [x] The two identical-looking rows both exist after the first import, and still exactly two
       after the second.
-- [ ] Pending row count stays 1 after importing the same file three times.
-- [ ] Importing `sparkasse-camt-18.csv` then `sparkasse-camt-18-next.csv` leaves the formerly
+- [x] Pending row count stays 1 after importing the same file three times.
+- [x] Importing `sparkasse-camt-18.csv` then `sparkasse-camt-18-next.csv` leaves the formerly
       pending transaction as exactly one **booked** row and zero pending rows, and adds the one
       genuinely new row.
-- [ ] Soft-deleting a transaction then re-importing restores it: row count returns to its
+- [x] Soft-deleting a transaction then re-importing restores it: row count returns to its
       pre-delete value, `restored: 1` is reported, and **no `P2002` unique-constraint error is
       raised**.
-- [ ] Soft-delete the `n:0` of a duplicate pair, re-import, and assert both rows are live with
+- [x] Soft-delete the `n:0` of a duplicate pair, re-import, and assert both rows are live with
       distinct ids — the key-collision case Decision 9 exists to prevent.
-- [ ] Importing the **Windows-1252** fixture stores `Müller GmbH`, asserted by exact string
+- [x] Importing the **Windows-1252** fixture stores `Müller GmbH`, asserted by exact string
       equality. This is the cp1252 assertion that core's tests cannot make.
-- [ ] `decodeBankCsv` returns `windows-1252` for the cp1252 fixture, and `utf-8` for
+- [x] `decodeBankCsv` returns `windows-1252` for the cp1252 fixture, and `utf-8` for
       `sparkasse-camt-18-utf8-bom.csv` with the BOM stripped — assert the first header key is
       `Auftragskonto`, not `﻿Auftragskonto`.
-- [ ] `sparkasse-camt-18-bad-rows.csv` returns `failed.length === 3` with correct line numbers and
+- [x] `sparkasse-camt-18-bad-rows.csv` returns `failed.length === 3` with correct line numbers and
       codes, and the good rows are stored.
-- [ ] `sparkasse-camt-malformed.csv` returns **4xx**, not 500, and imports nothing.
-- [ ] An import whose `Auftragskonto` differs from the selected `Account.iban` still succeeds and
+- [x] `sparkasse-camt-malformed.csv` returns **4xx**, not 500, and imports nothing.
+- [x] An import whose `Auftragskonto` differs from the selected `Account.iban` still succeeds and
       stores the file's value in `Transaction.accountIban`.
-- [ ] `pnpm check` green.
+- [x] `pnpm check` green.
 
 ### Phase 5: Web UI and end-to-end coverage
 
@@ -687,6 +687,36 @@ The gate task caught two of the three things it was written to catch.
 - One test the plan did not list: a `Verwendungszweck` containing `", "` must not be able to
   forge a field boundary. `JSON.stringify` over a fixed-order array is what prevents it, and
   the test is what stops someone replacing that with `join('|')` later.
+
+### Phase 4
+
+- **The API response shapes live in `packages/core`** (`src/api.ts`: `AccountPayload`,
+  `TransactionPayload`, `ImportSummary`). Not in the plan, but it is what `CLAUDE.md` asks for —
+  "types declared once in core are the contract between API responses and the UI" — and it is
+  the precedent `HelloPayload` set. Phase 5 imports them rather than restating them.
+- **The `ImportBatch` row is written before the transaction rows, not after.** The plan's step 6
+  puts it last, but `Transaction.importBatchId` is a required foreign key, so the batch has to
+  exist first. The counts are known before the write anyway: the three-way classification is a
+  read, so `imported`/`skipped`/`restored` are all decided before anything is inserted. One
+  write, correct counts, no placeholder update.
+- `imported` counts new **booked** rows only. Pending rows are re-inserted on every import by
+  design, so counting them would make "re-importing imports 0 rows" false on every re-import.
+  They are reported separately as `pendingReplaced`.
+- A restored row keeps its original `importBatchId`. It was first seen by that import, and
+  overwriting it would lose the provenance the batch exists to record.
+- **`prisma db push --skip-generate` does not exist in Prisma 7** — it exits 1 with "unknown or
+  unexpected option". The test setup passes `--url` instead, which is also stronger than setting
+  `DATABASE_URL`: `prisma.config.ts` loads `apps/api/.env`, and an explicit flag is the one
+  thing that file cannot override. The suite can never touch the developer's own database.
+- csv-parse's error codes are matched structurally (`code` starting with `CSV_`) rather than by
+  importing csv-parse into `apps/api`. It is `packages/core`'s dependency, and adding it here to
+  read a string constant would make the Phase 2 entry-point split pointless.
+- `AccountService` owns transactions as well as accounts. A transaction is only ever reached
+  through the account it belongs to, and a second service would have had a single caller.
+- Verified over HTTP as well as in the unit tests: a real multipart upload of the Windows-1252
+  fixture returns `imported: 8`, a second upload returns `imported: 0` with `duplicateOfBatchId`
+  set, `GET /api/accounts/:id/transactions` renders `Müller GmbH` and `-83290`, and the
+  malformed fixture returns **400** `{"code":"CSV_QUOTE_NOT_CLOSED"}`.
 
 ## References
 
