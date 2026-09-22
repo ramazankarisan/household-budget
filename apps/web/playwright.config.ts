@@ -4,7 +4,7 @@ const WEB_URL = 'http://localhost:5173';
 // Playwright accepts 200 <= status < 404, and this route answers [] on an empty
 // database. Whatever it points at has to exist: an unreachable probe does not fail
 // fast, it waits out the 120 s timeout below.
-const API_READY_URL = 'http://localhost:3000/api/accounts';
+const API_READY_URL = 'http://127.0.0.1:3000/api/accounts';
 
 /** The e2e run gets its own SQLite file — see the note on webServer below. */
 const E2E_DATABASE_URL = 'file:./data/e2e.db';

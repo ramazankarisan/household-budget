@@ -1,7 +1,9 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-const API_TARGET = 'http://localhost:3000';
+// 127.0.0.1, not localhost: Node resolves localhost to ::1 first, so anything else
+// holding [::1]:3000 gets the proxied /api requests even though the API is listening.
+const API_TARGET = 'http://127.0.0.1:3000';
 
 export default defineConfig({
   plugins: [react()],
