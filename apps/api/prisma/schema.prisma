@@ -1,0 +1,14 @@
+// Prisma schema for household-budget.
+// Docs: https://pris.ly/d/prisma-schema
+//
+// The connection URL lives in ../prisma.config.ts (Prisma 7 moved it out of
+// this file). Domain models land here with the first real feature.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}

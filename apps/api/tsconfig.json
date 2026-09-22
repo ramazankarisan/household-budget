@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "lib": ["ES2023"],
+    "types": ["node"],
+
+    /* NestJS dependency injection reads design:paramtypes at runtime. */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true,
+    "declaration": false
+  },
+  "include": ["src"],
+  "//": "src/generated holds the Prisma client, which is not written to this project's strict settings.",
+  "exclude": ["dist", "node_modules", "src/generated"]
+}
