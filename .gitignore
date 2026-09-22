@@ -152,8 +152,13 @@ data/
 
 # Bank CSV exports. Synthetic test data under fixtures/ is the one exception,
 # and scripts/check-staged-data.mjs blocks the rest at commit time.
+#
+# The negation is **/fixtures/, not fixtures/: a pattern containing a slash is
+# anchored to this file's directory, so `!fixtures/**/*.csv` would re-include only a
+# root-level fixtures/ while scripts/check-staged-data.mjs allows fixtures/ at any
+# depth. That mismatch silently keeps packages/core/fixtures/*.csv out of git.
 *.csv
-!fixtures/**/*.csv
+!**/fixtures/**/*.csv
 
 # Playwright output
 test-results/
