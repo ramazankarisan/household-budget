@@ -525,18 +525,50 @@ Four of the six open questions were answered directly by the user.
    opposite of Firefly III's `withTrashed()`, whose behaviour of blocking re-import forever is
    a documented and perennial source of user confusion.
 
+5. **The export is CSV-CAMT V8**, the ISO 20022 `camt.053.001.08` generation. This is the
+   forward-looking one — the Deutsche Kreditwirtschaft required migration off V2 by November
+   2025 — and it is the likeliest explanation for the `Kategorie` column that no V2-era sample
+   shows. No column-level V2/V8 difference could be confirmed from public sources, so treat the
+   user's own 18-column header as the authority and V8 as the only target.
+6. **Pending rows are present**, and **no running balance is confirmed**. Together these are
+   the hardest combination for deduplication, and they decide §8 — see "Pending rows" below.
+
+### Pending rows — the decided approach
+
+`Umsatz vorgemerkt` rows are a **snapshot, not a ledger entry**. When the transaction books it
+reappears with `Umsatz gebucht`, usually a **different `Buchungstag`**, and often a rewritten
+`Verwendungszweck`. Any fingerprint over those fields therefore fails to match the pending row
+against its own booked form. Trying to reconcile the two is the wrong problem to take on.
+
+**Treat pending rows as a replaceable set, scoped to the account:**
+
+1. Booked rows go through the fingerprint and occurrence logic in §8, unchanged.
+2. Pending rows are **never fingerprinted and never deduped**.
+3. On every import, **delete all stored pending rows for that account, then insert the pending
+   rows from the file.** Pending is transient state; the newest export is always right.
+4. When a pending row books, it simply arrives as a booked row on a later import and goes down
+   the normal path. The stale pending copy is already gone, deleted by step 3.
+
+This costs one delete-by-account-and-status per import and removes the entire class of
+"pending row and its booked twin both present" bugs. It is the same guard Actual Budget uses
+(`if (trans.cleared && !trans.transactionId)`), reached from the other direction.
+
+Pending rows must also be **excluded from budget totals by default**, or a month's spend
+changes as rows book. Showing them separately — "pending: −42,17 €" — is a UI decision, not an
+import one.
+
+**Because no running balance is confirmed**, the §8 discriminator falls back to the occurrence
+index, computed by multiset difference against the database. Keep the balance branch in the
+design: if a V8 export does turn out to carry one, it is strictly better and the switch is
+local to `dedupKey`.
+
 ## Open questions
 
-1. **Sparkasse CSV-CAMT V2 vs V8** — no column-level difference could be confirmed. V8 is the
-   forward-looking choice; the Deutsche Kreditwirtschaft required migration by November 2025.
-   Worth checking which one your export option produces, since it may also explain the
-   `Kategorie` column.
-2. **Does the export carry a running balance?** It would materially improve the dedup
-   discriminator — a balance is unique per booking, so it disambiguates genuinely identical
-   same-day rows without needing occurrence counting. Sparkasse CSV-CAMT does not appear to,
-   but this was not confirmed.
-3. **Are pending rows (`Umsatz vorgemerkt`) present in your export option?** If the export only
-   ever contains booked rows, §8's pending-row handling is dead code and can be dropped.
+1. **Does the V8 export carry a running balance after all?** Not confirmed either way. Worth
+   one look at a real file — it would replace occurrence counting with something exact.
+2. **What is the full `Info` value set in V8?** Only `Umsatz gebucht` and `Umsatz vorgemerkt`
+   are attested. Any third value should fail loudly on import rather than being silently
+   treated as booked.
 
 ## Next step: the implementation plan
 
