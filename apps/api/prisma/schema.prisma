@@ -104,6 +104,24 @@ model Category {
   createdAt    DateTime      @default(now())
   rules        Rule[]
   transactions Transaction[]
+  budgets      Budget[]
+}
+
+/// A limit for one category in one month. Household-wide: Category is global, so a
+/// per-account limit would need a per-account category to mean anything.
+model Budget {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  /// 'YYYY-MM'. Text for the reason bookingDate is text: a month has no time and no zone.
+  month       String
+  /// Positive integer cents. 0 is a real limit and means "nothing may be spent here".
+  amountCents Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([categoryId, month])
+  @@index([month])
 }
 
 /// One condition pointing at a category. Combining conditions is done by writing two

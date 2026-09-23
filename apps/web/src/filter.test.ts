@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   filterTransactions,
   hasFilters,
+  listEntryOf,
+  monthOf,
   monthsOf,
   NO_FILTERS,
   searchableOf,
@@ -157,6 +159,29 @@ describe('searchableOf', () => {
 
     expect(only?.text).toBe('müller gmbh miete oktober');
     expect(only?.iban).toBe('de02120300000000202051');
+  });
+});
+
+describe('monthOf', () => {
+  it('is the month of the booking date, whatever zone the browser is in', () => {
+    expect(monthOf(transaction({ bookingDate: '2025-09-01' }))).toBe('2025-09');
+  });
+});
+
+describe('listEntryOf', () => {
+  it('reads what the budgets page sends', () => {
+    const state = { accountId: 'acc-1', month: '2025-09', categoryId: UNCATEGORIZED };
+
+    expect(listEntryOf(state)).toEqual(state);
+  });
+
+  it('ignores anything that is not exactly that shape', () => {
+    // History state survives a reload, and whatever put it there may be an older build.
+    expect(listEntryOf(null)).toBeUndefined();
+    expect(listEntryOf(undefined)).toBeUndefined();
+    expect(listEntryOf('2025-09')).toBeUndefined();
+    expect(listEntryOf({ month: '2025-09', categoryId: UNCATEGORIZED })).toBeUndefined();
+    expect(listEntryOf({ accountId: 'acc-1', month: 202509, categoryId: '' })).toBeUndefined();
   });
 });
 

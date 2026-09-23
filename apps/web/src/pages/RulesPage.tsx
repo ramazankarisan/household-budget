@@ -253,15 +253,18 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
       .catch((cause: unknown) => {
         // The counts are the answer to "why not", so they are shown rather than logged.
         if (cause instanceof ApiError && cause.code === 'CATEGORY_IN_USE') {
-          const { rules, transactions } = cause.details as {
+          const { rules, transactions, budgets } = cause.details as {
             rules?: unknown;
             transactions?: unknown;
+            budgets?: unknown;
           };
+          const count = (value: unknown) => (typeof value === 'number' ? value : 0);
           setRefusal(
-            describeCategoryInUse(
-              typeof rules === 'number' ? rules : 0,
-              typeof transactions === 'number' ? transactions : 0,
-            ),
+            describeCategoryInUse({
+              rules: count(rules),
+              transactions: count(transactions),
+              budgets: count(budgets),
+            }),
           );
           return;
         }

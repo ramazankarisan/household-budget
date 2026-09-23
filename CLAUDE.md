@@ -20,11 +20,12 @@ fixtures/       Synthetic bank CSVs, byte-exact: CRLF, and Windows-1252 for the
 
 Both apps depend on `@household-budget/core` as `workspace:*` and import its **built**
 `dist/`, never its source. Types declared once in core (`AccountPayload`,
-`TransactionPayload`, `ImportSummary`) are the contract between API responses and the UI
-that renders them.
+`TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract between API
+responses and the UI that renders them.
 
-Status: import → categorize works end to end, and the list it produces can be narrowed by
-month, category and free text; reporting is not built yet.
+Status: import → categorize → report works end to end. The list can be narrowed by month,
+category and free text, and `/budgets` shows one month's spending per category against a
+limit.
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
 (UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
@@ -41,21 +42,27 @@ by hand sets `Transaction.categoryLockedAt` and is never touched again until it 
 An import categorizes the rows it inserts inside its own transaction.
 
 Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
-[docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the
-CSV format and [docs/research/02-categorization-rules.md](docs/research/02-categorization-rules.md)
-on matching — in particular §3, the measured reason matching is not a `WHERE` clause.
-The transactions list filters in the browser over the rows `AccountPage` has already
-loaded — no query parameter, no endpoint change — because the text half could not have
-been a `WHERE` clause for the same reason matching is not one, and the other two halves
-were not worth a second source of rows. `apps/web/src/filter.ts` is the pure module that
-does it. The uncategorized count describes the whole account, not the filtered view.
+[docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the CSV
+format. `docs/plans/` holds one plan per feature: the decisions behind it and, where the build
+departed from them, what changed and why. Before changing a feature, read its plan — the code
+is the truth about _what_, the plan about _why_.
 
-[docs/research/03-transactions-list.md](docs/research/03-transactions-list.md) is the
-authority on that — §6 for why the search is JavaScript and §9 for why all of it is in the
-browser. [docs/plans/01-csv-import.md](docs/plans/01-csv-import.md),
-[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md) and
-[docs/plans/03-transactions-list.md](docs/plans/03-transactions-list.md) record what was
-built and what was learned building it.
+### Invariants
+
+Each is deliberate; the link is the reason. Do not undo one without reading it.
+
+- Rule matching and list search run in JavaScript over loaded rows, never as SQL — SQLite
+  folds case for ASCII only, so `LIKE '%müller%'` misses `MÜLLER GmbH`.
+  [research 02 §3](docs/research/02-categorization-rules.md),
+  [03 §6](docs/research/03-transactions-list.md)
+- The transactions list filters in the browser (`apps/web/src/filter.ts`) — no query
+  parameter, no endpoint. [research 03 §9](docs/research/03-transactions-list.md)
+- The uncategorized count describes the whole account, not the filtered view.
+- Budgets are one limit per category per month, household-wide, measured against every
+  account — `/budgets` has no account picker.
+- `monthlyReport` (core) counts money out only, keeps booked and vorgemerkt apart, and gives
+  every category a row; the uncategorized bucket is `null` and never has a limit.
+  [research 04 §4](docs/research/04-monthly-budgets.md)
 
 ## HOW
 

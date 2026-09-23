@@ -46,6 +46,18 @@ export interface ApplySummary {
   readonly locked: number;
 }
 
+/**
+ * A limit for one category in one month. Household-wide, because `Category` is: a
+ * per-account limit would need a per-account category to mean anything.
+ */
+export interface BudgetPayload {
+  readonly categoryId: string;
+  /** `'YYYY-MM'`. */
+  readonly month: string;
+  /** Positive integer cents. `0` is a real limit and means "nothing may be spent here". */
+  readonly amountCents: number;
+}
+
 export interface TransactionPayload {
   readonly id: string;
   /** 'YYYY-MM-DD'. Formatted for display at the UI edge, never here. */
