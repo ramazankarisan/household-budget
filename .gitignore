@@ -177,3 +177,7 @@ apps/api/src/generated/
 # Shared project settings would live in .claude/settings.json, which stays tracked.
 .claude/settings.local.json
 .claude/statusline-command.sh
+
+# Throwaway git worktrees the agent harness creates. They are checkouts of this same
+# repo, so committing them would nest the repository inside itself.
+.claude/worktrees/
