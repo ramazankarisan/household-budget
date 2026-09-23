@@ -1,0 +1,80 @@
+{
+  "skill_name": "add-bank-format",
+  "evals": [
+    {
+      "id": 0,
+      "name": "dkb-pasted-header",
+      "prompt": "my DKB export won't import, the app just says \"Keine Kopfzeile gefunden\". I exported it from the DKB banking app as CSV. here's the top of the file with the amounts left in, it's all fake data anyway:\n\n\"Konto\";\"Girokonto DE02 1203 0000 0000 2020 51\"\n\"Zeitraum\";\"01.08.2025 - 31.08.2025\"\n\"Kontostand vom 31.08.2025:\";\"1.234,56 EUR\"\n\n\"Buchungsdatum\";\"Wertstellung\";\"Status\";\"Zahlungspflichtige*r\";\"Zahlungsempfaenger*in\";\"Verwendungszweck\";\"Umsatztyp\";\"IBAN\";\"Betrag (EUR)\";\"Glaeubiger-ID\";\"Mandatsreferenz\";\"Kundenreferenz\"\n\"29.08.2025\";\"29.08.2025\";\"Gebucht\";\"Max Mustermann\";\"REWE Markt GmbH\";\"Einkauf Lebensmittel\";\"Ausgang\";\"DE35500105174205498273\";\"-42,17\";\"\";\"\";\"\"\n\"28.08.2025\";\"28.08.2025\";\"Gebucht\";\"Arbeitgeber SE\";\"Max Mustermann\";\"Gehalt August\";\"Eingang\";\"DE75512108001245126199\";\"2.450,00\";\"\";\"\";\"\"\n\ncan you add DKB support so this imports like my Sparkasse statements do?",
+      "expected_output": "Registry seam extracted first (own commit, Sparkasse tests untouched), then a dkb dialect: preamble scanned not skipped, Buchungsdatum/Wertstellung bound to booking/value date, Status -> BookingStatus, UTF-8 with BOM fixture plus a UTF-8 twin, CRLF bytes, unit tests mirroring parse.test.ts, api/web/e2e wiring, research + plan docs.",
+      "files": [],
+      "assertions": [
+        "Fixture bytes are CRLF throughout — no lone LF anywhere in any new fixtures/*.csv",
+        "A fixture exists that core can read through Vite's ?raw: UTF-8, umlauts intact, no mojibake",
+        "The new dialect reads columns by name; no positional record[0]-style indexing is introduced",
+        "Amounts reach integer cents without parseFloat or a float multiplication by 100",
+        "No Date object is constructed for a booking or value date",
+        "packages/core gains no NestJS, React or Prisma import, type-only included",
+        "A dialect registry or descriptor seam is introduced — not a second copy-pasted parseXCsv",
+        "TransactionSource.dialect union is widened to include the new dialect id",
+        "A unit test for the new dialect asserts a bad row's RowError code, field and line number",
+        "apps/web i18n is updated: HEADER_NOT_FOUND no longer names Sparkasse alone, and any new code is worded in both de and en",
+        "A Playwright spec covers the new format against the fixture in the encoding the bank really ships",
+        "A research or plan document for the new format is added under docs/",
+        "summary.md reports the real result of pnpm check, and it is green",
+        "The fixture carries the bank's preamble lines, and the header is found by scanning rather than by a hard-coded skip count",
+        "The pasted column names are used verbatim (Buchungsdatum, Wertstellung, Status, Betrag …) — none are invented or silently renamed",
+        "The Status column is mapped to BookingStatus with an unknown value failing the row rather than defaulting to booked"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "n26-english-columns",
+      "prompt": "can you add support for N26 csv exports? i've got a second account there and i'd like those transactions in the budget too",
+      "expected_output": "Asks for or cites a real N26 header rather than inventing columns; flags the multi-currency question (N26 exports carry a foreign-currency amount and exchange rate, this app stores one currency and does no conversion) before parsing; handles English column names and 1,234.56 decimals with a sibling value parser rather than bending parseGermanAmount; no pending status concept -> every row booked.",
+      "files": [],
+      "assertions": [
+        "Fixture bytes are CRLF throughout — no lone LF anywhere in any new fixtures/*.csv",
+        "A fixture exists that core can read through Vite's ?raw: UTF-8, umlauts intact, no mojibake",
+        "The new dialect reads columns by name; no positional record[0]-style indexing is introduced",
+        "Amounts reach integer cents without parseFloat or a float multiplication by 100",
+        "No Date object is constructed for a booking or value date",
+        "packages/core gains no NestJS, React or Prisma import, type-only included",
+        "A dialect registry or descriptor seam is introduced — not a second copy-pasted parseXCsv",
+        "TransactionSource.dialect union is widened to include the new dialect id",
+        "A unit test for the new dialect asserts a bad row's RowError code, field and line number",
+        "apps/web i18n is updated: HEADER_NOT_FOUND no longer names Sparkasse alone, and any new code is worded in both de and en",
+        "A Playwright spec covers the new format against the fixture in the encoding the bank really ships",
+        "A research or plan document for the new format is added under docs/",
+        "summary.md reports the real result of pnpm check, and it is green",
+        "The run either asks for a real N26 header or cites a source for the column names, instead of inventing them",
+        "English decimal format (1,234.56) gets its own value parser rather than bending parseGermanAmount",
+        "The multi-currency question is raised explicitly — N26 exports carry a foreign amount and this app stores one currency per transaction"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ing-long-preamble",
+      "prompt": "importing our ING export fails. the file has 13 lines of junk (account number, period, balance, an empty line) before the actual column headers start, and then the normal Buchung/Valuta/Betrag columns. sparkasse files work fine. fix the import so ING files work too.",
+      "expected_output": "Header scan limit (30 lines) already covers 13 preamble lines, so the diagnosis is the dialect's header markers, not a skip count; registry seam added; ING dialect with its own markers and column bindings; fixture carries the 13 preamble lines; tests assert the header is found at the right line and line numbers account for the preamble.",
+      "files": [],
+      "assertions": [
+        "Fixture bytes are CRLF throughout — no lone LF anywhere in any new fixtures/*.csv",
+        "A fixture exists that core can read through Vite's ?raw: UTF-8, umlauts intact, no mojibake",
+        "The new dialect reads columns by name; no positional record[0]-style indexing is introduced",
+        "Amounts reach integer cents without parseFloat or a float multiplication by 100",
+        "No Date object is constructed for a booking or value date",
+        "packages/core gains no NestJS, React or Prisma import, type-only included",
+        "A dialect registry or descriptor seam is introduced — not a second copy-pasted parseXCsv",
+        "TransactionSource.dialect union is widened to include the new dialect id",
+        "A unit test for the new dialect asserts a bad row's RowError code, field and line number",
+        "apps/web i18n is updated: HEADER_NOT_FOUND no longer names Sparkasse alone, and any new code is worded in both de and en",
+        "A Playwright spec covers the new format against the fixture in the encoding the bank really ships",
+        "A research or plan document for the new format is added under docs/",
+        "summary.md reports the real result of pnpm check, and it is green",
+        "No fixed skip count is introduced anywhere; the 13 preamble lines are handled by the existing 30-line header scan",
+        "The fixture reproduces all 13 preamble lines including the blank one",
+        "A test asserts reported line numbers are the true file lines, preamble included"
+      ]
+    }
+  ]
+}

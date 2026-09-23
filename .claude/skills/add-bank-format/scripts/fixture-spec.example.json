@@ -1,0 +1,263 @@
+{
+  "_notes": [
+    "Input for scripts/make_fixture.py. Copy this, swap the columns and rows for the new",
+    "bank's, keep the variant list. Verified: pointed at the Sparkasse rows, this generator",
+    "reproduces fixtures/sparkasse-camt-18{,-utf8,-utf8-bom}.csv byte for byte.",
+    "",
+    "quote: 'all-but-first' (Sparkasse leaves the first column bare), 'all', or 'minimal'.",
+    "preamble: verbatim lines before the header, for banks that ship one (DKB, ING, Postbank).",
+    "Row values are written verbatim. Put a real CRLF in a value to test an embedded newline",
+    "and a real quote character to test quote doubling - a bare \\n here produces an LF the",
+    "rest of the file does not have, which is the one mistake this generator cannot catch.",
+    "Columns missing from a row render as empty fields. Every index — patch, onlyRows, blankAfterRow — counts rows in this file's shared 'rows' array, never the filtered result, and a patch that onlyRows would drop is an error rather than a silent no-op."
+  ],
+  "name": "examplebank-giro",
+  "outDir": "fixtures",
+  "delimiter": ";",
+  "quote": "all-but-first",
+  "preamble": [],
+  "blankAfterRow": [2],
+  "trailingBlank": false,
+  "columns": [
+    "Auftragskonto",
+    "Buchungstag",
+    "Valutadatum",
+    "Buchungstext",
+    "Verwendungszweck",
+    "Glaeubiger ID",
+    "Mandatsreferenz",
+    "Kundenreferenz (End-to-End)",
+    "Sammlerreferenz",
+    "Lastschrift Ursprungsbetrag",
+    "Auslagenersatz Ruecklastschrift",
+    "Beguenstigter/Zahlungspflichtiger",
+    "Kontonummer/IBAN",
+    "BIC (SWIFT-Code)",
+    "Betrag",
+    "Waehrung",
+    "Info",
+    "Kategorie"
+  ],
+  "rows": [
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "22.09.25",
+      "Valutadatum": "22.09.25",
+      "Buchungstext": "FOLGELASTSCHRIFT",
+      "Verwendungszweck": "Rechnung 4711 Möbel für die Küche",
+      "Glaeubiger ID": "DE98ZZZ09999999999",
+      "Mandatsreferenz": "M-0815",
+      "Kundenreferenz (End-to-End)": "E2E-4711",
+      "Beguenstigter/Zahlungspflichtiger": "Müller GmbH",
+      "Kontonummer/IBAN": "DE02120300000000202051",
+      "BIC (SWIFT-Code)": "BYLADEM1001",
+      "Betrag": "-832,9",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Wohnen"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "21.09.25",
+      "Valutadatum": "21.09.25",
+      "Buchungstext": "KARTENZAHLUNG",
+      "Verwendungszweck": "Einkauf Lebensmittel",
+      "Beguenstigter/Zahlungspflichtiger": "REWE SAGT DANKE; FILIALE 42",
+      "Kontonummer/IBAN": "DE35500105174205498273",
+      "BIC (SWIFT-Code)": "INGDDEFF",
+      "Betrag": "-42,17",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Lebensmittel"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "21.09.25",
+      "Valutadatum": "21.09.25",
+      "Buchungstext": "KARTENZAHLUNG",
+      "Verwendungszweck": "Einkauf Lebensmittel",
+      "Beguenstigter/Zahlungspflichtiger": "REWE SAGT DANKE; FILIALE 42",
+      "Kontonummer/IBAN": "DE35500105174205498273",
+      "BIC (SWIFT-Code)": "INGDDEFF",
+      "Betrag": "-42,17",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Lebensmittel"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "20.09.25",
+      "Valutadatum": "20.09.25",
+      "Buchungstext": "DAUERAUFTRAG",
+      "Verwendungszweck": "Miete Oktober\r\nHauptstraße 12",
+      "Beguenstigter/Zahlungspflichtiger": "Hausverwaltung Süd GmbH",
+      "Kontonummer/IBAN": "DE44500105175407324931",
+      "BIC (SWIFT-Code)": "COBADEFFXXX",
+      "Betrag": "-1.150,00",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Wohnen"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "19.09.25",
+      "Valutadatum": "19.09.25",
+      "Buchungstext": "SEPA-UEBERWEISUNG",
+      "Verwendungszweck": "Rechnung Übernachtung",
+      "Beguenstigter/Zahlungspflichtiger": "Hotel \"Nord\" GmbH",
+      "Kontonummer/IBAN": "DE12500105170648489890",
+      "BIC (SWIFT-Code)": "PBNKDEFF",
+      "Betrag": "-128,5",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Reise"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "24.03.14",
+      "Valutadatum": "01.04.2014",
+      "Buchungstext": "SEPA-UEBERWEISUNG",
+      "Verwendungszweck": "Altvertrag Schlusszahlung",
+      "Beguenstigter/Zahlungspflichtiger": "Versicherung Nord AG",
+      "Kontonummer/IBAN": "DE89500105175498761234",
+      "BIC (SWIFT-Code)": "MALADE51MNZ",
+      "Betrag": "-1143,41",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Versicherung"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "18.09.25",
+      "Valutadatum": "18.09.25",
+      "Buchungstext": "ENTGELTABSCHLUSS",
+      "Verwendungszweck": "Jahresbeitrag Kreditkarte",
+      "Beguenstigter/Zahlungspflichtiger": "Sparkasse Musterstadt",
+      "Kontonummer/IBAN": "DE89370400440532013000",
+      "BIC (SWIFT-Code)": "COBADEFFXXX",
+      "Betrag": "-190",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Gebühren"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "20.09.25",
+      "Valutadatum": "20.09.25",
+      "Buchungstext": "KARTENZAHLUNG",
+      "Verwendungszweck": "Gebühr Praxisbesuch",
+      "Beguenstigter/Zahlungspflichtiger": "Ärzte GmbH",
+      "Kontonummer/IBAN": "DE22500105175487654321",
+      "BIC (SWIFT-Code)": "MALADE51MNZ",
+      "Betrag": "-19",
+      "Waehrung": "EUR",
+      "Info": "Umsatz vorgemerkt",
+      "Kategorie": "Gesundheit"
+    },
+    {
+      "Auftragskonto": "DE89370400440532013000",
+      "Buchungstag": "15.09.25",
+      "Valutadatum": "15.09.25",
+      "Buchungstext": "LOHN/GEHALT",
+      "Verwendungszweck": "Gehalt September",
+      "Beguenstigter/Zahlungspflichtiger": "Beispiel AG",
+      "Kontonummer/IBAN": "DE75512108001245126199",
+      "BIC (SWIFT-Code)": "SOLADEST600",
+      "Betrag": "2.450,00",
+      "Waehrung": "EUR",
+      "Info": "Umsatz gebucht",
+      "Kategorie": "Einkommen"
+    }
+  ],
+  "variants": [
+    {
+      "suffix": "",
+      "encoding": "cp1252",
+      "_why": "what the bank really ships; only apps/api and the e2e read this one"
+    },
+    {
+      "suffix": "-utf8",
+      "encoding": "utf-8",
+      "_why": "core reads fixtures through Vite's ?raw, which decodes as UTF-8"
+    },
+    {
+      "suffix": "-utf8-bom",
+      "encoding": "utf-8",
+      "bom": true,
+      "_why": "proves the BOM is stripped rather than glued to the first column name"
+    },
+    {
+      "suffix": "-narrow",
+      "encoding": "utf-8",
+      "dropColumns": ["Kategorie"],
+      "_why": "the bank's other column count, same rows: the test that both shapes produce identical transactions is what stops an index-based parser"
+    },
+    {
+      "suffix": "-bad-rows",
+      "encoding": "utf-8",
+      "blankAfterRow": [],
+      "onlyRows": [0, 1, 4, 5, 8],
+      "patch": [
+        {
+          "row": 1,
+          "set": {
+            "Betrag": "12,3,4"
+          }
+        },
+        {
+          "row": 5,
+          "set": {
+            "Buchungstag": "32.13.25"
+          }
+        },
+        {
+          "row": 8,
+          "set": {
+            "Info": "Umsatz storniert"
+          }
+        }
+      ],
+      "_why": "one defect per row, one row per failure mode; every other row must still import"
+    },
+    {
+      "suffix": "-next",
+      "encoding": "cp1252",
+      "onlyRows": [1, 2, 7],
+      "blankAfterRow": [],
+      "patch": [
+        {
+          "row": 7,
+          "set": {
+            "Buchungstag": "23.09.25",
+            "Info": "Umsatz gebucht"
+          }
+        }
+      ],
+      "appendRows": [
+        {
+          "Auftragskonto": "DE89370400440532013000",
+          "Buchungstag": "24.09.25",
+          "Valutadatum": "15.09.25",
+          "Buchungstext": "LOHN/GEHALT",
+          "Verwendungszweck": "Erstattung Reisekosten",
+          "Beguenstigter/Zahlungspflichtiger": "Beispiel AG",
+          "Kontonummer/IBAN": "DE75512108001245126199",
+          "BIC (SWIFT-Code)": "SOLADEST600",
+          "Betrag": "88,40",
+          "Waehrung": "EUR",
+          "Info": "Umsatz gebucht",
+          "Kategorie": "Einkommen"
+        }
+      ],
+      "_why": "an overlapping later export: the pending row now booked with a shifted date, the two identical rows again, one genuinely new row. This is what proves dedup."
+    },
+    {
+      "suffix": "-malformed",
+      "encoding": "utf-8",
+      "onlyRows": [0],
+      "blankAfterRow": [],
+      "appendRaw": "DE89370400440532013000;\"22.09.25\";\"eins;zwei\r\n",
+      "_why": "an unterminated quote: csv-parse must throw rather than swallow the rest of the file"
+    }
+  ]
+}
