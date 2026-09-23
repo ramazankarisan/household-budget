@@ -127,14 +127,24 @@ export class AccountService {
    * `categoryLockedAt` is what keeps the rules engine off the row afterwards — the
    * decision cannot be inferred from `categoryId != null`, because a rule sets that too.
    * Clearing unlocks as well, which makes the row eligible for the next apply.
+   *
+   * Refused on a pending row and on a soft-deleted one. Both would take a decision and
+   * then lose it: the pending set is replaced wholesale by the next import, and those
+   * rows carry no dedupKey to be matched back to, so the replacement cannot inherit
+   * anything; a soft-deleted row is invisible everywhere in the UI, yet its category
+   * would still count against deleting that category. A rule may still categorize
+   * either — that assignment is re-derived on every apply rather than remembered.
    */
   async setTransactionCategory(
     transactionId: string,
     categoryId: string | null,
   ): Promise<TransactionPayload> {
     const existing = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
-    if (existing === null) {
+    if (existing === null || existing.deletedAt !== null) {
       throw new NotFoundException(`No transaction ${transactionId}`);
+    }
+    if (existing.status === 'pending') {
+      throw new ConflictException({ code: 'TRANSACTION_PENDING' });
     }
     if (categoryId !== null) {
       await this.categories.requireCategory(categoryId);

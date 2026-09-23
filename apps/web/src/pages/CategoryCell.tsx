@@ -2,6 +2,7 @@ import { type CategoryPayload, type TransactionPayload } from '@household-budget
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 import { rulesText } from '../i18n/rules';
 
@@ -10,6 +11,7 @@ interface CategoryCellProps {
   readonly categories: readonly CategoryPayload[];
   /** `null` clears the category and the lock, making the row eligible again. */
   readonly onChange: (transactionId: string, categoryId: string | null) => void;
+  /** Set while this row's own change is in flight, so a second one cannot start. */
   readonly disabled?: boolean;
 }
 
@@ -19,19 +21,41 @@ interface CategoryCellProps {
  * Choosing here locks the row: `categoryLockedAt` is set server-side, and the lock is
  * shown, because a row the rules engine will silently skip forever has to look different
  * from one it simply has not reached yet.
+ *
+ * Read-only in two cases. On a **pending** row, because the next import replaces the
+ * pending set wholesale and those rows carry no dedupKey for a replacement to inherit
+ * from — offering a decision that a later import throws away is worse than not offering
+ * it, and the API refuses it for the same reason. And while the categories are still
+ * loading, because a `Select` whose value matches no option warns and renders blank.
+ * A rule still categorizes both; that assignment is re-derived on every apply.
  */
 export function CategoryCell({ transaction, categories, onChange, disabled }: CategoryCellProps) {
   const text = rulesText();
   const locked = transaction.categoryLockedAt !== null;
-  // The column is fixed-width, so a long category name is cut. The full one stays
-  // reachable on hover rather than only in the open menu.
-  const currentName = categories.find((category) => category.id === transaction.categoryId)?.name;
+  const current = categories.find((category) => category.id === transaction.categoryId);
+  const pending = transaction.status === 'pending';
+  const readOnly = pending || categories.length === 0;
+
+  if (readOnly) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          title={pending ? text.pendingHint : (current?.name ?? text.uncategorized)}
+          color={current === undefined ? 'text.disabled' : 'text.primary'}
+          sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {current?.name ?? text.uncategorized}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     // minWidth 0 on the flex child: without it the select refuses to shrink below its
     // longest option and widens the fixed column it is supposed to fit inside.
     <Box
-      title={currentName ?? text.uncategorized}
+      title={current?.name ?? text.uncategorized}
       sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}
     >
       <TextField
@@ -47,8 +71,9 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
           select: { 'aria-label': text.category, displayEmpty: true },
           input: { disableUnderline: true },
         }}
-        // Empty string, not null: MUI reads `null` as uncontrolled and warns.
-        value={transaction.categoryId ?? ''}
+        // Empty string, not null: MUI reads `null` as uncontrolled and warns. A category
+        // the loaded list does not contain is empty too, for the same reason.
+        value={current?.id ?? ''}
         disabled={disabled ?? false}
         sx={{
           minWidth: 0,

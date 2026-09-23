@@ -119,6 +119,24 @@ describe('RulesPage', () => {
     });
   });
 
+  it('shows the second rule when you switch which one you are editing', async () => {
+    // RuleForm seeds its editable copy from the prop, so without a key it keeps the
+    // first rule's values *and* its id — and saving then overwrites the wrong rule.
+    rules = [
+      rule({ id: 'r-a', value: 'erste', priority: 10 }),
+      rule({ id: 'r-b', value: 'zweite', priority: 20 }),
+    ];
+    render(page());
+
+    const [editA, editB] = await screen.findAllByRole('button', { name: 'Regel bearbeiten' });
+    fireEvent.click(editA as HTMLElement);
+    expect(screen.getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('erste');
+
+    fireEvent.click(editB as HTMLElement);
+
+    expect(screen.getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('zweite');
+  });
+
   it('explains a refused category deletion with both counts', async () => {
     removedCategory.mockRejectedValue(
       new ApiError('CATEGORY_IN_USE', [], { rules: 2, transactions: 47 }),

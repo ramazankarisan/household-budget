@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -312,8 +312,10 @@ describe('RuleService.applyAll', () => {
     const { ruleId, categoryId } = await wohnenRule();
     await rules.applyAll();
     const byRule = await muellerRow(accountId);
+    // A booked row: the fixture's Ärzte GmbH is pending, and a pending row cannot be
+    // pinned by hand at all.
     const byHand = await prisma.transaction.findFirstOrThrow({
-      where: { accountId, counterpartyName: 'Ärzte GmbH' },
+      where: { accountId, counterpartyName: 'Sparkasse Musterstadt' },
     });
     await accounts.setTransactionCategory(byHand.id, categoryId);
 
@@ -375,5 +377,94 @@ describe('RuleService.applyAll', () => {
     const hidden = await prisma.transaction.findFirstOrThrow({ where: { id: row.id } });
     expect(hidden.deletedAt).not.toBeNull();
     expect(hidden.categoryId).toBe(categoryId);
+  });
+});
+
+/**
+ * The cases a review found: each one loses or invents a category behind the user's back,
+ * and none of them is visible from the happy path above.
+ */
+describe('RuleService, decisions that must not be undone', () => {
+  async function imported(): Promise<string> {
+    const account = await accounts.create('DE89370400440532013000', 'Giro');
+    await imports.importCsv({
+      accountId: account.id,
+      fileName: 'sparkasse-camt-18.csv',
+      bytes: new Uint8Array(readFileSync(resolve(fixtures, 'sparkasse-camt-18.csv'))),
+      referenceYear,
+    });
+    return account.id;
+  }
+
+  it('does not switch a disabled rule back on when the body omits `active`', async () => {
+    // parseRuleInput reads an absent `active` as "on", which is right for a create and
+    // would silently re-categorize rows here.
+    const wohnen = await categories.create('Wohnen');
+    const created = await rules.create({
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Miete',
+      categoryId: wohnen.id,
+      active: false,
+    });
+
+    const updated = await rules.update(created.id, {
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Mietzahlung',
+      categoryId: wohnen.id,
+    });
+
+    expect(updated.active).toBe(false);
+  });
+
+  it('still switches a rule on when the body says so', async () => {
+    const wohnen = await categories.create('Wohnen');
+    const created = await rules.create({
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Miete',
+      categoryId: wohnen.id,
+      active: false,
+    });
+
+    const updated = await rules.update(created.id, {
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Miete',
+      categoryId: wohnen.id,
+      active: true,
+    });
+
+    expect(updated.active).toBe(true);
+  });
+
+  it('refuses to pin a category to a pending row', async () => {
+    // The next import replaces the pending set wholesale, and those rows carry no
+    // dedupKey for the replacement to inherit from, so the decision could not survive.
+    const accountId = await imported();
+    const wohnen = await categories.create('Wohnen');
+    const pending = await prisma.transaction.findFirstOrThrow({
+      where: { accountId, status: 'pending' },
+    });
+
+    await expect(accounts.setTransactionCategory(pending.id, wohnen.id)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  it('refuses to categorize a row the user deleted', async () => {
+    // It is invisible everywhere in the UI, but its category would still count against
+    // deleting that category.
+    const accountId = await imported();
+    const wohnen = await categories.create('Wohnen');
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId, counterpartyName: 'Müller GmbH' },
+    });
+    await accounts.softDeleteTransaction(row.id);
+
+    await expect(accounts.setTransactionCategory(row.id, wohnen.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

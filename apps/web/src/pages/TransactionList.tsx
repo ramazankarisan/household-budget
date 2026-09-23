@@ -17,12 +17,15 @@ interface TransactionListProps {
   readonly categories: readonly CategoryPayload[];
   /** `null` clears the category and its lock. The page owns the reload. */
   readonly onCategoryChange: (transactionId: string, categoryId: string | null) => void;
+  /** Rows whose own category change is in flight. Defaults to none. */
+  readonly savingIds?: ReadonlySet<string>;
 }
 
 export function TransactionList({
   transactions,
   categories,
   onCategoryChange,
+  savingIds,
 }: TransactionListProps) {
   if (transactions.length === 0) {
     return (
@@ -85,6 +88,7 @@ export function TransactionList({
                   transaction={transaction}
                   categories={categories}
                   onChange={onCategoryChange}
+                  disabled={savingIds?.has(transaction.id) ?? false}
                 />
               </TableCell>
               <TableCell

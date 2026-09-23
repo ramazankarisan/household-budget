@@ -42,6 +42,7 @@ interface RulesText {
   readonly uncategorized: string;
   readonly clearCategory: string;
   readonly lockedHint: string;
+  readonly pendingHint: string;
   readonly fields: Readonly<Record<RuleField, string>>;
   readonly operators: Readonly<Record<RuleOperator, string>>;
 }
@@ -74,6 +75,8 @@ const TEXT: Record<Locale, RulesText> = {
     uncategorized: 'Ohne Kategorie',
     clearCategory: 'Kategorie entfernen',
     lockedHint: 'von Hand gesetzt — Regeln ändern das nicht',
+    pendingHint:
+      'Vorgemerkt — der nächste Import ersetzt diese Zeile, eine Kategorie ließe sich nicht übernehmen.',
     fields: {
       counterpartyName: 'Empfänger',
       purpose: 'Zweck',
@@ -113,6 +116,8 @@ const TEXT: Record<Locale, RulesText> = {
     uncategorized: 'Uncategorized',
     clearCategory: 'Remove category',
     lockedHint: 'set by hand — rules will not change it',
+    pendingHint:
+      'Pending — the next import replaces this row, so a category could not be carried over.',
     fields: {
       counterpartyName: 'Payee',
       purpose: 'Purpose',

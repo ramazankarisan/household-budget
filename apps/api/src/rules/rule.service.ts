@@ -22,6 +22,20 @@ import { CategoryService } from './category.service.js';
  */
 export type RuleTransactionClient = Pick<PrismaService, 'transaction' | 'rule'>;
 
+/**
+ * An apply reads every unlocked row and writes one statement per category, all inside one
+ * interactive transaction. Prisma's default budget for those is 5 s, which is the JS
+ * matching cost (measured at 27 ms for 50 000 rows × 20 rules) plus SQLite round trips
+ * that were never measured — so on a long history the default fails with P2028 and
+ * applies nothing. Stated explicitly rather than inherited.
+ */
+const APPLY_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 120_000 };
+
+/** Does the body mention this key at all? `undefined` and absent are different here. */
+function hasOwnProperty(body: unknown, key: string): boolean {
+  return typeof body === 'object' && body !== null && key in body;
+}
+
 /** The columns an apply reads. Only these: the row set is the whole database. */
 interface CategorizableRow extends MatchableTransaction {
   readonly id: string;
@@ -106,11 +120,21 @@ export class RuleService {
   }
 
   async update(ruleId: string, body: unknown): Promise<RulePayload> {
-    await this.requireRule(ruleId);
+    const existing = await this.requireRule(ruleId);
     const input = this.parse(body);
     await this.categories.requireCategory(input.categoryId);
 
-    const updated = await this.prisma.rule.update({ where: { id: ruleId }, data: input });
+    /*
+     * `parseRuleInput` reads an absent `active` as "on", which is right for a create and
+     * wrong here: a body that never mentions `active` must not switch a rule the user
+     * disabled back on, and re-categorize rows on the next apply as a side effect.
+     */
+    const active = hasOwnProperty(body, 'active') ? input.active : existing.active;
+
+    const updated = await this.prisma.rule.update({
+      where: { id: ruleId },
+      data: { ...input, active },
+    });
     this.logger.log(`update rule=${updated.id} field=${updated.field}`);
     return toPayload(updated);
   }
@@ -145,7 +169,7 @@ export class RuleService {
    */
   async applyAll(client?: RuleTransactionClient): Promise<ApplySummary> {
     if (client === undefined) {
-      return this.prisma.$transaction((tx) => this.applyAll(tx));
+      return this.prisma.$transaction((tx) => this.applyAll(tx), APPLY_TRANSACTION_OPTIONS);
     }
 
     const ordered = orderRules((await client.rule.findMany()).map(toCoreRule));
@@ -194,10 +218,9 @@ export class RuleService {
       return 0;
     }
 
+    // No early return on an empty rule set, for the same reason applyAll has none: a
+    // restored row may carry a category no rule explains any more.
     const ordered = orderRules((await client.rule.findMany()).map(toCoreRule));
-    if (ordered.length === 0) {
-      return 0;
-    }
 
     const rows = await client.transaction.findMany({
       where: { id: { in: [...rowIds] }, categoryLockedAt: null },
@@ -210,10 +233,15 @@ export class RuleService {
       },
     });
 
-    const { assign } = this.plan(ordered, rows);
-    // No clearing here: these rows are new or restored, so there is nothing stale to
-    // clear, and a restored row's own category is the one it should come back with.
-    await this.write(client, assign, []);
+    const { assign, clear } = this.plan(ordered, rows);
+    /*
+     * Clears as well as assigns. A restored row is an *old* row: it can still hold a
+     * category written by a rule that has since been deleted or edited, and letting that
+     * come back would leave a category the next apply strips — visibly changing on its
+     * own, with nothing on screen to explain it. A freshly inserted row holds null, so
+     * it is never in `clear`; this only ever touches the restored ones.
+     */
+    await this.write(client, assign, clear);
 
     return [...assign.values()].reduce((total, ids) => total + ids.length, 0);
   }

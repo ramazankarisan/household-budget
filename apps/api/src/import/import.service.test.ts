@@ -406,6 +406,26 @@ describe('ImportService and the rules engine', () => {
     expect(after.categoryLockedAt).not.toBeNull();
   });
 
+  it('does not bring back a category the rule behind it no longer explains', async () => {
+    // A restored row is an old row: it can still hold a category a since-deleted rule
+    // wrote. Letting that return would show a category the next apply silently strips.
+    const accountId = await account();
+    await wohnenRule();
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const row = await muellerRow(accountId);
+    expect(row.categoryId).not.toBeNull();
+
+    await accounts.softDeleteTransaction(row.id);
+    const rule = await prisma.rule.findFirstOrThrow();
+    await prisma.rule.delete({ where: { id: rule.id } });
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const restored = await muellerRow(accountId);
+    expect(summary.restored).toBe(1);
+    expect(restored.id).toBe(row.id);
+    expect(restored.categoryId).toBeNull();
+  });
+
   it('categorizes a restored row, not only a newly inserted one', async () => {
     // The rule is written after the first import and the row is deleted before the
     // second, so the row has never been categorized when it comes back. A restore that

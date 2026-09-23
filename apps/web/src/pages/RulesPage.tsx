@@ -424,6 +424,14 @@ function RuleTable({ rules, categories, onChanged, onError }: RuleTableProps) {
         </Button>
       ) : (
         <RuleForm
+          /*
+           * Keyed by the rule being edited. `RuleForm` seeds its editable copy with
+           * `useState(draft)`, so without this, clicking "bearbeiten" on a second rule
+           * while the form is open changes the prop but not the state: the form keeps
+           * showing the first rule's values *and* its id, and saving overwrites the
+           * wrong rule with what is on screen.
+           */
+          key={draft.id ?? 'new'}
           draft={draft}
           categories={categories}
           onCancel={() => {
