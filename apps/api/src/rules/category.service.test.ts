@@ -21,7 +21,8 @@ beforeEach(async () => {
     rules = moduleRef.get(RuleService);
   }
 
-  // Order matters: Transaction and Rule both hold a foreign key into Category.
+  // Order matters: Transaction, Rule and Budget all hold a foreign key into Category.
+  await prisma.budget.deleteMany();
   await prisma.transaction.deleteMany();
   await prisma.importBatch.deleteMany();
   await prisma.account.deleteMany();
@@ -133,6 +134,20 @@ describe('CategoryService', () => {
     await expect(categories.remove(wohnen.id)).rejects.toMatchObject({
       response: { code: 'CATEGORY_IN_USE', rules: 0, transactions: 1 },
     });
+  });
+
+  it('refuses to delete a category that only has a budget, and says so', async () => {
+    // A limit is a decision the user made about this category in a month they typed it
+    // into, and the count is what turns "in use" into something they can act on.
+    const wohnen = await categories.create('Wohnen');
+    await prisma.budget.create({
+      data: { categoryId: wohnen.id, month: '2025-09', amountCents: 70000 },
+    });
+
+    await expect(categories.remove(wohnen.id)).rejects.toMatchObject({
+      response: { code: 'CATEGORY_IN_USE', rules: 0, transactions: 0, budgets: 1 },
+    });
+    expect(await categories.list()).toHaveLength(1);
   });
 
   it('renames a category', async () => {

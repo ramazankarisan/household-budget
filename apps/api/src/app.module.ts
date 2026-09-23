@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AccountModule } from './accounts/account.module.js';
+import { BudgetsModule } from './budgets/budgets.module.js';
 import { ImportModule } from './import/import.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RulesModule } from './rules/rules.module.js';
@@ -15,6 +16,7 @@ import { RulesModule } from './rules/rules.module.js';
     AccountModule,
     ImportModule,
     RulesModule,
+    BudgetsModule,
   ],
 })
 export class AppModule {}

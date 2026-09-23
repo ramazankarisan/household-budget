@@ -84,16 +84,20 @@ export class CategoryService {
      * to null on those rows rather than failing on the foreign key, and the next apply
      * re-derives whatever a rule still says about them.
      */
-    const [rules, transactions] = await Promise.all([
+    const [rules, transactions, budgets] = await Promise.all([
       this.prisma.rule.count({ where: { categoryId } }),
       this.prisma.transaction.count({ where: { categoryId, deletedAt: null } }),
+      // A limit is a decision the user made about this category, in a month they typed
+      // it into. The relation is required, so this delete would fail on the foreign key
+      // anyway — counting it turns that into a sentence naming how many months.
+      this.prisma.budget.count({ where: { categoryId } }),
     ]);
 
-    if (rules > 0 || transactions > 0) {
+    if (rules > 0 || transactions > 0 || budgets > 0) {
       this.logger.log(
-        `delete refused ${categoryId} rules=${String(rules)} transactions=${String(transactions)}`,
+        `delete refused ${categoryId} rules=${String(rules)} transactions=${String(transactions)} budgets=${String(budgets)}`,
       );
-      throw new ConflictException({ code: 'CATEGORY_IN_USE', rules, transactions });
+      throw new ConflictException({ code: 'CATEGORY_IN_USE', rules, transactions, budgets });
     }
 
     await this.prisma.category.delete({ where: { id: categoryId } });
