@@ -1,4 +1,8 @@
-import { type AccountPayload, type TransactionPayload } from '@household-budget/core';
+import {
+  type AccountPayload,
+  type CategoryPayload,
+  type TransactionPayload,
+} from '@household-budget/core';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -12,14 +16,22 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { createAccount, listAccounts, listTransactions } from '../api/client';
+import {
+  createAccount,
+  listAccounts,
+  listCategories,
+  listTransactions,
+  setTransactionCategory,
+} from '../api/client';
 import { ImportPanel } from './ImportPanel';
+import { Nav } from './Nav';
 import { TransactionList } from './TransactionList';
 
 export function AccountPage() {
   const [accounts, setAccounts] = useState<AccountPayload[] | undefined>(undefined);
   const [accountId, setAccountId] = useState<string>('');
   const [transactions, setTransactions] = useState<readonly TransactionPayload[]>([]);
+  const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
@@ -34,6 +46,22 @@ export function AccountPage() {
         setAccounts(loaded);
         setAccountId((current) => (current === '' ? (loaded[0]?.id ?? '') : current));
       })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          fail(cause);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [fail]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    listCategories(controller.signal)
+      .then(setCategories)
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
           fail(cause);
@@ -80,6 +108,19 @@ export function AccountPage() {
     };
   }, [refreshTransactions]);
 
+  /**
+   * Written through the API and then replaced in place, rather than reloading the list:
+   * the server decides the lock timestamp, and re-fetching every row to learn one row's
+   * new state would scroll the table out from under the click.
+   */
+  function changeCategory(transactionId: string, categoryId: string | null): void {
+    setTransactionCategory(transactionId, categoryId)
+      .then((updated) => {
+        setTransactions((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+      })
+      .catch(fail);
+  }
+
   async function addAccount(iban: string, name: string): Promise<void> {
     const created = await createAccount(iban, name);
     setAccounts((current) => [...(current ?? []), created]);
@@ -94,9 +135,12 @@ export function AccountPage() {
           spacing={2}
           sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
         >
-          <Typography variant="h4" component="h1">
-            Household Budget
-          </Typography>
+          <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <Typography variant="h4" component="h1">
+              Household Budget
+            </Typography>
+            <Nav />
+          </Stack>
           {accounts !== undefined && accounts.length > 0 && (
             <TextField
               select
@@ -136,7 +180,11 @@ export function AccountPage() {
                 </Typography>
                 <ImportPanel accountId={accountId} onImported={refreshTransactions} />
                 <Divider />
-                <TransactionList transactions={transactions} />
+                <TransactionList
+                  transactions={transactions}
+                  categories={categories}
+                  onCategoryChange={changeCategory}
+                />
               </Stack>
             </CardContent>
           </Card>

@@ -1,4 +1,4 @@
-import { type TransactionPayload } from '@household-budget/core';
+import { type CategoryPayload, type TransactionPayload } from '@household-budget/core';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
@@ -10,12 +10,20 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
 import { formatAmount, formatBookingDate } from '../format';
+import { CategoryCell } from './CategoryCell';
 
 interface TransactionListProps {
   readonly transactions: readonly TransactionPayload[];
+  readonly categories: readonly CategoryPayload[];
+  /** `null` clears the category and its lock. The page owns the reload. */
+  readonly onCategoryChange: (transactionId: string, categoryId: string | null) => void;
 }
 
-export function TransactionList({ transactions }: TransactionListProps) {
+export function TransactionList({
+  transactions,
+  categories,
+  onCategoryChange,
+}: TransactionListProps) {
   if (transactions.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -32,6 +40,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
             <TableCell>Datum</TableCell>
             <TableCell>Empfänger</TableCell>
             <TableCell>Zweck</TableCell>
+            <TableCell>Kategorie</TableCell>
             <TableCell align="right">Betrag</TableCell>
           </TableRow>
         </TableHead>
@@ -52,6 +61,13 @@ export function TransactionList({ transactions }: TransactionListProps) {
                 )}
               </TableCell>
               <TableCell sx={{ whiteSpace: 'pre-line' }}>{transaction.purpose ?? '—'}</TableCell>
+              <TableCell>
+                <CategoryCell
+                  transaction={transaction}
+                  categories={categories}
+                  onChange={onCategoryChange}
+                />
+              </TableCell>
               <TableCell
                 align="right"
                 sx={{

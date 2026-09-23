@@ -12,6 +12,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
 import { AccountService } from '../accounts/account.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RuleService } from '../rules/rule.service.js';
 import { decodeBankCsv } from './decode.js';
 import { dedupKeyHash, sha256Hex } from './hash.js';
 
@@ -106,6 +107,7 @@ export class ImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: AccountService,
+    private readonly rules: RuleService,
   ) {}
 
   async importCsv(request: ImportRequest): Promise<ImportSummary> {
@@ -140,7 +142,7 @@ export class ImportService {
     const stale = await this.isStaleExport(account.id, booked);
     const pendingToStore = stale ? [] : pending;
 
-    const batchId = await this.prisma.$transaction(async (tx) => {
+    const { batchId, categorized } = await this.prisma.$transaction(async (tx) => {
       // Pending rows are a snapshot, not a ledger: the newest export is always right,
       // so the stored set is replaced wholesale rather than reconciled. Inside the
       // transaction, so a crash cannot leave them deleted but not reinserted. An older
@@ -195,12 +197,28 @@ export class ImportService {
         });
       }
 
-      return batch.id;
+      /*
+       * Categorized here, in the same transaction, so an import is one step rather than
+       * one step plus a button the user has to remember. Scoped to the rows this import
+       * inserted or restored: rows already stored keep whatever they hold, which is what
+       * stops an import from quietly undoing a hand-set category.
+       *
+       * createMany does not return ids, so the inserted rows are read back by the batch
+       * that owns them — every row of this batch is a row this import just wrote.
+       */
+      const inserted = await tx.transaction.findMany({
+        where: { importBatchId: batch.id },
+        select: { id: true },
+      });
+      const touched = [...inserted.map((row) => row.id), ...toRestore];
+
+      return { batchId: batch.id, categorized: await this.rules.applyToRows(tx, touched) };
     });
 
     this.logger.log(
       `import ${batchId} imported=${String(toInsert.length)} skipped=${String(skipped)} ` +
-        `restored=${String(toRestore.length)} pendingReplaced=${String(pendingToStore.length)}` +
+        `restored=${String(toRestore.length)} pendingReplaced=${String(pendingToStore.length)} ` +
+        `categorized=${String(categorized)}` +
         (stale ? ' (older export: pending left untouched)' : ''),
     );
 
@@ -211,6 +229,7 @@ export class ImportService {
       skipped,
       restored: toRestore.length,
       pendingReplaced: pendingToStore.length,
+      categorized,
       failed: errors,
       encoding,
       ...(priorBatch === null ? {} : { duplicateOfBatchId: priorBatch.id }),

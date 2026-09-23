@@ -6,20 +6,8 @@
  * `"types": []`, and a core that imported it would break the `apps/web` bundle. Core
  * produces the canonical string; `apps/api` hashes it.
  */
+import { normalize, normalizeIban } from '../rules/normalize.js';
 import type { Transaction } from './transaction.js';
-
-/**
- * NFKC so that visually identical payee names from different exports agree, whitespace
- * collapsed because a `Verwendungszweck` is padded differently between exports, and
- * lower-cased because case drift between exports is a documented failure mode.
- */
-function normalize(value: string | undefined): string {
-  return (value ?? '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
-}
-
-function normalizeIban(value: string | undefined): string {
-  return normalize(value).replaceAll(' ', '');
-}
 
 /**
  * Canonical serialization of everything that makes a transaction itself.

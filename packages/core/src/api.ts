@@ -7,11 +7,43 @@
  */
 import type { BankFileEncoding, BookingStatus } from './csv/transaction.js';
 import type { RowError } from './csv/errors.js';
+import type { RuleField, RuleOperator } from './rules/rule.js';
 
 export interface AccountPayload {
   readonly id: string;
   readonly iban: string;
   readonly name: string;
+}
+
+export interface CategoryPayload {
+  readonly id: string;
+  readonly name: string;
+}
+
+/**
+ * A stored rule as the UI sees it. `createdAt` is absent on purpose: it exists to break
+ * a priority tie, and the API has already applied it by the time a list arrives.
+ */
+export interface RulePayload {
+  readonly id: string;
+  readonly field: RuleField;
+  readonly operator: RuleOperator;
+  readonly value: string;
+  readonly priority: number;
+  readonly categoryId: string;
+  readonly active: boolean;
+}
+
+/** What one run of the rules engine changed. */
+export interface ApplySummary {
+  /** Rows offered to the rules — every row not locked by hand, matched or not. */
+  readonly evaluated: number;
+  /** Rows given a category they did not already hold. A repeat apply reports 0. */
+  readonly assigned: number;
+  /** Rows whose category no rule claims any more, set back to none. */
+  readonly cleared: number;
+  /** Standing total of hand-set rows. Never loaded, never matched — only counted. */
+  readonly locked: number;
 }
 
 export interface TransactionPayload {
@@ -24,9 +56,17 @@ export interface TransactionPayload {
   readonly currency: string;
   readonly status: BookingStatus;
   readonly counterpartyName: string | null;
+  /** Carried so an IBAN rule is explainable on screen rather than only in the database. */
+  readonly counterpartyIban: string | null;
   readonly purpose: string | null;
   readonly bookingText: string | null;
   readonly bankCategory: string | null;
+  readonly categoryId: string | null;
+  /**
+   * ISO 8601 when a human set the category, `null` otherwise. Non-null is what the lock
+   * on screen means, and what keeps the rules engine off this row.
+   */
+  readonly categoryLockedAt: string | null;
 }
 
 export interface ImportSummary {
@@ -40,6 +80,8 @@ export interface ImportSummary {
   readonly restored: number;
   /** Pending rows replaced wholesale, because pending is a snapshot and not a ledger. */
   readonly pendingReplaced: number;
+  /** Rows this import categorized on the way in, so no second step is needed. */
+  readonly categorized: number;
   readonly failed: readonly RowError[];
   readonly encoding: BankFileEncoding;
   /** Set when this exact file was uploaded to this account before. */

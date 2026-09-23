@@ -31,7 +31,15 @@ const E2E_DATABASE_URL = 'file:./data/e2e.db';
  */
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  /*
+   * One worker, no cross-file parallelism. Every spec drives the same API against the
+   * same e2e.db and the same account, so two files in flight at once race on
+   * `Account.iban` being @unique — the second one's "create the account" step fails with
+   * a 409 and the import panel it was waiting for never renders. The suite is seconds
+   * long; serializing it is cheaper than making each spec carry its own account.
+   */
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 2 : 0,
   reporter: process.env['CI'] ? 'dot' : [['list']],

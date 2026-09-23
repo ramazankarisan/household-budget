@@ -1,5 +1,6 @@
 import { type AccountPayload, type TransactionPayload } from '@household-budget/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AccountPage } from './AccountPage';
@@ -17,11 +18,20 @@ vi.mock('../api/client', () => ({
   listAccounts: () => Promise.resolve(ACCOUNTS),
   createAccount: () => Promise.reject(new Error('not used here')),
   uploadImport: () => Promise.reject(new Error('not used here')),
+  listCategories: () => Promise.resolve([{ id: 'cat-wohnen', name: 'Wohnen' }]),
+  setTransactionCategory: () => Promise.reject(new Error('not used here')),
   listTransactions: (accountId: string) =>
     new Promise<TransactionPayload[]>((resolve) => {
       pending.set(accountId, resolve);
     }),
 }));
+
+/** The page renders the app's nav, and `NavLink` needs a router around it. */
+const page = () => (
+  <MemoryRouter>
+    <AccountPage />
+  </MemoryRouter>
+);
 
 function row(id: string, counterpartyName: string): TransactionPayload {
   return {
@@ -32,9 +42,12 @@ function row(id: string, counterpartyName: string): TransactionPayload {
     currency: 'EUR',
     status: 'booked',
     counterpartyName,
+    counterpartyIban: null,
     purpose: 'Einkauf',
     bookingText: 'KARTENZAHLUNG',
     bankCategory: null,
+    categoryId: null,
+    categoryLockedAt: null,
   };
 }
 
@@ -46,7 +59,7 @@ describe('AccountPage', () => {
   it('drops a load that only arrives after the account was switched', async () => {
     // The first account's rows must never appear under the second account's name, however
     // late its response is. Clearing the table on switch is not enough on its own.
-    render(<AccountPage />);
+    render(page());
 
     await waitFor(() => {
       expect(pending.has('acc-1')).toBe(true);
