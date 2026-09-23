@@ -7,11 +7,29 @@
 export type {
   AccountPayload,
   ApplySummary,
+  BudgetPayload,
   CategoryPayload,
   ImportSummary,
   RulePayload,
   TransactionPayload,
 } from './api.js';
+export type {
+  Budget,
+  BudgetInput,
+  BudgetInputError,
+  BudgetInputErrorCode,
+  ParseBudgetInputResult,
+} from './budget/budget.js';
+export { MAX_BUDGET_CENTS, parseBudgetInput } from './budget/budget.js';
+export type { MonthKey } from './budget/month.js';
+export { isMonthKey, monthOfDate } from './budget/month.js';
+export type {
+  CategoryReport,
+  MonthlyReport,
+  MonthlyReportRow,
+  ReportableCategory,
+} from './budget/report.js';
+export { monthlyReport } from './budget/report.js';
 export type { ImportErrorCode, ImportFileErrorCode, RowError } from './csv/errors.js';
 export { CsvFileError } from './csv/errors.js';
 export type { ParseGermanDateOptions } from './csv/fields.js';
