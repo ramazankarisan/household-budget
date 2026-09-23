@@ -301,4 +301,39 @@ describe('AccountPage, filtering', () => {
     );
     expect(screen.getByRole('textbox', { name: 'Suche' })).toHaveValue('');
   });
+
+  it('lands already narrowed when the budgets page sends the user here', async () => {
+    // The uncategorized row on /budgets hands over its account, month and bucket through
+    // router state — the rows it counted, not the first account's rows for every month.
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: '/',
+            state: { accountId: 'acc-2', month: '2025-09', categoryId: 'uncategorized' },
+          },
+        ]}
+      >
+        <AccountPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(pending.has('acc-2')).toBe(true);
+    });
+    expect(pending.has('acc-1')).toBe(false);
+    pending.get('acc-2')?.([
+      row('t-1', 'Ärzte GmbH'),
+      row('t-2', 'Müller GmbH', { categoryId: 'cat-wohnen' }),
+      row('t-3', 'Versicherung Nord AG', { bookingDate: '2014-03-24' }),
+    ]);
+
+    expect(await screen.findByRole('cell', { name: 'Ärzte GmbH' })).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: 'Müller GmbH' })).toBeNull();
+    expect(screen.queryByRole('cell', { name: 'Versicherung Nord AG' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('September 2025');
+    expect(screen.getByRole('combobox', { name: 'Kategorie filtern' })).toHaveTextContent(
+      'Ohne Kategorie',
+    );
+  });
 });

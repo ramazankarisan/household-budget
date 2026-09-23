@@ -1,4 +1,9 @@
-import { normalize, normalizeIban, type TransactionPayload } from '@household-budget/core';
+import {
+  monthOfDate,
+  normalize,
+  normalizeIban,
+  type TransactionPayload,
+} from '@household-budget/core';
 
 /**
  * Narrowing the list, in the browser, over the rows the page has already loaded.
@@ -27,6 +32,39 @@ export const UNCATEGORIZED = 'uncategorized';
 
 export const NO_FILTERS: TransactionFilterState = { month: '', categoryId: '', search: '' };
 
+/**
+ * What another page hands the list through router state: which account, already narrowed.
+ *
+ * Router state rather than a query parameter, so no route learns to parse one — the
+ * budgets page's uncategorized row is the only sender. The account travels with it
+ * because the list otherwise opens on the first account, and a month's uncategorized rows
+ * on a different account than the one they were counted on are not those rows.
+ */
+export interface ListEntryState {
+  readonly accountId: string;
+  readonly month: string;
+  readonly categoryId: string;
+}
+
+/**
+ * `location.state` is `unknown` — history survives a reload, and whatever put it there
+ * may have been an older build. Anything not exactly this shape is ignored.
+ */
+export function listEntryOf(state: unknown): ListEntryState | undefined {
+  if (typeof state !== 'object' || state === null) {
+    return undefined;
+  }
+  const { accountId, month, categoryId } = state as Record<string, unknown>;
+  if (
+    typeof accountId !== 'string' ||
+    typeof month !== 'string' ||
+    typeof categoryId !== 'string'
+  ) {
+    return undefined;
+  }
+  return { accountId, month, categoryId };
+}
+
 /** True while anything is narrowing the list — what tells the two empty states apart. */
 export function hasFilters(filters: TransactionFilterState): boolean {
   return filters.month !== '' || filters.categoryId !== '' || filters.search !== '';
@@ -37,10 +75,11 @@ export function hasFilters(filters: TransactionFilterState): boolean {
  *
  * A substring rather than a `Date`, for the same reason `bookingDate` is stored as text:
  * a booking date has no zone, and `new Date('2025-09-01')` is UTC midnight — which is
- * September or August depending on where the browser is standing.
+ * September or August depending on where the browser is standing. The rule itself is
+ * core's `monthOfDate`, because the budgets report and the API need the same one.
  */
 export function monthOf(transaction: TransactionPayload): string {
-  return transaction.bookingDate.slice(0, 7);
+  return monthOfDate(transaction.bookingDate);
 }
 
 /** The months the rows actually cover, newest first. A history has holes. */

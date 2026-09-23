@@ -10,11 +10,11 @@ import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router';
 
 import {
   createAccount,
@@ -26,6 +26,7 @@ import {
 import {
   filterTransactions,
   hasFilters,
+  listEntryOf,
   monthsOf,
   NO_FILTERS,
   searchableOf,
@@ -33,17 +34,28 @@ import {
   uncategorizedCount,
 } from '../filter';
 import { transactionsText } from '../i18n/transactions';
+import { AccountSelect } from './AccountSelect';
 import { ImportPanel } from './ImportPanel';
 import { Nav } from './Nav';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionList } from './TransactionList';
 
 export function AccountPage() {
+  // Read once, on mount: another page may have sent the user here already narrowed. A
+  // later change of filter is the user's, and must not be overridden by where they came
+  // from.
+  const location = useLocation();
+  const [entry] = useState(() => listEntryOf(location.state));
+
   const [accounts, setAccounts] = useState<AccountPayload[] | undefined>(undefined);
-  const [accountId, setAccountId] = useState<string>('');
+  const [accountId, setAccountId] = useState<string>(entry?.accountId ?? '');
   const [transactions, setTransactions] = useState<readonly TransactionPayload[]>([]);
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
-  const [filters, setFilters] = useState<TransactionFilterState>(NO_FILTERS);
+  const [filters, setFilters] = useState<TransactionFilterState>(
+    entry === undefined
+      ? NO_FILTERS
+      : { ...NO_FILTERS, month: entry.month, categoryId: entry.categoryId },
+  );
   const [error, setError] = useState<string | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
@@ -199,12 +211,10 @@ export function AccountPage() {
             <Nav />
           </Stack>
           {accounts !== undefined && accounts.length > 0 && (
-            <TextField
-              select
-              size="small"
-              label="Konto"
+            <AccountSelect
+              accounts={accounts}
               value={accountId}
-              onChange={(event) => {
+              onChange={(nextAccountId) => {
                 // Cleared here rather than in the effect that reloads them: showing the
                 // previous account's rows under the new account's name is worse than
                 // showing none for a moment.
@@ -213,16 +223,9 @@ export function AccountPage() {
                 // next: `September 2025` against a history ending in 2023 shows an empty
                 // table, which reads as a bug rather than as a filter.
                 setFilters(NO_FILTERS);
-                setAccountId(event.target.value);
+                setAccountId(nextAccountId);
               }}
-              sx={{ minWidth: 260 }}
-            >
-              {accounts.map((account) => (
-                <MenuItem key={account.id} value={account.id}>
-                  {account.name} · {account.iban}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           )}
         </Stack>
 

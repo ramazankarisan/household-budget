@@ -142,16 +142,16 @@ describe('RulesPage', () => {
     expect(screen.getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('zweite');
   });
 
-  it('explains a refused category deletion with both counts', async () => {
+  it('explains a refused category deletion with all three counts', async () => {
     removedCategory.mockRejectedValue(
-      new ApiError('CATEGORY_IN_USE', [], { rules: 2, transactions: 47 }),
+      new ApiError('CATEGORY_IN_USE', [], { rules: 2, transactions: 47, budgets: 3 }),
     );
     render(page());
 
     fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
 
     expect(
-      await screen.findByText('Wird noch verwendet: 2 Regeln, 47 Umsätze.'),
+      await screen.findByText('Wird noch verwendet: 2 Regeln, 47 Umsätze, 3 Budgets.'),
     ).toBeInTheDocument();
   });
 

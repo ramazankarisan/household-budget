@@ -172,20 +172,30 @@ export function describeRuleErrors(
   return marked;
 }
 
-const CATEGORY_IN_USE: Record<Locale, (rules: number, transactions: number) => string> = {
-  de: (rules, transactions) =>
-    `Wird noch verwendet: ${String(rules)} Regeln, ${String(transactions)} Umsätze.`,
-  en: (rules, transactions) =>
-    `Still in use: ${String(rules)} rules, ${String(transactions)} transactions.`,
+/** What points at a category: the three counts a refused delete carries. */
+export interface CategoryUse {
+  readonly rules: number;
+  readonly transactions: number;
+  readonly budgets: number;
+}
+
+const CATEGORY_IN_USE: Record<Locale, (use: CategoryUse) => string> = {
+  de: ({ rules, transactions, budgets }) =>
+    `Wird noch verwendet: ${String(rules)} Regeln, ${String(transactions)} Umsätze, ` +
+    `${String(budgets)} Budgets.`,
+  en: ({ rules, transactions, budgets }) =>
+    `Still in use: ${String(rules)} rules, ${String(transactions)} transactions, ` +
+    `${String(budgets)} budgets.`,
 };
 
-/** The refusal that deleting a category in use earns, with the counts that explain it. */
-export function describeCategoryInUse(
-  rules: number,
-  transactions: number,
-  locale: Locale = 'de',
-): string {
-  return CATEGORY_IN_USE[locale](rules, transactions);
+/**
+ * The refusal that deleting a category in use earns, with the counts that explain it.
+ *
+ * An object rather than three positional numbers: the third arrived with budgets, and
+ * three adjacent `number` parameters are two transpositions the compiler cannot see.
+ */
+export function describeCategoryInUse(use: CategoryUse, locale: Locale = 'de'): string {
+  return CATEGORY_IN_USE[locale](use);
 }
 
 const APPLY_SUMMARY: Record<Locale, (summary: ApplySummary) => string> = {

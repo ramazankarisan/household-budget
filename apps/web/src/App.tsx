@@ -1,11 +1,12 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
 
 import { AccountPage } from './pages/AccountPage';
+import { BudgetsPage } from './pages/BudgetsPage';
 import { RulesPage } from './pages/RulesPage';
 
 /**
- * Two routes. The third — reporting — is the remaining third of the product, and is a
- * page rather than a tab on either of these for the same reason.
+ * Three routes, one per third of the product: import, categorize, report. Each is a page
+ * rather than a tab on another, because each loads what it needs and nothing else.
  */
 export function App() {
   return (
@@ -13,6 +14,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<AccountPage />} />
         <Route path="/rules" element={<RulesPage />} />
+        <Route path="/budgets" element={<BudgetsPage />} />
       </Routes>
     </BrowserRouter>
   );

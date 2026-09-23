@@ -101,9 +101,15 @@ describe('describeRuleErrors', () => {
 });
 
 describe('describeCategoryInUse', () => {
-  it('names both counts, because they are the answer to "why not"', () => {
-    expect(describeCategoryInUse(2, 47)).toBe('Wird noch verwendet: 2 Regeln, 47 Umsätze.');
-    expect(describeCategoryInUse(2, 47, 'en')).toBe('Still in use: 2 rules, 47 transactions.');
+  it('names all three counts, because they are the answer to "why not"', () => {
+    const use = { rules: 2, transactions: 47, budgets: 3 };
+
+    expect(describeCategoryInUse(use)).toBe(
+      'Wird noch verwendet: 2 Regeln, 47 Umsätze, 3 Budgets.',
+    );
+    expect(describeCategoryInUse(use, 'en')).toBe(
+      'Still in use: 2 rules, 47 transactions, 3 budgets.',
+    );
   });
 });
 

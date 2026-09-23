@@ -2,11 +2,12 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { NavLink } from 'react-router';
 
+import { budgetsText } from '../i18n/budgets';
 import { rulesText } from '../i18n/rules';
 
 /**
- * The app's first navigation. Two links, because the product is import → categorize →
- * report and the second of those is now a page rather than a tab on the first.
+ * The app's navigation. Three links, because the product is import → categorize →
+ * report, and each of those is a page of its own.
  */
 export function Nav() {
   const text = rulesText();
@@ -15,6 +16,7 @@ export function Nav() {
     <Stack component="nav" direction="row" spacing={2} sx={{ alignItems: 'center' }}>
       <NavItem to="/" label={text.navTransactions} />
       <NavItem to="/rules" label={text.navRules} />
+      <NavItem to="/budgets" label={budgetsText().navBudgets} />
     </Stack>
   );
 }

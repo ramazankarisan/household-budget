@@ -1,6 +1,7 @@
 import {
   type AccountPayload,
   type ApplySummary,
+  type BudgetPayload,
   type CategoryPayload,
   type ImportSummary,
   type RuleInput,
@@ -33,7 +34,7 @@ export class ApiError extends Error {
   /** The missing column names, for `REQUIRED_COLUMN_MISSING`. */
   readonly columns: readonly string[];
   /**
-   * The rest of the object the API threw, verbatim. `CATEGORY_IN_USE` carries the two
+   * The rest of the object the API threw, verbatim. `CATEGORY_IN_USE` carries the three
    * counts that explain the refusal; `RULE_INVALID` carries one entry per bad form field.
    * Kept untyped here because this layer's job is to hand it on, not to interpret it.
    */
@@ -154,7 +155,7 @@ export function createCategory(name: string): Promise<CategoryPayload> {
   return request<CategoryPayload>('/categories', json('POST', { name }));
 }
 
-/** 409 while any rule or transaction still points at it — see `CATEGORY_IN_USE`. */
+/** 409 while any rule, transaction or budget still points at it — see `CATEGORY_IN_USE`. */
 export function deleteCategory(categoryId: string): Promise<void> {
   return remove(`/categories/${encodeURIComponent(categoryId)}`);
 }
@@ -190,4 +191,29 @@ export function setTransactionCategory(
     `/transactions/${encodeURIComponent(transactionId)}`,
     json('PATCH', { categoryId }),
   );
+}
+
+/** The limits set for one month, `[]` when none are. Budgets are household-wide. */
+export function listBudgets(month: string, signal?: AbortSignal): Promise<BudgetPayload[]> {
+  return request<BudgetPayload[]>(
+    `/budgets/${encodeURIComponent(month)}`,
+    signal === undefined ? {} : { signal },
+  );
+}
+
+/** `PUT`: sets the cell whether or not it was set before, so the UI never has to ask which. */
+export function setBudget(
+  month: string,
+  categoryId: string,
+  amountCents: number,
+): Promise<BudgetPayload> {
+  return request<BudgetPayload>(
+    `/budgets/${encodeURIComponent(month)}/${encodeURIComponent(categoryId)}`,
+    json('PUT', { amountCents }),
+  );
+}
+
+/** Clearing a limit that was never set is a 204 too: the state asked for holds. */
+export function clearBudget(month: string, categoryId: string): Promise<void> {
+  return remove(`/budgets/${encodeURIComponent(month)}/${encodeURIComponent(categoryId)}`);
 }
