@@ -34,7 +34,22 @@ export function TransactionList({
 
   return (
     <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
+      {/*
+        Fixed layout, not the browser's content-driven one. A Verwendungszweck can run to
+        several lines of address, and under `table-layout: auto` that column takes the
+        width it wants and pushes Betrag — the number the user came for — off the right
+        edge behind a horizontal scrollbar. Fixed means the four sized columns are
+        guaranteed and long text wraps instead.
+      */}
+      <Table size="small" sx={{ tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '6.5rem' }} />
+          {/* Empfänger and Zweck split whatever is left, evenly. */}
+          <col />
+          <col />
+          <col style={{ width: '11rem' }} />
+          <col style={{ width: '7rem' }} />
+        </colgroup>
         <TableHead>
           <TableRow>
             <TableCell>Datum</TableCell>
@@ -50,7 +65,7 @@ export function TransactionList({
               <TableCell sx={{ whiteSpace: 'nowrap' }}>
                 {formatBookingDate(transaction.bookingDate)}
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ overflowWrap: 'anywhere' }}>
                 {transaction.counterpartyName ?? '—'}
                 {transaction.status === 'pending' && (
                   // Pending rows are shown, never hidden, but they are labelled: they are
@@ -60,7 +75,11 @@ export function TransactionList({
                   </Box>
                 )}
               </TableCell>
-              <TableCell sx={{ whiteSpace: 'pre-line' }}>{transaction.purpose ?? '—'}</TableCell>
+              {/* `anywhere` as well as pre-line: a SEPA reference is one unbroken token
+                  long enough to widen the column on its own. */}
+              <TableCell sx={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+                {transaction.purpose ?? '—'}
+              </TableCell>
               <TableCell>
                 <CategoryCell
                   transaction={transaction}

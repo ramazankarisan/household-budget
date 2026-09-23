@@ -23,9 +23,17 @@ interface CategoryCellProps {
 export function CategoryCell({ transaction, categories, onChange, disabled }: CategoryCellProps) {
   const text = rulesText();
   const locked = transaction.categoryLockedAt !== null;
+  // The column is fixed-width, so a long category name is cut. The full one stays
+  // reachable on hover rather than only in the open menu.
+  const currentName = categories.find((category) => category.id === transaction.categoryId)?.name;
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+    // minWidth 0 on the flex child: without it the select refuses to shrink below its
+    // longest option and widens the fixed column it is supposed to fit inside.
+    <Box
+      title={currentName ?? text.uncategorized}
+      sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}
+    >
       <TextField
         select
         size="small"
@@ -44,10 +52,14 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
         disabled={disabled ?? false}
         sx={{
           minWidth: 0,
+          flex: 1,
           '& .MuiSelect-select': {
-            // The widest category name decides the column, not a fixed guess.
             py: 0.25,
             fontSize: '0.875rem',
+            // A long category name is cut with an ellipsis rather than widening the row.
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           },
         }}
         onChange={(event) => {
