@@ -1,5 +1,5 @@
 import { type CategoryPayload, type TransactionPayload } from '@household-budget/core';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TransactionList } from './TransactionList';
@@ -76,5 +76,32 @@ describe('TransactionList', () => {
     render(list([transaction({ counterpartyName: null, purpose: null })]));
 
     expect(screen.getAllByRole('cell', { name: '—' })).toHaveLength(2);
+  });
+
+  it('says a filter matched nothing, and offers the way back out', () => {
+    // A different sentence from the empty account above: "import something" is wrong
+    // advice for an account that has rows the filter is hiding.
+    const reset = vi.fn();
+    render(
+      <TransactionList
+        transactions={[]}
+        categories={CATEGORIES}
+        onCategoryChange={vi.fn()}
+        emptyMessage="Keine Umsätze für diese Auswahl."
+        onResetFilters={reset}
+      />,
+    );
+
+    expect(screen.queryByText(/Noch keine Umsätze/)).not.toBeInTheDocument();
+    expect(screen.getByText('Keine Umsätze für diese Auswahl.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter zurücksetzen' }));
+    expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('offers no reset when there is no filter to reset', () => {
+    render(list([]));
+
+    expect(screen.queryByRole('button', { name: 'Filter zurücksetzen' })).not.toBeInTheDocument();
   });
 });

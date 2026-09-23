@@ -30,3 +30,26 @@ export function formatBookingDate(isoDate: string): string {
   }
   return DATE.format(new Date(year, month - 1, day));
 }
+
+const MONTH = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
+
+/**
+ * `'2025-09'` to `September 2025`.
+ *
+ * Built from parts for the reason above, plus one this needs and `formatBookingDate` does
+ * not: `Intl` throws `RangeError` on an invalid `Date`, so `'x-y'` — which splits into two
+ * halves and passes a length check — would take the page down rather than render as
+ * itself. Hence the `Number.isNaN` guard as well as the missing-part one.
+ */
+export function formatMonth(month: string): string {
+  const [year, monthNumber] = month.split('-').map(Number);
+  if (
+    year === undefined ||
+    monthNumber === undefined ||
+    Number.isNaN(year) ||
+    Number.isNaN(monthNumber)
+  ) {
+    return month;
+  }
+  return MONTH.format(new Date(year, monthNumber - 1, 1));
+}
