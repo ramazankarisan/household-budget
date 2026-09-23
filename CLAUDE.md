@@ -23,7 +23,8 @@ Both apps depend on `@household-budget/core` as `workspace:*` and import its **b
 `TransactionPayload`, `ImportSummary`) are the contract between API responses and the UI
 that renders them.
 
-Status: import → categorize works end to end; reporting is not built yet.
+Status: import → categorize works end to end, and the list it produces can be narrowed by
+month, category and free text; reporting is not built yet.
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
 (UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
@@ -43,9 +44,18 @@ Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint con
 [docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the
 CSV format and [docs/research/02-categorization-rules.md](docs/research/02-categorization-rules.md)
 on matching — in particular §3, the measured reason matching is not a `WHERE` clause.
-[docs/plans/01-csv-import.md](docs/plans/01-csv-import.md) and
-[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md) record what
-was built and what was learned building it.
+The transactions list filters in the browser over the rows `AccountPage` has already
+loaded — no query parameter, no endpoint change — because the text half could not have
+been a `WHERE` clause for the same reason matching is not one, and the other two halves
+were not worth a second source of rows. `apps/web/src/filter.ts` is the pure module that
+does it. The uncategorized count describes the whole account, not the filtered view.
+
+[docs/research/03-transactions-list.md](docs/research/03-transactions-list.md) is the
+authority on that — §6 for why the search is JavaScript and §9 for why all of it is in the
+browser. [docs/plans/01-csv-import.md](docs/plans/01-csv-import.md),
+[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md) and
+[docs/plans/03-transactions-list.md](docs/plans/03-transactions-list.md) record what was
+built and what was learned building it.
 
 ## HOW
 

@@ -5,6 +5,8 @@ their own machine. Two of the three product steps — import, categorize, report
 are built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and listed,
 with duplicate detection that survives overlapping exports, and user-defined rules
 assign each transaction a category — with a category set by hand always winning.
+The list can be narrowed by month, by category and by free text, and says how many
+transactions still have no category.
 
 ## Layout
 
@@ -49,6 +51,13 @@ and press _Regeln anwenden_. Matching runs in `packages/core` rather than in SQL
 because SQLite folds case for ASCII only, so `LIKE '%müller%'` would miss
 `MÜLLER GmbH`. Choosing a category by hand on a transaction locks that row: the
 rules engine will not touch it again until the category is cleared.
+
+Above the table, the toolbar narrows what is shown: a month, a category, and a
+search over payee, purpose and IBAN. The search runs in the browser over the rows
+already loaded, for the same case-folding reason — typing `müller` finds
+`MÜLLER GmbH`, and a grouped `DE89 3704 …` finds the IBAN as it is stored. The chip
+on the right counts the transactions of the whole account that still have no
+category, and clicking it shows exactly those.
 
 ## Scripts
 

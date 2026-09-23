@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatAmount, formatBookingDate } from './format';
+import { formatAmount, formatBookingDate, formatMonth } from './format';
 
 /** de-DE puts U+00A0 between the amount and the €. Compare without fighting it. */
 const plain = (text: string): string => text.replaceAll('\u00a0', ' ');
@@ -38,5 +38,38 @@ describe('formatBookingDate', () => {
 
   it('passes anything that is not a date straight through', () => {
     expect(formatBookingDate('')).toBe('');
+  });
+});
+
+describe('formatMonth', () => {
+  it('names the month a filter option stands for', () => {
+    expect(formatMonth('2025-09')).toBe('September 2025');
+    expect(formatMonth('2014-03')).toBe('März 2014');
+    expect(formatMonth('2025-01')).toBe('Januar 2025');
+  });
+
+  it('renders the calendar month, not a UTC instant', () => {
+    // Built from parts for `formatBookingDate`'s reason: `new Date('2025-01')` is UTC
+    // midnight, which is December anywhere west of Greenwich.
+    expect(formatMonth('2025-12')).toBe('Dezember 2025');
+  });
+
+  it('passes anything that is not a month straight through, and does not throw', () => {
+    // `Intl` throws RangeError on `new Date(NaN, NaN, 1)`, so 'x-y' — two parts, both
+    // unparseable — would take the page down rather than render as itself.
+    expect(formatMonth('x-y')).toBe('x-y');
+    expect(formatMonth('nonsense')).toBe('nonsense');
+    expect(formatMonth('')).toBe('');
+  });
+
+  it('shows a half-written key as itself rather than as the wrong month', () => {
+    // `Number('')` is 0, not NaN, so each of these parses into a number pair and formats
+    // as a real month: '2025-' as Dezember 2024 and '-09' as September 1900. Silently
+    // wrong beats loudly wrong only if nobody reads it.
+    expect(formatMonth('2025-')).toBe('2025-');
+    expect(formatMonth('-09')).toBe('-09');
+    expect(formatMonth('2025-00')).toBe('2025-00');
+    expect(formatMonth('2025-13')).toBe('2025-13');
+    expect(formatMonth('2025-9')).toBe('2025-9');
   });
 });

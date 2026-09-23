@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { listTransactions } from '../api/client';
 import { AccountPage } from './AccountPage';
 
 const ACCOUNTS: AccountPayload[] = [
@@ -31,10 +32,14 @@ vi.mock('../api/client', () => ({
     new Promise<TransactionPayload>((resolve, reject) => {
       writes.push({ transactionId, categoryId, resolve, reject });
     }),
-  listTransactions: (accountId: string) =>
-    new Promise<TransactionPayload[]>((resolve) => {
-      pending.set(accountId, resolve);
-    }),
+  // A `vi.fn`, not a plain arrow: "changing a filter issues no request" is a claim about
+  // how many times this was called, and a plain arrow cannot be counted.
+  listTransactions: vi.fn(
+    (accountId: string) =>
+      new Promise<TransactionPayload[]>((resolve) => {
+        pending.set(accountId, resolve);
+      }),
+  ),
 }));
 
 /** The page renders the app's nav, and `NavLink` needs a router around it. */
@@ -44,7 +49,11 @@ const page = () => (
   </MemoryRouter>
 );
 
-function row(id: string, counterpartyName: string): TransactionPayload {
+function row(
+  id: string,
+  counterpartyName: string,
+  overrides: Partial<TransactionPayload> = {},
+): TransactionPayload {
   return {
     id,
     bookingDate: '2025-09-22',
@@ -59,13 +68,30 @@ function row(id: string, counterpartyName: string): TransactionPayload {
     bankCategory: null,
     categoryId: null,
     categoryLockedAt: null,
+    ...overrides,
   };
 }
 
 beforeEach(() => {
   pending.clear();
   writes.length = 0;
+  vi.mocked(listTransactions).mockClear();
 });
+
+/** Renders the page and answers the first account's load with the rows given. */
+async function withRows(rows: TransactionPayload[]): Promise<void> {
+  render(page());
+  await waitFor(() => {
+    expect(pending.has('acc-1')).toBe(true);
+  });
+  pending.get('acc-1')?.(rows);
+  await screen.findByRole('combobox', { name: 'Monat' });
+}
+
+function chooseOption(name: string, option: string | RegExp): void {
+  fireEvent.mouseDown(screen.getByRole('combobox', { name }));
+  fireEvent.click(screen.getByRole('option', { name: option }));
+}
 
 /** Renders the page with one booked row on the first account, loaded. */
 async function withOneRow(): Promise<void> {
@@ -160,5 +186,119 @@ describe('AccountPage, setting a category by hand', () => {
     await waitFor(() => {
       expect(categorySelect()).not.toHaveAttribute('aria-disabled', 'true');
     });
+  });
+});
+
+describe('AccountPage, filtering', () => {
+  const SEPTEMBER = row('t-1', 'Müller GmbH');
+  const OLD = row('t-2', 'Versicherung AG', { bookingDate: '2014-03-24' });
+
+  it('narrows the table without asking the server again', async () => {
+    // The rows are already here. A filter that fetched would also undo the in-place
+    // replacement `changeCategory` exists to keep.
+    await withRows([SEPTEMBER, OLD]);
+    expect(screen.getByRole('cell', { name: 'Versicherung AG' })).toBeInTheDocument();
+
+    chooseOption('Monat', 'September 2025');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('cell', { name: 'Versicherung AG' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('cell', { name: 'Müller GmbH' })).toBeInTheDocument();
+    expect(vi.mocked(listTransactions)).toHaveBeenCalledOnce();
+  });
+
+  it('searches the rows it already has, one keystroke at a time', async () => {
+    await withRows([SEPTEMBER, OLD]);
+
+    // Lower case against a capital Ü: the case the database cannot fold, typed into the
+    // page that can.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Suche' }), {
+      target: { value: 'müller' },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('cell', { name: 'Versicherung AG' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('cell', { name: 'Müller GmbH' })).toBeInTheDocument();
+    expect(vi.mocked(listTransactions)).toHaveBeenCalledOnce();
+  });
+
+  it('counts the account, not the view', async () => {
+    // The number answers "how much is left to do". One that moved as the user narrowed
+    // the list could not.
+    await withRows([SEPTEMBER, OLD]);
+    expect(screen.getByText('2 ohne Kategorie')).toBeInTheDocument();
+
+    chooseOption('Monat', 'September 2025');
+
+    expect(screen.getByText('2 ohne Kategorie')).toBeInTheDocument();
+  });
+
+  it('says a filter matched nothing rather than inviting another import', async () => {
+    await withRows([SEPTEMBER]);
+
+    // A combination no row satisfies: September has rows, Wohnen has rows elsewhere,
+    // and together they have none. "Import a CSV export" is wrong advice here.
+    chooseOption('Kategorie filtern', 'Wohnen');
+
+    expect(await screen.findByText('Keine Umsätze für diese Auswahl.')).toBeInTheDocument();
+    expect(screen.queryByText(/Noch keine Umsätze/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter zurücksetzen' }));
+    expect(await screen.findByRole('cell', { name: 'Müller GmbH' })).toBeInTheDocument();
+  });
+
+  it('drops a row out of the Ohne Kategorie filter the moment it is categorized', async () => {
+    await withRows([SEPTEMBER, row('t-3', 'REWE Filiale 7', { categoryId: 'cat-wohnen' })]);
+    expect(screen.getByText('1 ohne Kategorie')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
+    await waitFor(() => {
+      expect(screen.queryByRole('cell', { name: 'REWE Filiale 7' })).not.toBeInTheDocument();
+    });
+
+    chooseWohnen();
+    await waitFor(() => {
+      expect(writes).toHaveLength(1);
+    });
+    writes[0]?.resolve({
+      ...SEPTEMBER,
+      categoryId: 'cat-wohnen',
+      categoryLockedAt: '2026-09-23T08:00:00.000Z',
+    });
+
+    // The row leaves the filter it no longer belongs to, and the count falls with it —
+    // the same event, which is why neither is cached separately.
+    await waitFor(() => {
+      expect(screen.queryByRole('cell', { name: 'Müller GmbH' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Alle kategorisiert')).toBeInTheDocument();
+  });
+
+  it('forgets the filters when the account changes', async () => {
+    // September 2025 against an account whose history ends in 2023 shows an empty table,
+    // which reads as a bug rather than as a filter.
+    await withRows([SEPTEMBER, OLD]);
+    chooseOption('Monat', 'September 2025');
+    fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Suche' }), {
+      target: { value: 'müller' },
+    });
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Konto' }));
+    fireEvent.click(screen.getByRole('option', { name: /Tagesgeld/ }));
+
+    await waitFor(() => {
+      expect(pending.has('acc-2')).toBe(true);
+    });
+    pending.get('acc-2')?.([row('t-9', 'Stadtwerke', { bookingDate: '2023-05-02' })]);
+
+    expect(await screen.findByRole('cell', { name: 'Stadtwerke' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('Alle Monate');
+    expect(screen.getByRole('combobox', { name: 'Kategorie filtern' })).toHaveTextContent(
+      'Alle Kategorien',
+    );
+    expect(screen.getByRole('textbox', { name: 'Suche' })).toHaveValue('');
   });
 });

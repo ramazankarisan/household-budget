@@ -1,6 +1,8 @@
 import { type CategoryPayload, type TransactionPayload } from '@household-budget/core';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -10,6 +12,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
 import { formatAmount, formatBookingDate } from '../format';
+import { transactionsText } from '../i18n/transactions';
 import { CategoryCell } from './CategoryCell';
 
 interface TransactionListProps {
@@ -19,6 +22,18 @@ interface TransactionListProps {
   readonly onCategoryChange: (transactionId: string, categoryId: string | null) => void;
   /** Rows whose own category change is in flight. Defaults to none. */
   readonly savingIds?: ReadonlySet<string>;
+  /**
+   * What an empty table says. Defaults to the import invitation — "nothing here yet" and
+   * "nothing matches what you asked for" are different sentences, and only the page knows
+   * which one is true.
+   */
+  readonly emptyMessage?: string | undefined;
+  /**
+   * Supplied only while a filter is active; renders the way back out of it. Explicitly
+   * `| undefined` because `exactOptionalPropertyTypes` is on and the page passes the
+   * absence, rather than omitting the prop in one of two JSX branches.
+   */
+  readonly onResetFilters?: (() => void) | undefined;
 }
 
 export function TransactionList({
@@ -26,12 +41,23 @@ export function TransactionList({
   categories,
   onCategoryChange,
   savingIds,
+  emptyMessage,
+  onResetFilters,
 }: TransactionListProps) {
+  const text = transactionsText();
+
   if (transactions.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary">
-        Noch keine Umsätze. Importieren Sie einen CSV-Export.
-      </Typography>
+      <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          {emptyMessage ?? text.noTransactions}
+        </Typography>
+        {onResetFilters !== undefined && (
+          <Button size="small" onClick={onResetFilters}>
+            {text.resetFilters}
+          </Button>
+        )}
+      </Stack>
     );
   }
 
@@ -55,11 +81,11 @@ export function TransactionList({
         </colgroup>
         <TableHead>
           <TableRow>
-            <TableCell>Datum</TableCell>
-            <TableCell>Empfänger</TableCell>
-            <TableCell>Zweck</TableCell>
-            <TableCell>Kategorie</TableCell>
-            <TableCell align="right">Betrag</TableCell>
+            <TableCell>{text.columns.date}</TableCell>
+            <TableCell>{text.columns.counterparty}</TableCell>
+            <TableCell>{text.columns.purpose}</TableCell>
+            <TableCell>{text.columns.category}</TableCell>
+            <TableCell align="right">{text.columns.amount}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

@@ -14,7 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   createAccount,
@@ -23,8 +23,19 @@ import {
   listTransactions,
   setTransactionCategory,
 } from '../api/client';
+import {
+  filterTransactions,
+  hasFilters,
+  monthsOf,
+  NO_FILTERS,
+  searchableOf,
+  type TransactionFilterState,
+  uncategorizedCount,
+} from '../filter';
+import { transactionsText } from '../i18n/transactions';
 import { ImportPanel } from './ImportPanel';
 import { Nav } from './Nav';
+import { TransactionFilters } from './TransactionFilters';
 import { TransactionList } from './TransactionList';
 
 export function AccountPage() {
@@ -32,6 +43,7 @@ export function AccountPage() {
   const [accountId, setAccountId] = useState<string>('');
   const [transactions, setTransactions] = useState<readonly TransactionPayload[]>([]);
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
+  const [filters, setFilters] = useState<TransactionFilterState>(NO_FILTERS);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
@@ -151,6 +163,21 @@ export function AccountPage() {
       });
   }
 
+  // Derived during render, from the one array the loader owns. Nothing here is a second
+  // copy of the rows, which is what lets `changeCategory`'s in-place replacement drop a
+  // row out of an active filter the moment it stops matching.
+  const months = useMemo(() => monthsOf(transactions), [transactions]);
+  // Normalized per loaded list rather than per keystroke — which is the comparison that
+  // matters, since typing is the frequent event. Setting a category by hand rebuilds it
+  // too, because `changeCategory` replaces the array: ~2 ms for an eight-year history,
+  // once per click, and cheaper than a per-id cache that would need invalidating on
+  // exactly that event anyway.
+  const searchable = useMemo(() => searchableOf(transactions), [transactions]);
+  const visible = useMemo(() => filterTransactions(searchable, filters), [searchable, filters]);
+  // The whole account, not the view: the number answers "how much is left to do".
+  const uncategorized = useMemo(() => uncategorizedCount(transactions), [transactions]);
+  const filtering = hasFilters(filters);
+
   async function addAccount(iban: string, name: string): Promise<void> {
     const created = await createAccount(iban, name);
     setAccounts((current) => [...(current ?? []), created]);
@@ -182,6 +209,10 @@ export function AccountPage() {
                 // previous account's rows under the new account's name is worse than
                 // showing none for a moment.
                 setTransactions([]);
+                // A month or a category chosen for one account means nothing for the
+                // next: `September 2025` against a history ending in 2023 shows an empty
+                // table, which reads as a bug rather than as a filter.
+                setFilters(NO_FILTERS);
                 setAccountId(event.target.value);
               }}
               sx={{ minWidth: 260 }}
@@ -210,11 +241,28 @@ export function AccountPage() {
                 </Typography>
                 <ImportPanel accountId={accountId} onImported={refreshTransactions} />
                 <Divider />
+                {transactions.length > 0 && (
+                  <TransactionFilters
+                    filters={filters}
+                    months={months}
+                    categories={categories}
+                    uncategorized={uncategorized}
+                    onChange={setFilters}
+                  />
+                )}
                 <TransactionList
-                  transactions={transactions}
+                  transactions={visible}
                   categories={categories}
                   onCategoryChange={changeCategory}
                   savingIds={savingIds}
+                  emptyMessage={filtering ? transactionsText().noMatches : undefined}
+                  onResetFilters={
+                    filtering
+                      ? () => {
+                          setFilters(NO_FILTERS);
+                        }
+                      : undefined
+                  }
                 />
               </Stack>
             </CardContent>

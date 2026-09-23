@@ -4,7 +4,7 @@ git_commit: 0113b1b9e5dbb9955b34bc84d3e662d6e9ed0e9c
 branch: main
 topic: 'Transactions list: month, category and text filters, and the uncategorized count'
 tags: [plan, transactions, filtering, search, apps-web]
-status: ready
+status: implemented
 ---
 
 # PLAN: The transactions list
@@ -22,32 +22,32 @@ migration.
 
 ## Acceptance Criteria
 
-- [ ] Choosing `September 2025` shows only rows whose `bookingDate` starts `2025-09`; the fixture's
+- [x] Choosing `September 2025` shows only rows whose `bookingDate` starts `2025-09`; the fixture's
       `2014-03` row disappears.
-- [ ] The month selector lists only months the account actually has, newest first, labelled
+- [x] The month selector lists only months the account actually has, newest first, labelled
       `September 2025` — not a continuous range, because a history has holes.
-- [ ] Choosing a category shows only rows holding it; choosing `Ohne Kategorie` shows only rows
+- [x] Choosing a category shows only rows holding it; choosing `Ohne Kategorie` shows only rows
       with `categoryId === null`, pending rows included.
-- [ ] Typing `müller` finds `MÜLLER GmbH`. So does `MÜLLER`, and so does the NFD spelling where
+- [x] Typing `müller` finds `MÜLLER GmbH`. So does `MÜLLER`, and so does the NFD spelling where
       the umlaut is `u` + U+0308. This is the case SQLite cannot do, which is why it is a
       criterion and not an implementation detail.
-- [ ] Typing `miete oktober hauptstraße` finds the row whose stored purpose is
+- [x] Typing `miete oktober hauptstraße` finds the row whose stored purpose is
       `'Miete Oktober\r\nHauptstraße 12'` — the CRLF collapse.
-- [ ] The search matches payee, purpose and IBAN. An empty search matches every row.
-- [ ] The three filters combine: month **and** category **and** search.
-- [ ] The count chip reports the uncategorized rows of the **whole account** and does not move when
+- [x] The search matches payee, purpose and IBAN. An empty search matches every row.
+- [x] The three filters combine: month **and** category **and** search.
+- [x] The count chip reports the uncategorized rows of the **whole account** and does not move when
       a filter narrows the table.
-- [ ] Clicking the count chip sets the category filter to `Ohne Kategorie`.
-- [ ] At zero the chip reads `Alle kategorisiert` and is not clickable.
-- [ ] Setting a category by hand lowers the count by one, and the row leaves an active
+- [x] Clicking the count chip sets the category filter to `Ohne Kategorie`.
+- [x] At zero the chip reads `Alle kategorisiert` and is not clickable.
+- [x] Setting a category by hand lowers the count by one, and the row leaves an active
       `Ohne Kategorie` filter immediately.
-- [ ] Switching account resets all three filters.
-- [ ] A filter that matches nothing says so and offers a reset — distinct from the empty state
+- [x] Switching account resets all three filters.
+- [x] A filter that matches nothing says so and offers a reset — distinct from the empty state
       that invites an import.
-- [ ] Changing a filter issues **no** HTTP request: `listTransactions` is called once per account.
-- [ ] Every string the list UI shows exists in both `de` and `en`, asserted the way
+- [x] Changing a filter issues **no** HTTP request: `listTransactions` is called once per account.
+- [x] Every string the list UI shows exists in both `de` and `en`, asserted the way
       `i18n/rules.test.ts` already asserts it.
-- [ ] `pnpm check` is green at the end of every phase; `pnpm check:all` is green at the end.
+- [x] `pnpm check` is green at the end of every phase; `pnpm check:all` is green at the end.
 
 ## Technical Key Decisions and Tradeoffs
 
@@ -295,7 +295,7 @@ counting only.
 
 **Tasks**:
 
-- [ ] Add `apps/web/src/filter.ts` with no React in it:
+- [x] Add `apps/web/src/filter.ts` with no React in it:
 
 ```ts
 /** `''` means "every month"; otherwise `'YYYY-MM'`. */
@@ -321,24 +321,24 @@ export function monthsOf(transactions: readonly TransactionPayload[]): readonly 
 export function uncategorizedCount(transactions: readonly TransactionPayload[]): number;
 ```
 
-- [ ] Add `monthOf(transaction)` as `bookingDate.slice(0, 7)` — a substring, not a `Date`, for the
+- [x] Add `monthOf(transaction)` as `bookingDate.slice(0, 7)` — a substring, not a `Date`, for the
       same reason `bookingDate` is stored as text: a booking date has no zone.
-- [ ] Add `searchableOf(rows)` returning `{ row, text, iban }` — `text` is
+- [x] Add `searchableOf(rows)` returning `{ row, text, iban }` — `text` is
       ``normalize(`${counterpartyName ?? ''} ${purpose ?? ''}`)`` and `iban` is
       `normalizeIban(counterpartyIban)`. The `?? ''` is not optional: both fields are
       `string | null` (`api.ts:57-61`), and a template literal would otherwise put the literal
       `"null"` into the haystack, where a search for `null` would find every blank row. Built here
       rather than in Phase 2 so the filter signature never changes.
-- [ ] Add `filterTransactions(searchable, filters): readonly TransactionPayload[]` — takes the
+- [x] Add `filterTransactions(searchable, filters): readonly TransactionPayload[]` — takes the
       pairs, returns rows. Handles `month` and `categoryId` in this phase; the `search` branch is
       `true` until Phase 2 fills it in, so Phase 2 is one function body and no rewiring.
-- [ ] Add `formatMonth('2025-09')` to `format.ts` using
+- [x] Add `formatMonth('2025-09')` to `format.ts` using
       `Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' })` over
       `new Date(year, month - 1, 1)`. Return the input unchanged when it does not parse — and guard
       on `Number.isNaN` as well as a short split, which `formatBookingDate:27-30` does not need and
       this does: `Intl` throws `RangeError` on `new Date(NaN, NaN, 1)`, so `'x-y'` would crash the
       page rather than render as itself.
-- [ ] Add `apps/web/src/i18n/transactions.ts` — `transactionsText(locale: Locale = 'de')` with:
+- [x] Add `apps/web/src/i18n/transactions.ts` — `transactionsText(locale: Locale = 'de')` with:
       `month`, `allMonths` (`'Alle Monate'`), `filterCategory`, `allCategories`
       (`'Alle Kategorien'`), `uncategorized` (`'Ohne Kategorie'`), `showUncategorized` (the chip's
       accessible name, `'Nur Umsätze ohne Kategorie zeigen'`), `search` (`'Suche'`), `resetFilters`
@@ -347,7 +347,7 @@ export function uncategorizedCount(transactions: readonly TransactionPayload[]):
       `describeUncategorized(count, locale = 'de')` returning `'7 ohne Kategorie'` or
       `'Alle kategorisiert'` at zero, following `describeApplySummary`'s shape. Reuse `Locale`
       from `importErrors.ts`.
-- [ ] Add `apps/web/src/pages/TransactionFilters.tsx` — presentational, props
+- [x] Add `apps/web/src/pages/TransactionFilters.tsx` — presentational, props
       `{ filters, months, categories, uncategorized, onChange }`. Two `TextField select`s and the
       count `Chip`, inside a `Stack direction="row"` with `flexWrap: 'wrap'`. The chip is
       `color="warning"` and `onClick`-able above zero, plain and inert at zero, and carries
@@ -355,53 +355,60 @@ export function uncategorizedCount(transactions: readonly TransactionPayload[]):
       `filterCategory` (`'Kategorie filtern'`), not `'Kategorie'`** — `CategoryCell` already puts a
       combobox named `'Kategorie'` on every row (`CategoryCell.tsx:71`), and
       `AccountPage.test.tsx:77,81,85` query it page-scoped, so a second control by that name turns
-      three passing tests into strict-mode locator failures. The visible label stays the short
-      `'Kategorie'`; the distinct name comes from
-      `slotProps={{ select: { 'aria-label': text.filterCategory } }}`, which wins over the label
-      element — setting `label` alone would reintroduce the collision.
-- [ ] Wire `AccountPage`: `filters` state, `useMemo` for `months` and for `searchableOf`, `useMemo`
+      three passing tests into strict-mode locator failures. The distinct name comes from
+      `slotProps={{ select: { 'aria-label': text.filterCategory } }}`.
+
+      **Built differently.** `aria-label` does *not* win over the label element: MUI turns
+      `label` into an `aria-labelledby`, which outranks `aria-label` in the accessible-name
+      computation, so the visible `'Kategorie'` named the control `'Kategorie'` and the
+      collision stayed. Neither select carries a visible label in the end. Nothing is lost —
+      a filter select displays its own value, and at rest that value is the words
+      `'Alle Monate'` and `'Alle Kategorien'`, which is what `displayEmpty: true` buys and
+      what `CategoryCell` already sets it for.
+
+- [x] Wire `AccountPage`: `filters` state, `useMemo` for `months` and for `searchableOf`, `useMemo`
       for the visible rows, `uncategorizedCount` over the unfiltered array, reset to `NO_FILTERS`
       in the account selector's `onChange` beside the existing `setTransactions([])`.
-- [ ] `TransactionList` renders its headers from `transactionsText()` and gains two **optional**
+- [x] `TransactionList` renders its headers from `transactionsText()` and gains two **optional**
       props — `emptyMessage`, defaulting to `transactionsText().noTransactions`, and `onResetFilters`,
       which renders the reset control beside the message when it is supplied. Optional because
       `TransactionList.test.tsx:13-21` builds the component with three props and must keep passing
       untouched, which is also the assertion that the default path is the import invitation.
       `AccountPage` passes `noMatches` and a reset handler only while a filter is active.
-- [ ] Write `filter.test.ts`, `i18n/transactions.test.ts` and `TransactionFilters.test.tsx`;
+- [x] Write `filter.test.ts`, `i18n/transactions.test.ts` and `TransactionFilters.test.tsx`;
       extend `AccountPage.test.tsx` and `TransactionList.test.tsx`. The page mock's
       `listTransactions` is a plain arrow today (`AccountPage.test.tsx:34-37`) — wrap it in a
       `vi.fn` so "a filter change issues no request" is assertable by call count.
 
 **Automated Verification**:
 
-- [ ] `monthsOf` on rows spanning `2025-09` and `2014-03` returns exactly those two, newest first,
+- [x] `monthsOf` on rows spanning `2025-09` and `2014-03` returns exactly those two, newest first,
       and returns `[]` for no rows.
-- [ ] `filterTransactions` with `month: '2025-09'` drops the `2014-03` row.
-- [ ] `filterTransactions` with `categoryId: UNCATEGORIZED` returns only `categoryId === null`
+- [x] `filterTransactions` with `month: '2025-09'` drops the `2014-03` row.
+- [x] `filterTransactions` with `categoryId: UNCATEGORIZED` returns only `categoryId === null`
       rows, **including** a pending one; with a category id, only rows holding it.
-- [ ] `uncategorizedCount` counts a pending uncategorized row and ignores a categorized one.
-- [ ] `formatMonth('2025-09')` is `'September 2025'`; `formatMonth('nonsense')` and
+- [x] `uncategorizedCount` counts a pending uncategorized row and ignores a categorized one.
+- [x] `formatMonth('2025-09')` is `'September 2025'`; `formatMonth('nonsense')` and
       `formatMonth('x-y')` each return their input and neither throws.
-- [ ] `describeUncategorized(0)` is `'Alle kategorisiert'` for `de` and its own English sentence for
+- [x] `describeUncategorized(0)` is `'Alle kategorisiert'` for `de` and its own English sentence for
       `en` — one literal per locale, the way `i18n/rules.test.ts:113-122` asserts each; every key of
       `transactionsText('de')` and `transactionsText('en')` is a non-empty string with no
       `undefined`.
-- [ ] `TransactionFilters` renders each month option through `formatMonth` — `'2025-09'` appears as
+- [x] `TransactionFilters` renders each month option through `formatMonth` — `'2025-09'` appears as
       `September 2025`, never as the raw key.
-- [ ] Clicking the chip calls `onChange` with `categoryId: UNCATEGORIZED`; at zero the chip has no
+- [x] Clicking the chip calls `onChange` with `categoryId: UNCATEGORIZED`; at zero the chip has no
       click handler.
-- [ ] The filter select and the row selects coexist: `getByRole('combobox', { name: 'Kategorie' })`
+- [x] The filter select and the row selects coexist: `getByRole('combobox', { name: 'Kategorie' })`
       still resolves to exactly one element per row, and `AccountPage.test.tsx:77,81,85` pass
       unchanged.
-- [ ] On the page: choosing a month narrows the table, the chip's number does not change, and
+- [x] On the page: choosing a month narrows the table, the chip's number does not change, and
       `vi.mocked(listTransactions)` has exactly one call.
-- [ ] Setting a category by hand while filtered to `Ohne Kategorie` removes the row from the table
+- [x] Setting a category by hand while filtered to `Ohne Kategorie` removes the row from the table
       and lowers the chip by one.
-- [ ] Switching account resets month and category to "all".
-- [ ] A filter matching nothing renders `noMatches` and the reset control; an account with no rows
+- [x] Switching account resets month and category to "all".
+- [x] A filter matching nothing renders `noMatches` and the reset control; an account with no rows
       renders `noTransactions` and no reset control.
-- [ ] `pnpm --filter @household-budget/web test` and `pnpm check` green.
+- [x] `pnpm --filter @household-budget/web test` and `pnpm check` green.
 
 ### Phase 2: Text search
 
@@ -412,7 +419,7 @@ over strings before they are anything on screen.
 
 **Tasks**:
 
-- [ ] Implement the `search` branch of `filterTransactions` against the two haystacks Phase 1
+- [x] Implement the `search` branch of `filterTransactions` against the two haystacks Phase 1
       already builds. **Two needles, not one**: `normalize(search)` compared against `text`, OR
       `normalizeIban(search)` compared against `iban`. One joined haystack cannot serve both —
       `normalize` keeps single spaces (`normalize.ts:24`), so a typed `DE89 3704 0044 …` never
@@ -420,40 +427,40 @@ over strings before they are anything on screen.
       `normalizeIban` instead would strip the spaces out of `miete oktober` and break the purpose
       search. An empty needle matches everything; the IBAN compare is skipped when
       `normalizeIban(search)` is empty. Combine with month and category as AND.
-- [ ] Add the search `TextField` to `TransactionFilters` — `size="small"`, an `aria-label` from
+- [x] Add the search `TextField` to `TransactionFilters` — `size="small"`, an `aria-label` from
       `transactionsText().search`, and a clear affordance. No debounce (decision 5).
-- [ ] Extend `filter.test.ts` with the fixture's own strings as literals: `'Müller GmbH'`,
+- [x] Extend `filter.test.ts` with the fixture's own strings as literals: `'Müller GmbH'`,
       `'MÜLLER GmbH'`, the NFD spelling, `'REWE SAGT DANKE; FILIALE 42'`,
       `'Miete Oktober\r\nHauptstraße 12'`, an absent payee, and a stored
       `'DE89370400440532013000'` searched as `'DE89 3704 0044 0532 0130 00'`.
-- [ ] Add `apps/web/e2e/transactions.spec.ts` as a `test.describe.serial`: ensure the account and
+- [x] Add `apps/web/e2e/transactions.spec.ts` as a `test.describe.serial`: ensure the account and
       the fixture import exist the way `rules.spec.ts:33-46` does, then search `müller` and assert
       the `Müller GmbH` row is the one left; clear it; choose the month the fixture's stray 2014
       row is not in and assert that row is gone; click the count chip and assert every visible row
       shows `Ohne Kategorie` and that their number equals the chip's. Assert **no** absolute count,
       because `rules.spec.ts` categorizes rows in the same database.
-- [ ] Update `README.md`'s feature paragraph and `CLAUDE.md`'s status paragraph — the list can now
+- [x] Update `README.md`'s feature paragraph and `CLAUDE.md`'s status paragraph — the list can now
       be searched and filtered — and link this plan and
       [`docs/research/03-transactions-list.md`](../research/03-transactions-list.md) from
       `CLAUDE.md`, per its "Link, do not inline" rule.
 
 **Automated Verification**:
 
-- [ ] `müller`, `MÜLLER` and the NFD spelling each match `'MÜLLER GmbH'`; `rewe` matches
+- [x] `müller`, `MÜLLER` and the NFD spelling each match `'MÜLLER GmbH'`; `rewe` matches
       `'REWE SAGT DANKE; FILIALE 42'`.
-- [ ] `miete oktober hauptstraße` matches `'Miete Oktober\r\nHauptstraße 12'`.
-- [ ] A row with `counterpartyName: null` and `purpose: null` neither matches a non-empty needle
+- [x] `miete oktober hauptstraße` matches `'Miete Oktober\r\nHauptstraße 12'`.
+- [x] A row with `counterpartyName: null` and `purpose: null` neither matches a non-empty needle
       nor throws — and searching `null` finds it no more than any other row, which is what the
       `?? ''` in `searchableOf` buys.
-- [ ] An IBAN typed in groups of four matches the stored unspaced form, and a purpose search
+- [x] An IBAN typed in groups of four matches the stored unspaced form, and a purpose search
       containing a space still matches — the two needles, proven together.
-- [ ] An empty needle returns every row; a needle matching nothing returns none.
-- [ ] Search combines with month and category: a needle matching a row in another month returns
+- [x] An empty needle returns every row; a needle matching nothing returns none.
+- [x] Search combines with month and category: a needle matching a row in another month returns
       nothing while that month is selected.
-- [ ] Typing in the search box issues no request — `vi.mocked(listTransactions)` still has one call.
-- [ ] Switching account clears the search box as well as the month and category selects.
-- [ ] `pnpm test:e2e` passes, `transactions.spec.ts` included.
-- [ ] `pnpm check:all` green.
+- [x] Typing in the search box issues no request — `vi.mocked(listTransactions)` still has one call.
+- [x] Switching account clears the search box as well as the month and category selects.
+- [x] `pnpm test:e2e` passes, `transactions.spec.ts` included.
+- [x] `pnpm check:all` green.
 
 **Manual Verification**:
 
