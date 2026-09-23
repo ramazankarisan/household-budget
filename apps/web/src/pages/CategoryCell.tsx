@@ -30,18 +30,34 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
         select
         size="small"
         variant="standard"
-        label={text.category}
+        // No visible label: the column header already says "Kategorie", and repeating it
+        // once per row is what pushed the table past the width of the page. The name is
+        // still there for anyone not reading the header.
+        slotProps={{
+          // displayEmpty: without it MUI renders an empty cell for an uncategorized row,
+          // which reads as "nothing here" rather than "nothing chosen yet".
+          select: { 'aria-label': text.category, displayEmpty: true },
+          input: { disableUnderline: true },
+        }}
         // Empty string, not null: MUI reads `null` as uncontrolled and warns.
         value={transaction.categoryId ?? ''}
         disabled={disabled ?? false}
-        slotProps={{ inputLabel: { shrink: true } }}
-        sx={{ minWidth: 150 }}
+        sx={{
+          minWidth: 0,
+          '& .MuiSelect-select': {
+            // The widest category name decides the column, not a fixed guess.
+            py: 0.25,
+            fontSize: '0.875rem',
+          },
+        }}
         onChange={(event) => {
           onChange(transaction.id, event.target.value === '' ? null : event.target.value);
         }}
       >
         <MenuItem value="">
-          <em>{transaction.categoryId === null ? text.uncategorized : text.clearCategory}</em>
+          <Box component="em" sx={{ color: 'text.disabled' }}>
+            {transaction.categoryId === null ? text.uncategorized : text.clearCategory}
+          </Box>
         </MenuItem>
         {categories.map((category) => (
           <MenuItem key={category.id} value={category.id}>
@@ -50,7 +66,12 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
         ))}
       </TextField>
       {locked && (
-        <Box component="span" aria-label={text.lockedHint} title={text.lockedHint}>
+        <Box
+          component="span"
+          aria-label={text.lockedHint}
+          title={text.lockedHint}
+          sx={{ fontSize: '0.75rem', lineHeight: 1 }}
+        >
           🔒
         </Box>
       )}
