@@ -63,11 +63,9 @@ for every category whether or not it was spent in. The uncategorized bucket is `
 row and never a limit. [docs/research/04-monthly-budgets.md](docs/research/04-monthly-budgets.md)
 §4 is the authority on what "spent" means in this data.
 
-[docs/plans/01-csv-import.md](docs/plans/01-csv-import.md),
-[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md),
-[docs/plans/03-transactions-list.md](docs/plans/03-transactions-list.md) and
-[docs/plans/04-monthly-budgets.md](docs/plans/04-monthly-budgets.md) record what was built and
-what was learned building it.
+`docs/plans/` holds one plan per feature: the decisions behind it and, where the build
+departed from them, what changed and why. Before changing a feature, read its plan — the code
+is the truth about _what_, the plan about _why_.
 
 ## HOW
 
