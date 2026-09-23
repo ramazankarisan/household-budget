@@ -1,9 +1,10 @@
 # household-budget
 
 A pnpm monorepo for a household budgeting app, for one person's own bank data on
-their own machine. The first of the three product steps — import, categorize,
-report — is built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and
-listed, with duplicate detection that survives overlapping exports.
+their own machine. Two of the three product steps — import, categorize, report —
+are built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and listed,
+with duplicate detection that survives overlapping exports, and user-defined rules
+assign each transaction a category — with a category set by hand always winning.
 
 ## Layout
 
@@ -12,7 +13,8 @@ packages/core   Pure TypeScript domain logic — CSV parsing, categorization
                 rules, budget math. No framework dependencies. Compiles to
                 dist/ (ESM + .d.ts); both apps import the built output.
 apps/api        NestJS 12 REST API. SQLite via Prisma 7.
-apps/web        React 19 + Vite 8 + MUI 9 + react-router.
+apps/web        React 19 + Vite 8 + MUI 9 + react-router. Two pages: the
+                transactions of one account, and the rules that categorize them.
 fixtures/       Synthetic bank CSVs. Byte-exact test data: CRLF endings and,
                 for the primary fixture, Windows-1252. Never real statements.
 docs/           research/ and plans/, one Markdown file per topic.
@@ -41,6 +43,12 @@ pnpm dev
 Then open http://localhost:5173. Create an account, drop a Sparkasse CSV export on
 the import panel, and the transactions appear below it. `fixtures/sparkasse-camt-18.csv`
 is a synthetic export to try it with.
+
+Under **Regeln**, add a category and a rule — `Empfänger enthält müller → Wohnen` —
+and press _Regeln anwenden_. Matching runs in `packages/core` rather than in SQL
+because SQLite folds case for ASCII only, so `LIKE '%müller%'` would miss
+`MÜLLER GmbH`. Choosing a category by hand on a transaction locks that row: the
+rules engine will not touch it again until the category is cleared.
 
 ## Scripts
 

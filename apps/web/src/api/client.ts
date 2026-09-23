@@ -1,6 +1,10 @@
 import {
   type AccountPayload,
+  type ApplySummary,
+  type CategoryPayload,
   type ImportSummary,
+  type RuleInput,
+  type RulePayload,
   type TransactionPayload,
 } from '@household-budget/core';
 
@@ -28,12 +32,23 @@ export class ApiError extends Error {
   readonly code: string;
   /** The missing column names, for `REQUIRED_COLUMN_MISSING`. */
   readonly columns: readonly string[];
+  /**
+   * The rest of the object the API threw, verbatim. `CATEGORY_IN_USE` carries the two
+   * counts that explain the refusal; `RULE_INVALID` carries one entry per bad form field.
+   * Kept untyped here because this layer's job is to hand it on, not to interpret it.
+   */
+  readonly details: Readonly<Record<string, unknown>>;
 
-  constructor(code: string, columns: readonly string[] = []) {
+  constructor(
+    code: string,
+    columns: readonly string[] = [],
+    details: Readonly<Record<string, unknown>> = {},
+  ) {
     super(columns.length > 0 ? `${code}: ${columns.join(', ')}` : code);
     this.name = 'ApiError';
     this.code = code;
     this.columns = columns;
+    this.details = details;
   }
 }
 
@@ -80,6 +95,7 @@ function asApiError(body: object): ApiError | undefined {
     Array.isArray(columns)
       ? columns.filter((column): column is string => typeof column === 'string')
       : [],
+    body as Record<string, unknown>,
   );
 }
 
@@ -112,4 +128,66 @@ export function uploadImport(accountId: string, file: File): Promise<ImportSumma
   form.append('file', file);
 
   return request<ImportSummary>('/imports', { method: 'POST', body: form });
+}
+
+function json(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  };
+}
+
+/** 204 has no body, so these cannot go through `request`, which always parses one. */
+async function remove(path: string): Promise<void> {
+  const response = await fetch(`/api${path}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw await toFailure(response, path);
+  }
+}
+
+export function listCategories(signal?: AbortSignal): Promise<CategoryPayload[]> {
+  return request<CategoryPayload[]>('/categories', signal === undefined ? {} : { signal });
+}
+
+export function createCategory(name: string): Promise<CategoryPayload> {
+  return request<CategoryPayload>('/categories', json('POST', { name }));
+}
+
+/** 409 while any rule or transaction still points at it — see `CATEGORY_IN_USE`. */
+export function deleteCategory(categoryId: string): Promise<void> {
+  return remove(`/categories/${encodeURIComponent(categoryId)}`);
+}
+
+export function listRules(signal?: AbortSignal): Promise<RulePayload[]> {
+  return request<RulePayload[]>('/rules', signal === undefined ? {} : { signal });
+}
+
+export function createRule(input: RuleInput): Promise<RulePayload> {
+  return request<RulePayload>('/rules', json('POST', input));
+}
+
+/** A whole rule, not a partial one: every field is on the form. */
+export function updateRule(ruleId: string, input: RuleInput): Promise<RulePayload> {
+  return request<RulePayload>(`/rules/${encodeURIComponent(ruleId)}`, json('PATCH', input));
+}
+
+export function deleteRule(ruleId: string): Promise<void> {
+  return remove(`/rules/${encodeURIComponent(ruleId)}`);
+}
+
+/** No body: rules are global, so applying them is a global act. */
+export function applyRules(): Promise<ApplySummary> {
+  return request<ApplySummary>('/rules/apply', { method: 'POST' });
+}
+
+/** `null` clears the category and the lock, making the row eligible for the next apply. */
+export function setTransactionCategory(
+  transactionId: string,
+  categoryId: string | null,
+): Promise<TransactionPayload> {
+  return request<TransactionPayload>(
+    `/transactions/${encodeURIComponent(transactionId)}`,
+    json('PATCH', { categoryId }),
+  );
 }

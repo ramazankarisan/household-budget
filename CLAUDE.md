@@ -23,17 +23,29 @@ Both apps depend on `@household-budget/core` as `workspace:*` and import its **b
 `TransactionPayload`, `ImportSummary`) are the contract between API responses and the UI
 that renders them.
 
-Status: CSV import works end to end. `POST /api/imports` takes a Sparkasse CSV-CAMT
-upload scoped to an account, decodes it (UTF-8, falling back to Windows-1252), parses it
-by column **name**, and stores the rows — deduplicated by a content fingerprint plus an
-occurrence index, so an overlapping export imports only what is new. Bad rows are
-reported with their line number while the rest of the file imports; an unparseable file
-is a 4xx. Categorization and reporting are not built yet.
+Status: import → categorize works end to end; reporting is not built yet.
+
+`POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
+(UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
+deduplicated by a content fingerprint plus an occurrence index, so an overlapping export
+imports only what is new. Bad rows are reported with their line number while the rest of
+the file imports; an unparseable file is a 4xx.
+
+Categorization is user-defined rules — one condition each, `priority ASC` then `createdAt`
+then `id`, first match wins — matched in `packages/core` over rows already loaded rather
+than in SQL, because SQLite folds case for ASCII only and `LIKE '%müller%'` misses
+`MÜLLER GmbH`. `POST /api/rules/apply` re-runs them over every account and writes `null`
+as well as matches, so a category never outlives the rule that explains it. A category set
+by hand sets `Transaction.categoryLockedAt` and is never touched again until it is cleared.
+An import categorizes the rows it inserts inside its own transaction.
 
 Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
 [docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the
-format; [docs/plans/01-csv-import.md](docs/plans/01-csv-import.md) records what was built
-and what was learned building it.
+CSV format and [docs/research/02-categorization-rules.md](docs/research/02-categorization-rules.md)
+on matching — in particular §3, the measured reason matching is not a `WHERE` clause.
+[docs/plans/01-csv-import.md](docs/plans/01-csv-import.md) and
+[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md) record what
+was built and what was learned building it.
 
 ## HOW
 

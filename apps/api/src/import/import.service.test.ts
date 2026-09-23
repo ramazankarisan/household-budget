@@ -8,6 +8,8 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AccountService } from '../accounts/account.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CategoryService } from '../rules/category.service.js';
+import { RuleService } from '../rules/rule.service.js';
 import { ImportService } from './import.service.js';
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../fixtures');
@@ -19,21 +21,29 @@ const referenceYear = 2026;
 let prisma: PrismaService;
 let accounts: AccountService;
 let imports: ImportService;
+let categories: CategoryService;
+let rules: RuleService;
 
 beforeEach(async () => {
   if (prisma === undefined) {
     const moduleRef = await Test.createTestingModule({
-      providers: [PrismaService, AccountService, ImportService],
+      providers: [PrismaService, AccountService, ImportService, CategoryService, RuleService],
     }).compile();
 
     prisma = moduleRef.get(PrismaService);
     accounts = moduleRef.get(AccountService);
     imports = moduleRef.get(ImportService);
+    categories = moduleRef.get(CategoryService);
+    rules = moduleRef.get(RuleService);
   }
 
+  // Order matters: Transaction and Rule both hold a foreign key into Category, so
+  // categories cannot go first.
   await prisma.transaction.deleteMany();
   await prisma.importBatch.deleteMany();
   await prisma.account.deleteMany();
+  await prisma.rule.deleteMany();
+  await prisma.category.deleteMany();
 });
 
 afterAll(async () => {
@@ -76,6 +86,18 @@ describe('ImportService', () => {
     expect(rows.find((row) => row.lineNumber === 6)?.purpose).toBe(
       'Miete Oktober\r\nHauptstraße 12',
     );
+  });
+
+  it('stores an imported row with no category and no lock', async () => {
+    // The two columns the rules engine reads before it does anything. A row that arrived
+    // pre-locked would be a row no rule could ever categorize.
+    const accountId = await account();
+
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const rows = await liveRows(accountId);
+
+    expect(rows.every((row) => row.categoryId === null)).toBe(true);
+    expect(rows.every((row) => row.categoryLockedAt === null)).toBe(true);
   });
 
   it('imports zero new rows on a re-import and reports the earlier batch', async () => {
@@ -321,5 +343,134 @@ describe('ImportService', () => {
     const row = (await liveRows(accountId))[0];
 
     expect(JSON.parse(row?.raw ?? '{}')).toMatchObject({ Betrag: '-832,9', Kategorie: 'Wohnen' });
+  });
+});
+
+/**
+ * The import's half of categorization. Separate describe, same database and the same
+ * `beforeEach` truncation: these are about what an upload leaves behind, not about what
+ * the engine decides.
+ */
+describe('ImportService and the rules engine', () => {
+  async function wohnenRule(): Promise<string> {
+    const wohnen = await categories.create('Wohnen');
+    await rules.create({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'müller',
+      priority: 10,
+      categoryId: wohnen.id,
+    });
+    return wohnen.id;
+  }
+
+  const muellerRow = (accountId: string) =>
+    prisma.transaction.findFirstOrThrow({
+      where: { accountId, counterpartyName: 'Müller GmbH' },
+    });
+
+  it('categorizes the rows it just inserted, in the same request', async () => {
+    // Otherwise every import is followed by a manual second step, forever.
+    const wohnenId = await wohnenRule();
+    const accountId = await account();
+
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    expect(summary.categorized).toBeGreaterThan(0);
+    expect((await muellerRow(accountId)).categoryId).toBe(wohnenId);
+  });
+
+  it('reports zero categorized when no rule matches anything', async () => {
+    const accountId = await account();
+
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    expect(summary.categorized).toBe(0);
+  });
+
+  it('does not touch a hand-set category when the same file is imported again', async () => {
+    const wohnenId = await wohnenRule();
+    const accountId = await account();
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const lebensmittel = await categories.create('Lebensmittel');
+    const row = await muellerRow(accountId);
+    await accounts.setTransactionCategory(row.id, lebensmittel.id);
+
+    const second = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const after = await muellerRow(accountId);
+    expect(second.imported).toBe(0);
+    expect(second.categorized).toBe(0);
+    expect(after.categoryId).toBe(lebensmittel.id);
+    expect(after.categoryId).not.toBe(wohnenId);
+    expect(after.categoryLockedAt).not.toBeNull();
+  });
+
+  it('does not bring back a category the rule behind it no longer explains', async () => {
+    // A restored row is an old row: it can still hold a category a since-deleted rule
+    // wrote. Letting that return would show a category the next apply silently strips.
+    const accountId = await account();
+    await wohnenRule();
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const row = await muellerRow(accountId);
+    expect(row.categoryId).not.toBeNull();
+
+    await accounts.softDeleteTransaction(row.id);
+    const rule = await prisma.rule.findFirstOrThrow();
+    await prisma.rule.delete({ where: { id: rule.id } });
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const restored = await muellerRow(accountId);
+    expect(summary.restored).toBe(1);
+    expect(restored.id).toBe(row.id);
+    expect(restored.categoryId).toBeNull();
+  });
+
+  it('categorizes both halves of a duplicate pair, and neither of them twice', async () => {
+    // The two REWE rows are byte-identical: same day, same amount, same purpose. They are
+    // one fingerprint told apart by an occurrence index, and an engine that walked
+    // fingerprints rather than rows would categorize one and leave the other behind.
+    const lebensmittel = await categories.create('Lebensmittel');
+    await rules.create({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'rewe',
+      categoryId: lebensmittel.id,
+    });
+    const accountId = await account();
+
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const second = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const rewe = (await liveRows(accountId)).filter(
+      (transaction) => transaction.counterpartyName === 'REWE SAGT DANKE; FILIALE 42',
+    );
+    expect(rewe).toHaveLength(2);
+    expect(rewe.every((transaction) => transaction.categoryId === lebensmittel.id)).toBe(true);
+    expect(first.categorized).toBe(2);
+    // Nothing new to insert the second time, so nothing to categorize either.
+    expect(second.imported).toBe(0);
+    expect(second.categorized).toBe(0);
+  });
+
+  it('categorizes a restored row, not only a newly inserted one', async () => {
+    // The rule is written after the first import and the row is deleted before the
+    // second, so the row has never been categorized when it comes back. A restore that
+    // skipped the engine would return it as the one uncategorized row in the account.
+    const accountId = await account();
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const row = await muellerRow(accountId);
+    expect(row.categoryId).toBeNull();
+
+    await accounts.softDeleteTransaction(row.id);
+    const wohnenId = await wohnenRule();
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const restored = await muellerRow(accountId);
+    expect(summary.restored).toBe(1);
+    expect(summary.categorized).toBe(1);
+    expect(restored.id).toBe(row.id);
+    expect(restored.deletedAt).toBeNull();
+    expect(restored.categoryId).toBe(wohnenId);
   });
 });

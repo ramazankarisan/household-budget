@@ -77,6 +77,12 @@ model Transaction {
   creditorId       String?
   bankCategory     String?
 
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  /// Set by a human. Non-null means the rules engine must not touch categoryId.
+  /// Mirrors deletedAt: the column's presence is the decision, the timestamp is the audit.
+  categoryLockedAt DateTime?
+
   lineNumber Int
   /// The row verbatim as JSON, so a normalization change can re-key without a re-download.
   raw        String
@@ -87,4 +93,34 @@ model Transaction {
   @@unique([accountId, dedupKey])
   @@index([accountId, bookingDate])
   @@index([accountId, status])
+  @@index([categoryId])
+}
+
+/// A spending bucket. Named by the user, assigned either by a rule or by hand — a
+/// monthly report groups by this and by nothing else.
+model Category {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  createdAt    DateTime      @default(now())
+  rules        Rule[]
+  transactions Transaction[]
+}
+
+/// One condition pointing at a category. Combining conditions is done by writing two
+/// rules, which is why there is no join table here.
+model Rule {
+  id         String   @id @default(cuid())
+  /// 'counterpartyName' | 'purpose' | 'counterpartyIban'
+  field      String
+  /// 'contains' | 'startsWith' | 'endsWith' | 'equals'
+  operator   String
+  value      String
+  /// Lower runs first. Ties break on createdAt then id, so an apply is reproducible.
+  priority   Int      @default(100)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([active, priority, createdAt])
 }

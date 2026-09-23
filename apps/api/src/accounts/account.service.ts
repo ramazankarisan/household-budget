@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CategoryService } from '../rules/category.service.js';
 
 /** Prisma's code for a unique-constraint violation. `Account.iban` is the only one here. */
 const UNIQUE_CONSTRAINT = 'P2002';
@@ -23,9 +24,48 @@ function normalizeIban(raw: string): string {
  * account the user picked before uploading, which is what keeps rows out of the wrong
  * one.
  */
+/** Every row Prisma returns for a transaction; the payload is a projection of it. */
+type TransactionRow = {
+  id: string;
+  bookingDate: string;
+  valueDate: string | null;
+  amountCents: number;
+  currency: string;
+  status: string;
+  counterpartyName: string | null;
+  counterpartyIban: string | null;
+  purpose: string | null;
+  bookingText: string | null;
+  bankCategory: string | null;
+  categoryId: string | null;
+  categoryLockedAt: Date | null;
+};
+
+function toPayload(row: TransactionRow): TransactionPayload {
+  return {
+    id: row.id,
+    bookingDate: row.bookingDate,
+    valueDate: row.valueDate,
+    amountCents: row.amountCents,
+    currency: row.currency,
+    status: row.status as BookingStatus,
+    counterpartyName: row.counterpartyName,
+    counterpartyIban: row.counterpartyIban,
+    purpose: row.purpose,
+    bookingText: row.bookingText,
+    bankCategory: row.bankCategory,
+    categoryId: row.categoryId,
+    // ISO, never a Date: the payload crosses JSON and core has no Date to parse it back.
+    categoryLockedAt: row.categoryLockedAt?.toISOString() ?? null,
+  };
+}
+
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly categories: CategoryService,
+  ) {}
 
   async create(iban: string, name: string): Promise<AccountPayload> {
     const normalized = normalizeIban(iban.trim());
@@ -78,24 +118,57 @@ export class AccountService {
       orderBy: [{ bookingDate: 'desc' }, { lineNumber: 'asc' }],
     });
 
-    return rows.map((row) => ({
-      id: row.id,
-      bookingDate: row.bookingDate,
-      valueDate: row.valueDate,
-      amountCents: row.amountCents,
-      currency: row.currency,
-      status: row.status as BookingStatus,
-      counterpartyName: row.counterpartyName,
-      purpose: row.purpose,
-      bookingText: row.bookingText,
-      bankCategory: row.bankCategory,
-    }));
+    return rows.map(toPayload);
+  }
+
+  /**
+   * Sets or clears the category a human chose, and records that a human chose it.
+   *
+   * `categoryLockedAt` is what keeps the rules engine off the row afterwards — the
+   * decision cannot be inferred from `categoryId != null`, because a rule sets that too.
+   * Clearing unlocks as well, which makes the row eligible for the next apply.
+   *
+   * Refused on a pending row and on a soft-deleted one. Both would take a decision and
+   * then lose it: the pending set is replaced wholesale by the next import, and those
+   * rows carry no dedupKey to be matched back to, so the replacement cannot inherit
+   * anything; a soft-deleted row is invisible everywhere in the UI, yet its category
+   * would still count against deleting that category. A rule may still categorize
+   * either — that assignment is re-derived on every apply rather than remembered.
+   */
+  async setTransactionCategory(
+    transactionId: string,
+    categoryId: string | null,
+  ): Promise<TransactionPayload> {
+    const existing = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
+    if (existing === null || existing.deletedAt !== null) {
+      throw new NotFoundException(`No transaction ${transactionId}`);
+    }
+    if (existing.status === 'pending') {
+      throw new ConflictException({ code: 'TRANSACTION_PENDING' });
+    }
+    if (categoryId !== null) {
+      await this.categories.requireCategory(categoryId);
+    }
+
+    const updated = await this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: { categoryId, categoryLockedAt: categoryId === null ? null : new Date() },
+    });
+
+    return toPayload(updated);
   }
 
   /**
    * Soft delete, never a hard one. Deletion is local and the bank file is the source of
    * truth, so the next import of a file containing this row brings it back — which only
    * works if the row is still there to restore.
+   *
+   * Releases the hand-set lock on the way out, and only the lock. Deleting is the user
+   * withdrawing the row, which withdraws the decision they made about it: a lock that
+   * outlives the row it explains is a lock nothing can clear, because
+   * `setTransactionCategory` refuses a deleted row and an apply skips a locked one. The
+   * category itself stays until the next apply re-derives it, so a restore that happens
+   * before then still shows what it showed before.
    */
   async softDeleteTransaction(transactionId: string): Promise<void> {
     const existing = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
@@ -107,7 +180,7 @@ export class AccountService {
     }
     await this.prisma.transaction.update({
       where: { id: transactionId },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), categoryLockedAt: null },
     });
   }
 }

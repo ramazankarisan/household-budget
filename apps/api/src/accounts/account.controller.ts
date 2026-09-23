@@ -7,6 +7,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
 
@@ -47,9 +48,28 @@ export class AccountController {
   }
 }
 
+interface SetCategoryBody {
+  readonly categoryId?: unknown;
+}
+
 @Controller('transactions')
 export class TransactionController {
   constructor(private readonly accounts: AccountService) {}
+
+  /**
+   * PATCH /api/transactions/:id — the user's own decision about a category.
+   *
+   * `{ categoryId: string }` sets it and locks the row against the rules engine;
+   * `{ categoryId: null }` clears both and makes the row eligible again.
+   */
+  @Patch(':id')
+  setCategory(@Param('id') id: string, @Body() body: SetCategoryBody): Promise<TransactionPayload> {
+    const { categoryId } = body;
+    if (categoryId !== null && typeof categoryId !== 'string') {
+      throw new BadRequestException('categoryId must be a string or null');
+    }
+    return this.accounts.setTransactionCategory(id, categoryId);
+  }
 
   /** DELETE /api/transactions/:id — soft delete; the next import restores it. */
   @Delete(':id')

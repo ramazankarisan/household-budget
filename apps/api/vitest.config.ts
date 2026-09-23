@@ -18,5 +18,12 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     globalSetup: ['./src/test/global-setup.ts'],
     env: { DATABASE_URL: TEST_DATABASE_URL },
+    /*
+     * One test file at a time. Every suite here runs against the same SQLite file and
+     * truncates every table in `beforeEach` — which is what makes a whole-database count
+     * like `locked` assertable — so two files in parallel would delete each other's rows
+     * mid-test. The suite is seconds long; serializing it costs nothing worth having.
+     */
+    fileParallelism: false,
   },
 });

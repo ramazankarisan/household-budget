@@ -1,4 +1,8 @@
-import { type AccountPayload, type TransactionPayload } from '@household-budget/core';
+import {
+  type AccountPayload,
+  type CategoryPayload,
+  type TransactionPayload,
+} from '@household-budget/core';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -12,14 +16,22 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { createAccount, listAccounts, listTransactions } from '../api/client';
+import {
+  createAccount,
+  listAccounts,
+  listCategories,
+  listTransactions,
+  setTransactionCategory,
+} from '../api/client';
 import { ImportPanel } from './ImportPanel';
+import { Nav } from './Nav';
 import { TransactionList } from './TransactionList';
 
 export function AccountPage() {
   const [accounts, setAccounts] = useState<AccountPayload[] | undefined>(undefined);
   const [accountId, setAccountId] = useState<string>('');
   const [transactions, setTransactions] = useState<readonly TransactionPayload[]>([]);
+  const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
@@ -34,6 +46,22 @@ export function AccountPage() {
         setAccounts(loaded);
         setAccountId((current) => (current === '' ? (loaded[0]?.id ?? '') : current));
       })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          fail(cause);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [fail]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    listCategories(controller.signal)
+      .then(setCategories)
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
           fail(cause);
@@ -80,6 +108,49 @@ export function AccountPage() {
     };
   }, [refreshTransactions]);
 
+  // The rows whose own change is in flight, and which change that is. The set disables the
+  // cell so a second pick cannot be made while the first is unanswered; the counter is
+  // what makes that safe rather than merely likely — a response the user has already
+  // superseded is dropped instead of overwriting the newer one, the same guard
+  // `refreshTransactions` applies to the list as a whole.
+  const [savingIds, setSavingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const changeSeq = useRef(new Map<string, number>());
+
+  /**
+   * Written through the API and then replaced in place, rather than reloading the list:
+   * the server decides the lock timestamp, and re-fetching every row to learn one row's
+   * new state would scroll the table out from under the click.
+   */
+  function changeCategory(transactionId: string, categoryId: string | null): void {
+    const seq = (changeSeq.current.get(transactionId) ?? 0) + 1;
+    changeSeq.current.set(transactionId, seq);
+    setSavingIds((current) => new Set(current).add(transactionId));
+
+    const current = () => changeSeq.current.get(transactionId) === seq;
+
+    setTransactionCategory(transactionId, categoryId)
+      .then((updated) => {
+        if (current()) {
+          setTransactions((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+        }
+      })
+      .catch((cause: unknown) => {
+        if (current()) {
+          fail(cause);
+        }
+      })
+      .finally(() => {
+        if (!current()) {
+          return;
+        }
+        setSavingIds((ids) => {
+          const next = new Set(ids);
+          next.delete(transactionId);
+          return next;
+        });
+      });
+  }
+
   async function addAccount(iban: string, name: string): Promise<void> {
     const created = await createAccount(iban, name);
     setAccounts((current) => [...(current ?? []), created]);
@@ -94,9 +165,12 @@ export function AccountPage() {
           spacing={2}
           sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
         >
-          <Typography variant="h4" component="h1">
-            Household Budget
-          </Typography>
+          <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <Typography variant="h4" component="h1">
+              Household Budget
+            </Typography>
+            <Nav />
+          </Stack>
           {accounts !== undefined && accounts.length > 0 && (
             <TextField
               select
@@ -136,7 +210,12 @@ export function AccountPage() {
                 </Typography>
                 <ImportPanel accountId={accountId} onImported={refreshTransactions} />
                 <Divider />
-                <TransactionList transactions={transactions} />
+                <TransactionList
+                  transactions={transactions}
+                  categories={categories}
+                  onCategoryChange={changeCategory}
+                  savingIds={savingIds}
+                />
               </Stack>
             </CardContent>
           </Card>

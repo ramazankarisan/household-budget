@@ -4,7 +4,14 @@
  * `apps/api` imports. Everything exported here is browser-safe, because `apps/web`
  * bundles it.
  */
-export type { AccountPayload, ImportSummary, TransactionPayload } from './api.js';
+export type {
+  AccountPayload,
+  ApplySummary,
+  CategoryPayload,
+  ImportSummary,
+  RulePayload,
+  TransactionPayload,
+} from './api.js';
 export type { ImportErrorCode, ImportFileErrorCode, RowError } from './csv/errors.js';
 export { CsvFileError } from './csv/errors.js';
 export type { ParseGermanDateOptions } from './csv/fields.js';
@@ -18,3 +25,23 @@ export type {
   TransactionSource,
 } from './csv/transaction.js';
 export { toCents } from './csv/transaction.js';
+export type { MatchableTransaction, RuleCondition } from './rules/match.js';
+export { categorize, compareRules, matchingRule, matchRule, orderRules } from './rules/match.js';
+export { normalize, normalizeIban } from './rules/normalize.js';
+export type {
+  ParseRuleInputResult,
+  Rule,
+  RuleField,
+  RuleInput,
+  RuleInputError,
+  RuleInputErrorCode,
+  RuleOperator,
+} from './rules/rule.js';
+export {
+  DEFAULT_RULE_PRIORITY,
+  MAX_RULE_VALUE_LENGTH,
+  operatorsForField,
+  parseRuleInput,
+  RULE_FIELDS,
+  RULE_OPERATORS,
+} from './rules/rule.js';
