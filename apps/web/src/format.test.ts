@@ -61,4 +61,15 @@ describe('formatMonth', () => {
     expect(formatMonth('nonsense')).toBe('nonsense');
     expect(formatMonth('')).toBe('');
   });
+
+  it('shows a half-written key as itself rather than as the wrong month', () => {
+    // `Number('')` is 0, not NaN, so each of these parses into a number pair and formats
+    // as a real month: '2025-' as Dezember 2024 and '-09' as September 1900. Silently
+    // wrong beats loudly wrong only if nobody reads it.
+    expect(formatMonth('2025-')).toBe('2025-');
+    expect(formatMonth('-09')).toBe('-09');
+    expect(formatMonth('2025-00')).toBe('2025-00');
+    expect(formatMonth('2025-13')).toBe('2025-13');
+    expect(formatMonth('2025-9')).toBe('2025-9');
+  });
 });

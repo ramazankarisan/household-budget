@@ -88,6 +88,9 @@ export function searchableOf(
   }));
 }
 
+/** The country code and the first check digit — as much of an IBAN as is unambiguous. */
+const IBAN_NEEDLE = /^[a-z]{2}\d/u;
+
 function matchesMonth(row: TransactionPayload, month: string): boolean {
   return month === '' || monthOf(row) === month;
 }
@@ -115,7 +118,14 @@ export function filterTransactions(
    * computed once for the pass rather than once per row.
    */
   const needle = normalize(filters.search);
-  const ibanNeedle = normalizeIban(filters.search);
+  const spaceless = normalizeIban(filters.search);
+  /*
+   * And the IBAN haystack is consulted only for a needle that looks like the start of
+   * one — two letters and a digit. Without that gate `de` matches every German IBAN and
+   * `44` matches most of them, and the row appears with nothing in it that the user can
+   * see matching: the table renders no IBAN column.
+   */
+  const ibanNeedle = IBAN_NEEDLE.test(spaceless) ? spaceless : '';
 
   return searchable
     .filter(

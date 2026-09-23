@@ -33,22 +33,27 @@ export function formatBookingDate(isoDate: string): string {
 
 const MONTH = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
 
+/** `2025-09`, and nothing else — the twelve real months, four-digit year, both padded. */
+const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/u;
+
 /**
  * `'2025-09'` to `September 2025`.
  *
  * Built from parts for the reason above, plus one this needs and `formatBookingDate` does
- * not: `Intl` throws `RangeError` on an invalid `Date`, so `'x-y'` — which splits into two
- * halves and passes a length check — would take the page down rather than render as
- * itself. Hence the `Number.isNaN` guard as well as the missing-part one.
+ * not: `Intl` throws `RangeError` on an invalid `Date`, so `'x-y'` would take the page
+ * down rather than render as itself.
+ *
+ * The shape is checked before anything is parsed, because splitting and parsing cannot
+ * check it: `Number('')` is `0`, not `NaN`, so `'2025-'` survives every test a parsed
+ * pair can be put to and renders as `Dezember 2024` — a month key one character short of
+ * real, silently showing the wrong month rather than showing itself.
  */
 export function formatMonth(month: string): string {
+  if (!MONTH_KEY.test(month)) {
+    return month;
+  }
   const [year, monthNumber] = month.split('-').map(Number);
-  if (
-    year === undefined ||
-    monthNumber === undefined ||
-    Number.isNaN(year) ||
-    Number.isNaN(monthNumber)
-  ) {
+  if (year === undefined || monthNumber === undefined) {
     return month;
   }
   return MONTH.format(new Date(year, monthNumber - 1, 1));

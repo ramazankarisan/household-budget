@@ -125,7 +125,11 @@ export function TransactionFilters({
         <Chip
           color="warning"
           label={describeUncategorized(uncategorized)}
-          aria-label={text.showUncategorized}
+          // The count and what clicking does, in that order. `aria-label` replaces the
+          // visible label in the accessible name rather than adding to it, so naming this
+          // only after its action would leave a screen reader with everything about the
+          // chip except the one number it exists to report.
+          aria-label={`${describeUncategorized(uncategorized)} · ${text.showUncategorized}`}
           onClick={() => {
             onChange({ ...filters, categoryId: UNCATEGORIZED });
           }}

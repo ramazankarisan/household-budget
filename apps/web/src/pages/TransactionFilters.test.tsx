@@ -72,7 +72,13 @@ describe('TransactionFilters', () => {
     render(toolbar({ onChange }));
 
     expect(screen.getByText('7 ohne Kategorie')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Nur Umsätze ohne Kategorie zeigen' }));
+    // The number is in the name as well as on screen: `aria-label` replaces the visible
+    // label rather than adding to it, so a chip named only after its action would report
+    // everything about itself except the count.
+    expect(
+      screen.getByRole('button', { name: '7 ohne Kategorie · Nur Umsätze ohne Kategorie zeigen' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
 
     expect(onChange).toHaveBeenCalledWith({ ...NO_FILTERS, categoryId: UNCATEGORIZED });
   });
@@ -82,7 +88,7 @@ describe('TransactionFilters', () => {
     const filters = { ...NO_FILTERS, month: '2025-09' };
     render(toolbar({ filters, onChange }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nur Umsätze ohne Kategorie zeigen' }));
+    fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
 
     expect(onChange).toHaveBeenCalledWith({ ...filters, categoryId: UNCATEGORIZED });
   });
@@ -92,7 +98,7 @@ describe('TransactionFilters', () => {
 
     expect(screen.getByText('Alle kategorisiert')).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Nur Umsätze ohne Kategorie zeigen' }),
+      screen.queryByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }),
     ).not.toBeInTheDocument();
   });
 });

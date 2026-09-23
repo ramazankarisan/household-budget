@@ -167,7 +167,11 @@ export function AccountPage() {
   // copy of the rows, which is what lets `changeCategory`'s in-place replacement drop a
   // row out of an active filter the moment it stops matching.
   const months = useMemo(() => monthsOf(transactions), [transactions]);
-  // Normalized once per loaded list rather than once per keystroke.
+  // Normalized per loaded list rather than per keystroke — which is the comparison that
+  // matters, since typing is the frequent event. Setting a category by hand rebuilds it
+  // too, because `changeCategory` replaces the array: ~2 ms for an eight-year history,
+  // once per click, and cheaper than a per-id cache that would need invalidating on
+  // exactly that event anyway.
   const searchable = useMemo(() => searchableOf(transactions), [transactions]);
   const visible = useMemo(() => filterTransactions(searchable, filters), [searchable, filters]);
   // The whole account, not the view: the number answers "how much is left to do".

@@ -253,7 +253,7 @@ describe('AccountPage, filtering', () => {
     await withRows([SEPTEMBER, row('t-3', 'REWE Filiale 7', { categoryId: 'cat-wohnen' })]);
     expect(screen.getByText('1 ohne Kategorie')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nur Umsätze ohne Kategorie zeigen' }));
+    fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
     await waitFor(() => {
       expect(screen.queryByRole('cell', { name: 'REWE Filiale 7' })).not.toBeInTheDocument();
     });
@@ -281,7 +281,7 @@ describe('AccountPage, filtering', () => {
     // which reads as a bug rather than as a filter.
     await withRows([SEPTEMBER, OLD]);
     chooseOption('Monat', 'September 2025');
-    fireEvent.click(screen.getByRole('button', { name: 'Nur Umsätze ohne Kategorie zeigen' }));
+    fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Suche' }), {
       target: { value: 'müller' },
     });

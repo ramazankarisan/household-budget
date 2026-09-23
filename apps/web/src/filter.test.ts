@@ -216,6 +216,18 @@ describe('filterTransactions, by text', () => {
     expect(visible(rows, { search: 'de89370400440532013000' })).toEqual(['iban']);
   });
 
+  it('does not let a short needle match every IBAN in the account', () => {
+    // `de` is the start of every German IBAN and `44` is somewhere in most of them, and
+    // the table renders no IBAN column — so a row matched this way appears with nothing
+    // on it the user can see matching.
+    const rows = [transaction({ id: 'iban', counterpartyIban: 'DE89370400440532013000' })];
+
+    expect(visible(rows, { search: 'de' })).toEqual([]);
+    expect(visible(rows, { search: '44' })).toEqual([]);
+    // Two letters and a digit is where an IBAN stops being ambiguous.
+    expect(visible(rows, { search: 'de89' })).toEqual(['iban']);
+  });
+
   it('keeps matching a purpose that contains a space, alongside the IBAN needle', () => {
     // The proof the two needles coexist: the IBAN needle strips spaces, and using it for
     // the text half would break this.
