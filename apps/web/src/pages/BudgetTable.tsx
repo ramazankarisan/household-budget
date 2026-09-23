@@ -22,13 +22,13 @@ interface BudgetTableProps {
   readonly report: MonthlyReport;
   /** For the names. The report carries ids only, in this list's order. */
   readonly categories: readonly CategoryPayload[];
-  /** Category ids whose own write is in flight. */
+  /** Category ids whose own write for this month is in flight. */
   readonly savingIds: ReadonlySet<string>;
   /**
-   * Bumped by the page when a write it sent was refused, so every field remounts with the
-   * stored number rather than keeping the one that was just rejected.
+   * Per category id: bumped by the page when that cell's write was refused, so that one
+   * field remounts with the stored number. The others keep whatever is being typed.
    */
-  readonly revision: number;
+  readonly revisions: ReadonlyMap<string, number>;
   readonly onSave: (categoryId: string, amountCents: number) => void;
   readonly onClear: (categoryId: string) => void;
   readonly onShowUncategorized: () => void;
@@ -50,7 +50,7 @@ export function BudgetTable({
   report,
   categories,
   savingIds,
-  revision,
+  revisions,
   onSave,
   onClear,
   onShowUncategorized,
@@ -86,7 +86,7 @@ export function BudgetTable({
                 name={names.get(entry.categoryId) ?? entry.categoryId}
                 month={report.month}
                 saving={savingIds.has(entry.categoryId)}
-                revision={revision}
+                revision={revisions.get(entry.categoryId) ?? 0}
                 onSave={onSave}
                 onClear={onClear}
               />

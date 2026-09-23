@@ -54,8 +54,9 @@ transactions are fetched.
       and the dark colour scheme.
 - [x] The month selector lists only the months the account has (`März 2014` and `September 2025` for
       the fixture), newest first, and defaults to the newest.
-- [x] Switching account resets the selected month and reloads; a response for the account the user
-      just left never lands on screen.
+- [x] ~~Switching account resets the selected month and reloads; a response for the account the
+      user just left never lands on screen.~~ Superseded after review: `/budgets` has no account
+      picker and reports every account together — see _What changed while building it_.
 - [x] A month with no budgets set shows every category with a dash and an inline field; nothing is
       written until a number is entered.
 - [x] The chart shows one bar per category for the selected month — booked and vorgemerkt stacked,
@@ -596,6 +597,17 @@ editing, the highlighting and the month total, with no new dependency yet.
 
 ## What changed while building it
 
+- **Budgets are measured against every account, and `/budgets` has no account picker.** Review
+  caught that decision 1 made a limit household-wide while the page compared it with one account's
+  spending: 400 € on each of two cards against a 700 € limit read "übrig" on both while the
+  household was 100 € over, and the same limit flipped between over and under as the account
+  changed. The page now loads every account's rows, the month list is their union, and the
+  uncategorized row opens the list on the first account holding that month's uncategorized
+  spending. `AccountSelect` stays, used by `AccountPage` alone.
+- **Write state is per cell, not per category.** The in-flight flag and the "refused, remount"
+  counter are keyed by month and category, so a slow September write no longer disables the
+  category's August field, and one refused write no longer discards what is being typed in
+  another cell.
 - **`875,07 €` needs more than the rule.** `müller → Wohnen` alone puts `832,90 €` in Wohnen. The
   research §4 database also had one of the two REWE rows set to Wohnen by hand (that is what
   `rules.spec.ts` does), and `875,07 €` / `1.510,67 €` are that state. The Playwright spec seeds

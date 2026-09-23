@@ -51,7 +51,7 @@ function renderTable() {
       report={REPORT}
       categories={CATEGORIES}
       savingIds={new Set(['cat-essen'])}
-      revision={0}
+      revisions={new Map()}
       {...handlers}
     />,
   );

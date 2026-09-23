@@ -26,11 +26,10 @@ import {
   listTransactions,
   setBudget,
 } from '../api/client';
-import { type ListEntryState, monthsOf, UNCATEGORIZED } from '../filter';
+import { type ListEntryState, monthOf, monthsOf, UNCATEGORIZED } from '../filter';
 import { formatMonth } from '../format';
 import { budgetsText, describeBudgetErrors, describeMonthTotal } from '../i18n/budgets';
 import { transactionsText } from '../i18n/transactions';
-import { AccountSelect } from './AccountSelect';
 import { BudgetTable } from './BudgetTable';
 import { Nav } from './Nav';
 import { SpendingChart } from './SpendingChart';
@@ -56,26 +55,51 @@ function messageOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
+/** One account's rows, kept apart so the uncategorized row can say whose they are. */
+interface AccountRows {
+  readonly accountId: string;
+  readonly rows: readonly TransactionPayload[];
+}
+
+/** A cell is one category in one month, and so is everything tracked about it. */
+function cellKey(month: string, categoryId: string): string {
+  return `${month}/${categoryId}`;
+}
+
+/** The part of a per-cell map that belongs to one month, keyed by category id. */
+function inMonth<T>(cells: ReadonlyMap<string, T>, month: string): ReadonlyMap<string, T> {
+  const prefix = `${month}/`;
+  const here = new Map<string, T>();
+  for (const [key, value] of cells) {
+    if (key.startsWith(prefix)) {
+      here.set(key.slice(prefix.length), value);
+    }
+  }
+  return here;
+}
+
 /**
  * The third page: one month's spending per category against its limits.
  *
+ * Household-wide, because a limit is: `Budget` has no account, so the spending it is
+ * measured against is every account's. Measuring it against one account at a time would
+ * let two cards each stay "übrig" while the household is over, and would flip a limit
+ * between over and under as the selected account changed. So there is no account picker
+ * here, and the month list is the union of every account's months.
+ *
  * It owns the loads, the selected month and the writes; the arithmetic is
- * `monthlyReport` from `packages/core`, run here over the rows the page loaded — the same
- * rows, fetched the same way, that `AccountPage` shows. A month switch re-derives the
- * table from what is already loaded and fetches only that month's limits.
+ * `monthlyReport` from `packages/core`, run over the rows loaded the same way
+ * `AccountPage` loads them, once per account. A month switch re-derives the table from
+ * what is already loaded and fetches only that month's limits.
  */
 export function BudgetsPage() {
   const text = budgetsText();
   const listText = transactionsText();
   const navigate = useNavigate();
 
-  const [accounts, setAccounts] = useState<AccountPayload[] | undefined>(undefined);
-  const [accountId, setAccountId] = useState<string>('');
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
-  // `undefined` while the account's rows are on their way; `[]` means none were imported.
-  const [transactions, setTransactions] = useState<readonly TransactionPayload[] | undefined>(
-    undefined,
-  );
+  // `undefined` while the rows are on their way; `[]` means there is no account yet.
+  const [loaded, setLoaded] = useState<readonly AccountRows[] | undefined>(undefined);
   // What the user picked. `''` until they pick — the page then shows the newest month.
   const [chosenMonth, setChosenMonth] = useState('');
   const [budgets, setBudgets] = useState<LoadedBudgets | undefined>(undefined);
@@ -87,14 +111,24 @@ export function BudgetsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const { signal } = controller;
 
-    listAccounts(controller.signal)
-      .then((loaded) => {
-        setAccounts(loaded);
-        setAccountId((current) => (current === '' ? (loaded[0]?.id ?? '') : current));
+    listAccounts(signal)
+      .then((accounts: readonly AccountPayload[]) =>
+        Promise.all(
+          accounts.map(async (account) => ({
+            accountId: account.id,
+            rows: await listTransactions(account.id, signal),
+          })),
+        ),
+      )
+      .then((perAccount) => {
+        if (!signal.aborted) {
+          setLoaded(perAccount);
+        }
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
+        if (!signal.aborted) {
           fail(cause);
         }
       });
@@ -120,38 +154,10 @@ export function BudgetsPage() {
     };
   }, [fail]);
 
-  /*
-   * One load per account, and the previous one aborted when the account changes — the
-   * guard `AccountPage` has, for its reason: switching twice in a row must not land the
-   * first account's rows under the third one's name. A response that arrives anyway is
-   * dropped by the `aborted` check.
-   */
-  useEffect(() => {
-    if (accountId === '') {
-      return;
-    }
-    const controller = new AbortController();
-
-    listTransactions(accountId, controller.signal)
-      .then((loaded) => {
-        if (!controller.signal.aborted) {
-          setTransactions(loaded);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          fail(cause);
-        }
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [accountId, fail]);
-
+  const transactions = useMemo(() => loaded?.flatMap((account) => account.rows), [loaded]);
   const months = useMemo(() => monthsOf(transactions ?? []), [transactions]);
-  // Derived, not stored: the newest month until the user picks one the account has. An
-  // effect that copied `months[0]` into state would render the wrong month once first.
+  // Derived, not stored: the newest month until the user picks one. An effect that
+  // copied `months[0]` into state would render the wrong month once first.
   const month =
     chosenMonth !== '' && months.includes(chosenMonth) ? chosenMonth : (months[0] ?? '');
 
@@ -178,58 +184,69 @@ export function BudgetsPage() {
     };
   }, [month, fail]);
 
-  // The cells whose own write is in flight, and which write that is — the guard
-  // `AccountPage.changeCategory` uses. A response the user has already superseded is
-  // dropped rather than overwriting the newer one.
-  const [savingIds, setSavingIds] = useState<ReadonlySet<string>>(() => new Set());
+  /*
+   * Per cell — month and category — never per category alone: a write still in flight
+   * for September must not disable the same category's August field, and a refused one
+   * must reset only the field it came from, not every draft on the page.
+   *
+   * `writeSeq` is the guard `AccountPage.changeCategory` uses: a response the user has
+   * already superseded is dropped rather than overwriting the newer one. `revisions` is
+   * bumped when a write is refused, which remounts that one field with the stored number.
+   */
+  const [savingCells, setSavingCells] = useState<ReadonlyMap<string, true>>(() => new Map());
+  const [revisions, setRevisions] = useState<ReadonlyMap<string, number>>(() => new Map());
   const writeSeq = useRef(new Map<string, number>());
-  // Bumped when a write is refused, so the fields remount with the stored numbers.
-  const [revision, setRevision] = useState(0);
 
   /**
    * One cell's write. The result replaces that one limit in state rather than reloading
    * the month: nothing else changed, and the server's answer is the stored value.
    */
   function write(categoryId: string, send: () => Promise<BudgetPayload | null>): void {
-    const key = `${month}/${categoryId}`;
+    const forMonth = month;
+    const key = cellKey(forMonth, categoryId);
     const seq = (writeSeq.current.get(key) ?? 0) + 1;
     writeSeq.current.set(key, seq);
     const current = () => writeSeq.current.get(key) === seq;
-    const forMonth = month;
 
     setError(undefined);
-    setSavingIds((ids) => new Set(ids).add(categoryId));
+    setSavingCells((cells) => new Map(cells).set(key, true));
 
     send()
       .then((saved) => {
         if (!current()) {
           return;
         }
-        setBudgets((loaded) => {
-          if (loaded?.month !== forMonth) {
-            return loaded;
+        setBudgets((stored) => {
+          if (stored?.month !== forMonth) {
+            return stored;
           }
-          const others = loaded.rows.filter((row) => row.categoryId !== categoryId);
+          const others = stored.rows.filter((row) => row.categoryId !== categoryId);
           return { month: forMonth, rows: saved === null ? others : [...others, saved] };
         });
       })
       .catch((cause: unknown) => {
         if (current()) {
           fail(cause);
-          setRevision((value) => value + 1);
+          setRevisions((cells) => new Map(cells).set(key, (cells.get(key) ?? 0) + 1));
         }
       })
       .finally(() => {
         if (!current()) {
           return;
         }
-        setSavingIds((ids) => {
-          const next = new Set(ids);
-          next.delete(categoryId);
+        setSavingCells((cells) => {
+          const next = new Map(cells);
+          next.delete(key);
           return next;
         });
       });
   }
+
+  const savingIds = useMemo(
+    () => new Set(inMonth(savingCells, month).keys()),
+    [savingCells, month],
+  );
+  const monthRevisions = useMemo(() => inMonth(revisions, month), [revisions, month]);
 
   const loadedBudgets = budgets?.month === month ? budgets.rows : undefined;
   const report = useMemo(
@@ -237,36 +254,31 @@ export function BudgetsPage() {
     [transactions, loadedBudgets, categories, month],
   );
 
-  const empty = accounts?.length === 0 || transactions?.length === 0;
+  /**
+   * Where the uncategorized row sends the user. The list is one account at a time, so it
+   * opens on the first account holding uncategorized spending this month — with a single
+   * account, that account. The bucket can span several; the list's account picker is
+   * the way to the rest, and the count chip there says how many each one has.
+   */
+  function uncategorizedAccount(): string {
+    const holder = loaded?.find((account) =>
+      account.rows.some(
+        (row) => row.categoryId === null && row.amountCents < 0 && monthOf(row) === month,
+      ),
+    );
+    return holder?.accountId ?? loaded?.[0]?.accountId ?? '';
+  }
+
+  const empty = transactions?.length === 0;
 
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Stack spacing={3}>
-        <Stack
-          direction="row"
-          spacing={2}
-          sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
-        >
-          <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <Typography variant="h4" component="h1">
-              Household Budget
-            </Typography>
-            <Nav />
-          </Stack>
-          {accounts !== undefined && accounts.length > 0 && (
-            <AccountSelect
-              accounts={accounts}
-              value={accountId}
-              onChange={(nextAccountId) => {
-                // Cleared rather than left for the reload to replace: the previous
-                // account's spending under the new account's name is worse than a spinner.
-                setTransactions(undefined);
-                // A month picked for one account need not exist in the next one's history.
-                setChosenMonth('');
-                setAccountId(nextAccountId);
-              }}
-            />
-          )}
+        <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <Typography variant="h4" component="h1">
+            Household Budget
+          </Typography>
+          <Nav />
         </Stack>
 
         {error !== undefined && <Alert severity="error">{error}</Alert>}
@@ -321,7 +333,7 @@ export function BudgetsPage() {
               report={report}
               categories={categories}
               savingIds={savingIds}
-              revision={revision}
+              revisions={monthRevisions}
               onSave={(categoryId, amountCents) => {
                 write(categoryId, () => setBudget(month, categoryId, amountCents));
               }}
@@ -329,7 +341,11 @@ export function BudgetsPage() {
                 write(categoryId, () => clearBudget(month, categoryId).then(() => null));
               }}
               onShowUncategorized={() => {
-                const state: ListEntryState = { accountId, month, categoryId: UNCATEGORIZED };
+                const state: ListEntryState = {
+                  accountId: uncategorizedAccount(),
+                  month,
+                  categoryId: UNCATEGORIZED,
+                };
                 void navigate('/', { state });
               }}
             />
