@@ -1,9 +1,9 @@
 import {
   type ApplySummary,
   type CategoryPayload,
+  operatorsForField,
   parseRuleInput,
   RULE_FIELDS,
-  RULE_OPERATORS,
   type RuleField,
   type RuleInput,
   type RuleInputError,
@@ -144,6 +144,17 @@ export function RulesPage() {
     };
   }, [reload]);
 
+  /*
+   * Every write goes through here rather than calling `reload` directly. Dropping the
+   * apply result is the point: "412 geprüft · 318 zugeordnet" describes a run against the
+   * rule set that existed when the button was pressed, and leaving it up after a rule is
+   * edited, deleted or switched off states those counts about a rule set that is gone.
+   */
+  const changed = useCallback(() => {
+    setApply({ status: 'idle' });
+    reload();
+  }, [reload]);
+
   function runRules(): void {
     setApply({ status: 'applying' });
     applyRules()
@@ -170,13 +181,7 @@ export function RulesPage() {
 
         {error !== undefined && <Alert severity="error">{error}</Alert>}
 
-        <CategoryStrip
-          categories={categories}
-          onChanged={() => {
-            reload();
-          }}
-          onError={fail}
-        />
+        <CategoryStrip categories={categories} onChanged={changed} onError={fail} />
 
         <Card variant="outlined">
           <CardContent>
@@ -201,14 +206,7 @@ export function RulesPage() {
                 </Button>
               </Stack>
 
-              <RuleTable
-                rules={rules}
-                categories={categories}
-                onChanged={() => {
-                  reload();
-                }}
-                onError={fail}
-              />
+              <RuleTable rules={rules} categories={categories} onChanged={changed} onError={fail} />
 
               {apply.status === 'done' && <ApplyResult summary={apply.summary} />}
               {apply.status === 'error' && <Alert severity="error">{apply.message}</Alert>}
@@ -542,7 +540,17 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
               helperText={marks['field']}
               sx={{ minWidth: 160 }}
               onChange={(event) => {
-                setCurrent({ ...current, field: event.target.value as RuleField });
+                const field = event.target.value as RuleField;
+                const allowed = operatorsForField(field);
+                setCurrent({
+                  ...current,
+                  field,
+                  // Switching to IBAN while "enthält" is selected — the default for a new
+                  // rule — would leave a form whose only outcome is a rejection on submit.
+                  operator: allowed.includes(current.operator)
+                    ? current.operator
+                    : (allowed[0] ?? current.operator),
+                });
               }}
             >
               {RULE_FIELDS.map((field) => (
@@ -564,7 +572,9 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
                 setCurrent({ ...current, operator: event.target.value as RuleOperator });
               }}
             >
-              {RULE_OPERATORS.map((operator) => (
+              {/* Only the operators this field allows — core decides which, so the form
+                  and the parser cannot disagree about it. */}
+              {operatorsForField(current.field).map((operator) => (
                 <MenuItem key={operator} value={operator}>
                   {text.operators[operator]}
                 </MenuItem>

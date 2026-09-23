@@ -166,6 +166,38 @@ describe('RulesPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('drops the apply result once a rule changes, because it no longer describes anything', async () => {
+    // The counts are about the rule set that existed when the button was pressed. Left on
+    // screen after a rule is switched off, they read as current.
+    applied.mockResolvedValue({ evaluated: 412, assigned: 318, cleared: 4, locked: 11 });
+    rules = [rule({ id: 'r-a', value: 'müller' })];
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Regeln anwenden' }));
+    await screen.findByText(/412 geprüft/);
+
+    fireEvent.click(screen.getByRole('switch', { name: 'aktiv: müller' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/412 geprüft/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('offers an IBAN rule only the operator core allows, and fixes the one already chosen', async () => {
+    // `contains` is the default for a new rule, and an IBAN accepts only `equals`. Offering
+    // the other three builds a form whose single outcome is a rejection on submit.
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: 'Regel anlegen' }));
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Feld' }));
+    fireEvent.click(screen.getByRole('option', { name: 'IBAN' }));
+
+    expect(screen.getByRole('combobox', { name: 'Operator' })).toHaveTextContent('ist');
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Operator' }));
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+  });
+
   it('shows an IBAN the way an IBAN is read, not the way it is stored', async () => {
     // Stored normalized — no spaces, lower case — so that matching never depends on how
     // it was typed. `de89370400440532013000` is nobody's idea of an IBAN.

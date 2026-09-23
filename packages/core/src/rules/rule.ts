@@ -38,6 +38,18 @@ const OPERATORS_BY_FIELD: Readonly<Record<RuleField, readonly RuleOperator[]>> =
   counterpartyIban: ['equals'],
 };
 
+/**
+ * The operators this field allows. What a form should offer for it.
+ *
+ * Exported so the restriction is stated once: a dropdown listing all four against an IBAN
+ * lets the user build a rule whose only possible outcome is
+ * `OPERATOR_NOT_ALLOWED_FOR_FIELD` on submit, which is a rejection the form could have
+ * made unreachable instead.
+ */
+export function operatorsForField(field: RuleField): readonly RuleOperator[] {
+  return OPERATORS_BY_FIELD[field];
+}
+
 /** Long enough for any payee name, short enough that the column is not a text dump. */
 export const MAX_RULE_VALUE_LENGTH = 200;
 

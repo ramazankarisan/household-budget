@@ -147,6 +147,36 @@ describe('CategoryCell, where a choice could not survive', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
+  it('reads as uncategorized, not as "remove category", on an id the list does not contain', () => {
+    // Reachable: a category deleted while a soft-deleted row still pointed at it comes
+    // back from a restore holding an id nothing resolves. The empty item is also what the
+    // closed select displays, so its label was claiming to be the row's category.
+    render(
+      <CategoryCell
+        transaction={transaction({ categoryId: 'cat-deleted' })}
+        categories={CATEGORIES}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('combobox', { name: 'Kategorie' })).toHaveTextContent('Ohne Kategorie');
+    expect(screen.queryByText('Kategorie entfernen')).not.toBeInTheDocument();
+  });
+
+  it('still offers to remove the category on a row that has a resolvable one', () => {
+    render(
+      <CategoryCell
+        transaction={transaction({ categoryId: 'cat-wohnen' })}
+        categories={CATEGORIES}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Kategorie' }));
+
+    expect(screen.getByText('Kategorie entfernen')).toBeInTheDocument();
+  });
+
   it('does not accept a second change while the first is still in flight', () => {
     const onChange = vi.fn();
     render(

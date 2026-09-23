@@ -31,9 +31,21 @@ export type RuleTransactionClient = Pick<PrismaService, 'transaction' | 'rule'>;
  */
 const APPLY_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 120_000 };
 
-/** Does the body mention this key at all? `undefined` and absent are different here. */
-function hasOwnProperty(body: unknown, key: string): boolean {
-  return typeof body === 'object' && body !== null && key in body;
+/** A body worth merging a stored rule with. Arrays and `null` are not. */
+function isObject(body: unknown): body is Record<string, unknown> {
+  return typeof body === 'object' && body !== null && !Array.isArray(body);
+}
+
+/** The stored rule as an update body: every field a `parseRuleInput` reads, and no id. */
+function toRuleInput(rule: RulePayload): Record<string, unknown> {
+  return {
+    field: rule.field,
+    operator: rule.operator,
+    value: rule.value,
+    priority: rule.priority,
+    categoryId: rule.categoryId,
+    active: rule.active,
+  };
 }
 
 /** The columns an apply reads. Only these: the row set is the whole database. */
@@ -121,19 +133,28 @@ export class RuleService {
 
   async update(ruleId: string, body: unknown): Promise<RulePayload> {
     const existing = await this.requireRule(ruleId);
-    const input = this.parse(body);
-    await this.categories.requireCategory(input.categoryId);
-
     /*
-     * `parseRuleInput` reads an absent `active` as "on", which is right for a create and
-     * wrong here: a body that never mentions `active` must not switch a rule the user
-     * disabled back on, and re-categorize rows on the next apply as a side effect.
+     * The body is merged over the stored rule and the result validated as a whole, rather
+     * than validated on its own and written.
+     *
+     * `parseRuleInput` fills in what a body leaves out with what a *create* should mean —
+     * `active: true`, `priority: 100` — and on an update those defaults are decisions the
+     * user never made. A body that omits `active` would switch a rule they disabled back
+     * on; one that omits `priority` would move a rule from 10 to 100, which is a rule that
+     * used to win a tie and now loses it, re-categorizing every row it owned on the next
+     * apply with nothing on screen to explain it. Merging first means an absent field
+     * keeps the stored value and a present one is still validated.
+     *
+     * A body that is not an object at all is passed through untouched, so it is rejected
+     * as `RULE_INVALID` rather than quietly re-saving the rule unchanged.
      */
-    const active = hasOwnProperty(body, 'active') ? input.active : existing.active;
+    const merged = isObject(body) ? { ...toRuleInput(existing), ...body } : body;
+    const input = this.parse(merged);
+    await this.categories.requireCategory(input.categoryId);
 
     const updated = await this.prisma.rule.update({
       where: { id: ruleId },
-      data: { ...input, active },
+      data: input,
     });
     this.logger.log(`update rule=${updated.id} field=${updated.field}`);
     return toPayload(updated);

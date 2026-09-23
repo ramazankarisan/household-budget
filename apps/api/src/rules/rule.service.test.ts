@@ -480,6 +480,62 @@ describe('RuleService, decisions that must not be undone', () => {
     expect(updated.active).toBe(false);
   });
 
+  it('does not move a rule to the default priority when the body omits it', async () => {
+    // The same class as the `active` case above and the one most likely to be missed:
+    // parseRuleInput reads an absent priority as 100, which is right for a create. A rule
+    // at 10 that beats a broad rule at 20 would land at 100, lose the tie on the next
+    // apply, and hand every row it owned to the broad rule.
+    const wohnen = await categories.create('Wohnen');
+    const created = await rules.create({
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Miete',
+      priority: 10,
+      categoryId: wohnen.id,
+    });
+
+    const updated = await rules.update(created.id, {
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Mietzahlung',
+      categoryId: wohnen.id,
+    });
+
+    expect(updated.priority).toBe(10);
+  });
+
+  it('keeps every field a partial body leaves out', async () => {
+    const wohnen = await categories.create('Wohnen');
+    const created = await rules.create({
+      field: 'counterpartyName',
+      operator: 'startsWith',
+      value: 'REWE',
+      priority: 5,
+      categoryId: wohnen.id,
+      active: false,
+    });
+
+    const updated = await rules.update(created.id, { value: 'REWE SAGT DANKE' });
+
+    expect(updated).toEqual({ ...created, value: 'REWE SAGT DANKE' });
+  });
+
+  it('still rejects a body that is not a rule at all', async () => {
+    // Merging must not turn garbage into a no-op that reports success.
+    const wohnen = await categories.create('Wohnen');
+    const created = await rules.create({
+      field: 'purpose',
+      operator: 'contains',
+      value: 'Miete',
+      categoryId: wohnen.id,
+    });
+
+    await expect(rules.update(created.id, 'nonsense')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(rules.update(created.id, { value: '   ' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('still switches a rule on when the body says so', async () => {
     const wohnen = await categories.create('Wohnen');
     const created = await rules.create({

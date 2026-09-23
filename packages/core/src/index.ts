@@ -40,6 +40,7 @@ export type {
 export {
   DEFAULT_RULE_PRIORITY,
   MAX_RULE_VALUE_LENGTH,
+  operatorsForField,
   parseRuleInput,
   RULE_FIELDS,
   RULE_OPERATORS,

@@ -93,7 +93,15 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
       >
         <MenuItem value="">
           <Box component="em" sx={{ color: 'text.disabled' }}>
-            {transaction.categoryId === null ? text.uncategorized : text.clearCategory}
+            {/*
+              Keyed on whether a category was *resolved*, not on whether the row names one.
+              This item is also what the closed select displays when the value is empty, so
+              on a row holding an id the loaded list does not contain — a category deleted
+              while this soft-deleted row still pointed at it, or the moment before the
+              categories arrive — "Kategorie entfernen" would be shown as though that were
+              the row's current category.
+            */}
+            {current === undefined ? text.uncategorized : text.clearCategory}
           </Box>
         </MenuItem>
         {categories.map((category) => (
