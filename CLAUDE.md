@@ -20,11 +20,12 @@ fixtures/       Synthetic bank CSVs, byte-exact: CRLF, and Windows-1252 for the
 
 Both apps depend on `@household-budget/core` as `workspace:*` and import its **built**
 `dist/`, never its source. Types declared once in core (`AccountPayload`,
-`TransactionPayload`, `ImportSummary`) are the contract between API responses and the UI
-that renders them.
+`TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract between API
+responses and the UI that renders them.
 
-Status: import → categorize works end to end, and the list it produces can be narrowed by
-month, category and free text; reporting is not built yet.
+Status: import → categorize → report works end to end. The list can be narrowed by month,
+category and free text, and `/budgets` shows one month's spending per category against a
+limit.
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
 (UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
@@ -52,10 +53,21 @@ does it. The uncategorized count describes the whole account, not the filtered v
 
 [docs/research/03-transactions-list.md](docs/research/03-transactions-list.md) is the
 authority on that — §6 for why the search is JavaScript and §9 for why all of it is in the
-browser. [docs/plans/01-csv-import.md](docs/plans/01-csv-import.md),
-[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md) and
-[docs/plans/03-transactions-list.md](docs/plans/03-transactions-list.md) record what was
-built and what was learned building it.
+browser.
+
+Budgets are one limit per category per month, household-wide, so they are measured against
+every account's spending — `/budgets` has no account picker. `monthlyReport` in
+`packages/core` computes the report in the browser over the loaded rows: money out only (a
+salary is not negative spending), booked and vorgemerkt kept as separate figures, and a row
+for every category whether or not it was spent in. The uncategorized bucket is `null`, has a
+row and never a limit. [docs/research/04-monthly-budgets.md](docs/research/04-monthly-budgets.md)
+§4 is the authority on what "spent" means in this data.
+
+[docs/plans/01-csv-import.md](docs/plans/01-csv-import.md),
+[docs/plans/02-categorization-rules.md](docs/plans/02-categorization-rules.md),
+[docs/plans/03-transactions-list.md](docs/plans/03-transactions-list.md) and
+[docs/plans/04-monthly-budgets.md](docs/plans/04-monthly-budgets.md) record what was built and
+what was learned building it.
 
 ## HOW
 

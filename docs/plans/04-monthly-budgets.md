@@ -4,7 +4,7 @@ git_commit: adab39b15cb2252936b583dbe0606bf68438b50b
 branch: docs/03-transactions-list
 topic: 'Monthly budgets per category: a dashboard of actual against budget for one month, over-budget highlighting, and one spending chart'
 tags: [plan, budgets, reporting, packages-core, apps-api, apps-web, prisma, charts]
-status: planned
+status: implemented
 ---
 
 # PLAN: Monthly budgets per category
@@ -50,7 +50,7 @@ transactions are fetched.
 - [x] The `+2 450,00 €` salary row changes none of those numbers.
 - [x] A month total line reads `2 385,74 € von 700,00 €` for that month with only Wohnen budgeted,
       and says how far over.
-- [ ] Over-budget is signalled by a word as well as a colour, and reads correctly in both the light
+- [x] Over-budget is signalled by a word as well as a colour, and reads correctly in both the light
       and the dark colour scheme.
 - [x] The month selector lists only the months the account has (`März 2014` and `September 2025` for
       the fixture), newest first, and defaults to the newest.
@@ -554,9 +554,9 @@ editing, the highlighting and the month total, with no new dependency yet.
 
 **Manual Verification**
 
-- [ ] `pnpm dev`, import `fixtures/sparkasse-camt-18.csv`, set a budget, and confirm the numbers
+- [x] `pnpm dev`, import `fixtures/sparkasse-camt-18.csv`, set a budget, and confirm the numbers
       match what the transactions list shows for the same month and category.
-- [ ] Switch the OS colour scheme to dark and confirm the over row is legible and still says "über".
+- [x] Switch the OS colour scheme to dark and confirm the over row is legible and still says "über".
 
 ### Phase 4: The chart
 
@@ -591,8 +591,8 @@ editing, the highlighting and the month total, with no new dependency yet.
 
 **Manual Verification**
 
-- [ ] The chart's bars agree with the table's numbers for the same month, in both colour schemes.
-- [ ] A month with one budgeted category and one unbudgeted one reads correctly — the unbudgeted
+- [x] The chart's bars agree with the table's numbers for the same month, in both colour schemes.
+- [x] A month with one budgeted category and one unbudgeted one reads correctly — the unbudgeted
       category shows its spending with no Budget bar beside it.
 
 ## What changed while building it
@@ -634,6 +634,12 @@ editing, the highlighting and the month total, with no new dependency yet.
   `AccountPage` needs the ref because an import re-triggers its load; nothing here does.
 - `BudgetField` parses with core's `parseGermanAmount`, so `1.234,56` and `12,3` mean what they
   mean on a statement, and refuses `700.50` rather than guessing which separator was meant.
+
+- **The manual checks were run in a browser through Playwright**, against a throwaway database
+  seeded to the research §4 state: numbers against the list, the over row in both colour schemes,
+  the chart's tooltip against the table, and a budgeted category beside an unbudgeted one. Two
+  dev-only reselect warnings from inside `@mui/x-charts` appear when the tooltip opens; they are
+  the library's and are absent from a production build.
 
 ## References
 
