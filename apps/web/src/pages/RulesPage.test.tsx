@@ -28,6 +28,8 @@ function rule(overrides: Partial<RulePayload> = {}): RulePayload {
 }
 
 let rules: RulePayload[] = [];
+/** Set to make both list requests fail, which is how the page is reached with nothing. */
+let listFailure: Error | undefined;
 const created = vi.fn();
 const applied = vi.fn<() => Promise<ApplySummary>>();
 const removedCategory = vi.fn<() => Promise<void>>();
@@ -48,8 +50,10 @@ vi.mock('../api/client', () => ({
       this.details = details;
     }
   },
-  listCategories: () => Promise.resolve(categories),
-  listRules: () => Promise.resolve(rules),
+  listCategories: () =>
+    listFailure === undefined ? Promise.resolve(categories) : Promise.reject(listFailure),
+  listRules: () =>
+    listFailure === undefined ? Promise.resolve(rules) : Promise.reject(listFailure),
   createCategory: () => Promise.resolve({ id: 'cat-new', name: 'Neu' }),
   deleteCategory: () => removedCategory(),
   createRule: (input: unknown) => {
@@ -63,6 +67,7 @@ vi.mock('../api/client', () => ({
 
 beforeEach(() => {
   rules = [];
+  listFailure = undefined;
   created.mockClear();
   applied.mockReset();
   removedCategory.mockReset();
@@ -159,6 +164,36 @@ describe('RulesPage', () => {
     expect(
       await screen.findByText(/412 geprüft · 318 zugeordnet · 4 gelöscht · 11 manuell/),
     ).toBeInTheDocument();
+  });
+
+  it('shows an IBAN the way an IBAN is read, not the way it is stored', async () => {
+    // Stored normalized — no spaces, lower case — so that matching never depends on how
+    // it was typed. `de89370400440532013000` is nobody's idea of an IBAN.
+    rules = [
+      rule({ field: 'counterpartyIban', operator: 'equals', value: 'de89370400440532013000' }),
+    ];
+    render(page());
+
+    expect(await screen.findByText('DE89370400440532013000')).toBeInTheDocument();
+  });
+
+  it('says why the lists are empty when they could not be loaded', async () => {
+    // Otherwise a failed request and an account with no rules yet look identical.
+    listFailure = new Error('API nicht erreichbar');
+    render(page());
+
+    expect(await screen.findByText('API nicht erreichbar')).toBeInTheDocument();
+  });
+
+  it('says why an apply did not run', async () => {
+    applied.mockRejectedValue(new Error('Regeln konnten nicht angewendet werden'));
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Regeln anwenden' }));
+
+    expect(await screen.findByText('Regeln konnten nicht angewendet werden')).toBeInTheDocument();
+    // The button has to come back, or the page is stuck on one failed attempt.
+    expect(screen.getByRole('button', { name: 'Regeln anwenden' })).toBeEnabled();
   });
 
   it('will not offer a rule form before there is a category to point at', async () => {

@@ -31,7 +31,7 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   ApiError,
@@ -44,7 +44,12 @@ import {
   listRules,
   updateRule,
 } from '../api/client';
-import { describeCategoryInUse, describeRuleErrors, rulesText } from '../i18n/rules';
+import {
+  describeApplySummary,
+  describeCategoryInUse,
+  describeRuleErrors,
+  rulesText,
+} from '../i18n/rules';
 import { Nav } from './Nav';
 
 type ApplyState =
@@ -106,29 +111,36 @@ export function RulesPage() {
     setError(cause instanceof Error ? cause.message : String(cause));
   }, []);
 
-  const reload = useCallback(
-    (signal?: AbortSignal) => {
-      Promise.all([listCategories(signal), listRules(signal)])
-        .then(([loadedCategories, loadedRules]) => {
-          if (signal?.aborted !== true) {
-            setCategories(loadedCategories);
-            setRules(loadedRules);
-          }
-        })
-        .catch((cause: unknown) => {
-          if (signal?.aborted !== true) {
-            fail(cause);
-          }
-        });
-    },
-    [fail],
-  );
+  // The load in flight. Every reload goes through it, the mount and the five mutations
+  // alike: a rule saved twice in quick succession fires two reloads, and the slower one
+  // landing last would put the earlier list back on screen. Aborting the older one is the
+  // same guard `AccountPage` uses for its transaction list, and it is what keeps a
+  // response arriving after this page unmounts from setting state.
+  const inFlight = useRef<AbortController | undefined>(undefined);
+
+  const reload = useCallback(() => {
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+
+    Promise.all([listCategories(controller.signal), listRules(controller.signal)])
+      .then(([loadedCategories, loadedRules]) => {
+        if (!controller.signal.aborted) {
+          setCategories(loadedCategories);
+          setRules(loadedRules);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          fail(cause);
+        }
+      });
+  }, [fail]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    reload(controller.signal);
+    reload();
     return () => {
-      controller.abort();
+      inFlight.current?.abort();
     };
   }, [reload]);
 
@@ -369,13 +381,19 @@ function RuleTable({ rules, categories, onChanged, onError }: RuleTableProps) {
                   <TableCell>{rule.priority}</TableCell>
                   <TableCell>{text.fields[rule.field]}</TableCell>
                   <TableCell>{text.operators[rule.operator]}</TableCell>
-                  <TableCell>{rule.value}</TableCell>
+                  {/* An IBAN is stored normalized — no spaces, lower case, so matching
+                      never depends on how it was typed — and `de89370400440532013000` is
+                      not how anyone reads one back. Upper-cased for the eye only; the
+                      stored value is what a fingerprint was built from. */}
+                  <TableCell>{displayValue(rule)}</TableCell>
                   <TableCell>{nameOf(rule.categoryId)}</TableCell>
                   <TableCell align="right">
                     <Switch
                       size="small"
                       checked={rule.active}
-                      slotProps={{ input: { 'aria-label': `${text.active}: ${rule.value}` } }}
+                      slotProps={{
+                        input: { 'aria-label': `${text.active}: ${displayValue(rule)}` },
+                      }}
                       onChange={(event) => {
                         updateRule(rule.id, { ...toRuleInput(rule), active: event.target.checked })
                           .then(onChanged)
@@ -395,7 +413,7 @@ function RuleTable({ rules, categories, onChanged, onError }: RuleTableProps) {
                       </Button>
                       <IconButton
                         size="small"
-                        aria-label={`${text.deleteRule}: ${rule.value}`}
+                        aria-label={`${text.deleteRule}: ${displayValue(rule)}`}
                         onClick={() => {
                           deleteRule(rule.id).then(onChanged).catch(onError);
                         }}
@@ -446,6 +464,11 @@ function RuleTable({ rules, categories, onChanged, onError }: RuleTableProps) {
       )}
     </Stack>
   );
+}
+
+/** The keyword as the user should read it. Only an IBAN differs from what is stored. */
+function displayValue(rule: RulePayload): string {
+  return rule.field === 'counterpartyIban' ? rule.value.toUpperCase() : rule.value;
 }
 
 function toRuleInput(rule: RulePayload): RuleInput {
@@ -606,10 +629,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
 function ApplyResult({ summary }: { readonly summary: ApplySummary }) {
   return (
     <Alert severity="success">
-      <Box component="span">
-        {summary.evaluated} geprüft · {summary.assigned} zugeordnet · {summary.cleared} gelöscht ·{' '}
-        {summary.locked} manuell
-      </Box>
+      <Box component="span">{describeApplySummary(summary)}</Box>
     </Alert>
   );
 }

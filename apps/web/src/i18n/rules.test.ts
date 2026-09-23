@@ -2,7 +2,13 @@ import { type RuleInputError, type RuleInputErrorCode } from '@household-budget/
 import { describe, expect, it } from 'vitest';
 
 import { type Locale } from './importErrors';
-import { describeCategoryInUse, describeRuleError, describeRuleErrors, rulesText } from './rules';
+import {
+  describeApplySummary,
+  describeCategoryInUse,
+  describeRuleError,
+  describeRuleErrors,
+  rulesText,
+} from './rules';
 
 const LOCALES: Locale[] = ['de', 'en'];
 
@@ -98,5 +104,31 @@ describe('describeCategoryInUse', () => {
   it('names both counts, because they are the answer to "why not"', () => {
     expect(describeCategoryInUse(2, 47)).toBe('Wird noch verwendet: 2 Regeln, 47 Umsätze.');
     expect(describeCategoryInUse(2, 47, 'en')).toBe('Still in use: 2 rules, 47 transactions.');
+  });
+});
+
+describe('describeApplySummary', () => {
+  const summary = { evaluated: 412, assigned: 318, cleared: 4, locked: 11 };
+
+  it('states all four counts in both languages', () => {
+    // This sentence was four literals inside RulesPage, which is how the English half
+    // went missing while the test above still passed.
+    expect(describeApplySummary(summary)).toBe(
+      '412 geprüft · 318 zugeordnet · 4 gelöscht · 11 manuell',
+    );
+    expect(describeApplySummary(summary, 'en')).toBe(
+      '412 checked · 318 assigned · 4 cleared · 11 set by hand',
+    );
+  });
+
+  it('says zero rather than nothing when an apply changed nothing', () => {
+    for (const locale of LOCALES) {
+      const sentence = describeApplySummary(
+        { evaluated: 0, assigned: 0, cleared: 0, locked: 0 },
+        locale,
+      );
+      expect(sentence, locale).toContain('0');
+      expect(sentence, locale).not.toContain('undefined');
+    }
   });
 });

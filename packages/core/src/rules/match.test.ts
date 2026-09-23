@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   categorize,
   type MatchableTransaction,
+  matchingRule,
   matchRule,
   orderRules,
   type RuleCondition,
@@ -137,6 +138,23 @@ describe('orderRules', () => {
     }
   });
 
+  it('breaks a priority tie on createdAt before it reaches the id', () => {
+    /*
+     * The case the test above cannot make: there, the two tied rules share a `createdAt`
+     * as well as a priority, so only the `id` leg of the comparator is ever exercised and
+     * swapping the two legs keeps it green. Here the older rule has the later id, so an
+     * order decided by id alone comes out reversed — the rule the user wrote first has to
+     * win, because that is the sequence the list on screen shows.
+     */
+    const rules = [
+      rule({ id: 'aa-newer', priority: 50, createdAt: '2026-02-01T00:00:00.000Z' }),
+      rule({ id: 'zz-older', priority: 50, createdAt: '2026-01-01T00:00:00.000Z' }),
+    ];
+
+    // By id alone this would be ['aa-newer', 'zz-older'].
+    expect(orderRules(rules).map((entry) => entry.id)).toEqual(['zz-older', 'aa-newer']);
+  });
+
   it('drops rules the user switched off', () => {
     expect(orderRules([rule({ id: 'off', active: false })])).toEqual([]);
   });
@@ -167,5 +185,23 @@ describe('categorize', () => {
     const ordered = orderRules([rule({ active: false })]);
 
     expect(categorize(ordered, { counterpartyName: MUELLER_COMPOSED })).toBeUndefined();
+  });
+});
+
+describe('matchingRule', () => {
+  it('names the rule that decided, not only the category it assigned', () => {
+    // What an apply logs per rule. Two rules pointing at the *same* category is exactly
+    // the case `categorize` cannot tell apart, and the case where "which rule did this"
+    // is the only useful question.
+    const ordered = orderRules([
+      rule({ id: 'broad', priority: 20, value: 'gmbh', categoryId: 'cat-wohnen' }),
+      rule({ id: 'exact', priority: 10, value: 'müller', categoryId: 'cat-wohnen' }),
+    ]);
+
+    expect(matchingRule(ordered, { counterpartyName: MUELLER_COMPOSED })?.id).toBe('exact');
+  });
+
+  it('returns undefined when no rule claims the row', () => {
+    expect(matchingRule(orderRules([rule()]), { counterpartyName: 'Ärzte GmbH' })).toBeUndefined();
   });
 });

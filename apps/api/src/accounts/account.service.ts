@@ -162,6 +162,13 @@ export class AccountService {
    * Soft delete, never a hard one. Deletion is local and the bank file is the source of
    * truth, so the next import of a file containing this row brings it back — which only
    * works if the row is still there to restore.
+   *
+   * Releases the hand-set lock on the way out, and only the lock. Deleting is the user
+   * withdrawing the row, which withdraws the decision they made about it: a lock that
+   * outlives the row it explains is a lock nothing can clear, because
+   * `setTransactionCategory` refuses a deleted row and an apply skips a locked one. The
+   * category itself stays until the next apply re-derives it, so a restore that happens
+   * before then still shows what it showed before.
    */
   async softDeleteTransaction(transactionId: string): Promise<void> {
     const existing = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
@@ -173,7 +180,7 @@ export class AccountService {
     }
     await this.prisma.transaction.update({
       where: { id: transactionId },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), categoryLockedAt: null },
     });
   }
 }

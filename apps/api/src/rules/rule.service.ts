@@ -1,8 +1,8 @@
 import {
   ApplySummary,
-  categorize,
   compareRules,
   MatchableTransaction,
+  matchingRule,
   orderRules,
   parseRuleInput,
   Rule as CoreRule,
@@ -193,16 +193,26 @@ export class RuleService {
       },
     });
 
-    const { assign, clear } = this.plan(ordered, rows);
-    await this.write(client, assign, clear);
+    const { assign, clear, matched } = this.plan(ordered, rows);
+    const { assigned, cleared } = await this.write(client, assign, clear);
 
-    const assigned = [...assign.values()].reduce((total, ids) => total + ids.length, 0);
     this.logger.log(
       `apply rules=${String(ordered.length)} evaluated=${String(rows.length)} ` +
-        `assigned=${String(assigned)} cleared=${String(clear.length)} locked=${String(locked)}`,
+        `assigned=${String(assigned)} cleared=${String(cleared)} locked=${String(locked)}`,
     );
+    /*
+     * A line per rule, zeroes included. First match wins, so a rule can be perfectly
+     * valid and still decide nothing — either because a lower priority got there first or
+     * because the keyword is wrong — and the aggregate above cannot tell those apart.
+     * Never the rule's `value`: see the note on `parse`.
+     */
+    for (const rule of ordered) {
+      this.logger.log(
+        `apply rule=${rule.id} field=${rule.field} matched=${String(matched.get(rule.id) ?? 0)}`,
+      );
+    }
 
-    return { evaluated: rows.length, assigned, cleared: clear.length, locked };
+    return { evaluated: rows.length, assigned, cleared, locked };
   }
 
   /**
@@ -241,29 +251,33 @@ export class RuleService {
      * own, with nothing on screen to explain it. A freshly inserted row holds null, so
      * it is never in `clear`; this only ever touches the restored ones.
      */
-    await this.write(client, assign, clear);
+    const { assigned } = await this.write(client, assign, clear);
 
-    return [...assign.values()].reduce((total, ids) => total + ids.length, 0);
+    return assigned;
   }
 
   /**
-   * Which rows change, and to what.
+   * Which rows change, and to what — plus how many rows each rule claimed.
    *
    * Rows already holding the value they would be given are excluded from both
    * collections — that exclusion is the whole reason a second identical apply reports
-   * zero and writes nothing.
+   * zero and writes nothing. `matched` is not that: it counts every row a rule claimed,
+   * including the ones already in its category, because "your rule matched nothing" and
+   * "your rule matched 214 rows that were already there" are different answers to the
+   * same question.
    */
   private plan(
     ordered: readonly CoreRule[],
     rows: readonly CategorizableRow[],
-  ): { assign: Map<string, string[]>; clear: string[] } {
+  ): { assign: Map<string, string[]>; clear: string[]; matched: Map<string, number> } {
     const assign = new Map<string, string[]>();
     const clear: string[] = [];
+    const matched = new Map<string, number>();
 
     for (const row of rows) {
-      const categoryId = categorize(ordered, row);
+      const rule = matchingRule(ordered, row);
 
-      if (categoryId === undefined) {
+      if (rule === undefined) {
         // A category no rule claims any more — the rule was deleted or edited — is
         // cleared rather than left orphaned.
         if (row.categoryId !== null) {
@@ -271,19 +285,21 @@ export class RuleService {
         }
         continue;
       }
-      if (categoryId === row.categoryId) {
+
+      matched.set(rule.id, (matched.get(rule.id) ?? 0) + 1);
+      if (rule.categoryId === row.categoryId) {
         continue;
       }
 
-      const ids = assign.get(categoryId);
+      const ids = assign.get(rule.categoryId);
       if (ids === undefined) {
-        assign.set(categoryId, [row.id]);
+        assign.set(rule.categoryId, [row.id]);
       } else {
         ids.push(row.id);
       }
     }
 
-    return { assign, clear };
+    return { assign, clear, matched };
   }
 
   /**
@@ -291,26 +307,42 @@ export class RuleService {
    * statements, not O(rows). Verified on this checkout that Prisma 7 with the
    * better-sqlite3 adapter handles an `id: { in: [...] }` of 40 000 ids despite SQLite's
    * 32 766 bound-parameter ceiling — it chunks internally, so there is no batching here.
+   *
+   * Returns what the database actually changed rather than what the plan intended, so a
+   * row the lock guard below refused is not counted as assigned in the summary.
    */
   private async write(
     client: RuleTransactionClient,
     assign: ReadonlyMap<string, readonly string[]>,
     clear: readonly string[],
-  ): Promise<void> {
+  ): Promise<{ assigned: number; cleared: number }> {
+    let assigned = 0;
+    let cleared = 0;
+
     for (const [categoryId, ids] of assign) {
-      await client.transaction.updateMany({
-        where: { id: { in: [...ids] } },
+      const written = await client.transaction.updateMany({
+        // The lock is re-asserted here, not only in the read above. An apply reads
+        // 40 000 rows and then writes them inside a budget of two minutes; a category
+        // pinned by hand in between belongs to the user, and matching on the id alone
+        // would overwrite it and leave the lock standing next to a category they never
+        // chose. SQLite's own isolation may well refuse that write first — which is not a
+        // reason for the invariant to live anywhere but in the statement that breaks it.
+        where: { id: { in: [...ids] }, categoryLockedAt: null },
         // categoryLockedAt stays null: a rule assigned this, so a rule may change it.
         data: { categoryId },
       });
+      assigned += written.count;
     }
 
     if (clear.length > 0) {
-      await client.transaction.updateMany({
-        where: { id: { in: [...clear] } },
+      const wiped = await client.transaction.updateMany({
+        where: { id: { in: [...clear] }, categoryLockedAt: null },
         data: { categoryId: null },
       });
+      cleared = wiped.count;
     }
+
+    return { assigned, cleared };
   }
 
   /**

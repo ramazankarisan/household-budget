@@ -10,7 +10,7 @@ import { AccountService } from '../accounts/account.service.js';
 import { ImportService } from '../import/import.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CategoryService } from './category.service.js';
-import { RuleService } from './rule.service.js';
+import { RuleService, type RuleTransactionClient } from './rule.service.js';
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../fixtures');
 
@@ -366,6 +366,68 @@ describe('RuleService.applyAll', () => {
     expect(wohnenId).not.toBe(sonstiges.id);
   });
 
+  it('categorizes by IBAN, however the rule was typed', async () => {
+    // The stored rule is normalized; the fixture's IBAN is not. Only an apply proves the
+    // two normalizers are the same one — `matchRule`'s unit tests never touch the column.
+    const accountId = await imported();
+    const gesundheit = await categories.create('Gesundheit');
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId, counterpartyIban: { not: null } },
+    });
+    await rules.create({
+      field: 'counterpartyIban',
+      operator: 'equals',
+      // Grouped and upper-case, the way it is printed on a statement.
+      value: (row.counterpartyIban ?? '').toUpperCase().replace(/(.{4})/g, '$1 '),
+      categoryId: gesundheit.id,
+    });
+
+    await rules.applyAll();
+
+    expect((await prisma.transaction.findFirstOrThrow({ where: { id: row.id } })).categoryId).toBe(
+      gesundheit.id,
+    );
+  });
+
+  it('categorizes on a purpose the bank wrapped across a CRLF', async () => {
+    // The rent row's Verwendungszweck is `Miete Oktober\r\nHauptstraße 12`. A keyword that
+    // straddles the break is the case normalization exists for, at the level that stores.
+    const accountId = await imported();
+    const wohnen = await categories.create('Wohnen');
+    await rules.create({
+      field: 'purpose',
+      operator: 'contains',
+      value: 'oktober hauptstraße',
+      categoryId: wohnen.id,
+    });
+
+    await rules.applyAll();
+
+    const rent = await prisma.transaction.findFirstOrThrow({
+      where: { accountId, purpose: { contains: 'Miete Oktober' } },
+    });
+    expect(rent.categoryId).toBe(wohnen.id);
+  });
+
+  it('reaches every account, not only the one last imported', async () => {
+    // Rules are global. A per-account apply would leave the other accounts holding
+    // categories from an older version of the rules, with nothing on screen saying so.
+    const first = await imported();
+    const second = await accounts.create('DE02120300000000202051', 'Tagesgeld');
+    await imports.importCsv({
+      accountId: second.id,
+      fileName: 'sparkasse-camt-18.csv',
+      bytes: new Uint8Array(readFileSync(resolve(fixtures, 'sparkasse-camt-18.csv'))),
+      referenceYear,
+    });
+    const { categoryId } = await wohnenRule();
+
+    await rules.applyAll();
+
+    expect((await muellerRow(first)).categoryId).toBe(categoryId);
+    expect((await muellerRow(second.id)).categoryId).toBe(categoryId);
+  });
+
   it('covers soft-deleted rows, so a restored one comes back categorized', async () => {
     const accountId = await imported();
     const { categoryId } = await wohnenRule();
@@ -451,6 +513,78 @@ describe('RuleService, decisions that must not be undone', () => {
     await expect(accounts.setTransactionCategory(pending.id, wohnen.id)).rejects.toBeInstanceOf(
       ConflictException,
     );
+  });
+
+  it('does not leave a deleted row holding a lock nothing can clear', async () => {
+    /*
+     * Lock a row by hand, then delete it, and every route back is closed: the row is
+     * invisible in the UI, `setTransactionCategory` refuses a deleted row, and an apply
+     * skips a locked one — while the category it points at stays undeletable forever, with
+     * nothing on screen to point at. Deleting the row withdraws the decision with it.
+     */
+    const accountId = await imported();
+    const wohnen = await categories.create('Wohnen');
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId, counterpartyName: 'Müller GmbH' },
+    });
+    await accounts.setTransactionCategory(row.id, wohnen.id);
+
+    await accounts.softDeleteTransaction(row.id);
+
+    const hidden = await prisma.transaction.findFirstOrThrow({ where: { id: row.id } });
+    expect(hidden.deletedAt).not.toBeNull();
+    expect(hidden.categoryLockedAt).toBeNull();
+    // The category is deletable again: nothing the user can see points at it.
+    await expect(categories.remove(wohnen.id)).resolves.toBeUndefined();
+  });
+
+  it('refuses to write a row that was locked after the apply had read it', async () => {
+    /*
+     * The read-then-write race. An apply reads every unlocked row and then writes them,
+     * with a two-minute budget in between; a category pinned by hand in that window is
+     * the user's, and an `updateMany` keyed on the id alone would overwrite it and leave
+     * the lock standing next to a category they never chose.
+     *
+     * Reproduced by handing the apply a client whose read ignores the lock — the same rows
+     * it would have seen a moment earlier. Only the four methods an apply calls are real,
+     * hence the cast.
+     */
+    const accountId = await imported();
+    const wohnen = await categories.create('Wohnen');
+    const lebensmittel = await categories.create('Lebensmittel');
+    await rules.create({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'müller',
+      categoryId: wohnen.id,
+    });
+
+    const row = await prisma.transaction.findFirstOrThrow({
+      where: { accountId, counterpartyName: 'Müller GmbH' },
+    });
+    await accounts.setTransactionCategory(row.id, lebensmittel.id);
+
+    const staleRead = {
+      rule: { findMany: () => prisma.rule.findMany() },
+      transaction: {
+        count: (args: Parameters<typeof prisma.transaction.count>[0]) =>
+          prisma.transaction.count(args),
+        findMany: (args: Parameters<typeof prisma.transaction.findMany>[0]) => {
+          const { categoryLockedAt: _ignored, ...where } = args?.where ?? {};
+          return prisma.transaction.findMany({ ...args, where });
+        },
+        updateMany: (args: Parameters<typeof prisma.transaction.updateMany>[0]) =>
+          prisma.transaction.updateMany(args),
+      },
+    } as unknown as RuleTransactionClient;
+
+    const summary = await rules.applyAll(staleRead);
+
+    const after = await prisma.transaction.findFirstOrThrow({ where: { id: row.id } });
+    expect(after.categoryId).toBe(lebensmittel.id);
+    expect(after.categoryLockedAt).not.toBeNull();
+    // And the summary counts what the database changed, not what the plan wanted.
+    expect(summary.assigned).toBe(0);
   });
 
   it('refuses to categorize a row the user deleted', async () => {

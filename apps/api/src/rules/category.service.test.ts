@@ -34,7 +34,7 @@ afterAll(async () => {
 });
 
 /** A transaction needs an account and a batch; neither is what these tests are about. */
-async function transactionIn(categoryId: string): Promise<void> {
+async function transactionIn(categoryId: string, deletedAt: Date | null = null): Promise<void> {
   const account = await prisma.account.create({
     data: { iban: `DE${String(Date.now())}${String(Math.random()).slice(2, 8)}`, name: 'Giro' },
   });
@@ -64,6 +64,7 @@ async function transactionIn(categoryId: string): Promise<void> {
       lineNumber: 2,
       raw: '{}',
       categoryId,
+      deletedAt,
     },
   });
 }
@@ -107,6 +108,31 @@ describe('CategoryService', () => {
       response: { code: 'CATEGORY_IN_USE', rules: 1, transactions: 2 },
     });
     expect(await categories.list()).toHaveLength(1);
+  });
+
+  it('does not count a deleted row against the deletion, and lets the delete clear it', async () => {
+    // A soft-deleted row is invisible everywhere in the UI, so counting it refuses with a
+    // number the user has nothing on screen to act on.
+    const wohnen = await categories.create('Wohnen');
+    await transactionIn(wohnen.id, new Date());
+
+    await categories.remove(wohnen.id);
+
+    expect(await categories.list()).toEqual([]);
+    const hidden = await prisma.transaction.findFirstOrThrow({
+      where: { deletedAt: { not: null } },
+    });
+    expect(hidden.categoryId).toBeNull();
+  });
+
+  it('still counts a live row, deleted rows in the same category or not', async () => {
+    const wohnen = await categories.create('Wohnen');
+    await transactionIn(wohnen.id);
+    await transactionIn(wohnen.id, new Date());
+
+    await expect(categories.remove(wohnen.id)).rejects.toMatchObject({
+      response: { code: 'CATEGORY_IN_USE', rules: 0, transactions: 1 },
+    });
   });
 
   it('renames a category', async () => {

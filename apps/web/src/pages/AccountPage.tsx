@@ -108,17 +108,47 @@ export function AccountPage() {
     };
   }, [refreshTransactions]);
 
+  // The rows whose own change is in flight, and which change that is. The set disables the
+  // cell so a second pick cannot be made while the first is unanswered; the counter is
+  // what makes that safe rather than merely likely — a response the user has already
+  // superseded is dropped instead of overwriting the newer one, the same guard
+  // `refreshTransactions` applies to the list as a whole.
+  const [savingIds, setSavingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const changeSeq = useRef(new Map<string, number>());
+
   /**
    * Written through the API and then replaced in place, rather than reloading the list:
    * the server decides the lock timestamp, and re-fetching every row to learn one row's
    * new state would scroll the table out from under the click.
    */
   function changeCategory(transactionId: string, categoryId: string | null): void {
+    const seq = (changeSeq.current.get(transactionId) ?? 0) + 1;
+    changeSeq.current.set(transactionId, seq);
+    setSavingIds((current) => new Set(current).add(transactionId));
+
+    const current = () => changeSeq.current.get(transactionId) === seq;
+
     setTransactionCategory(transactionId, categoryId)
       .then((updated) => {
-        setTransactions((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+        if (current()) {
+          setTransactions((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+        }
       })
-      .catch(fail);
+      .catch((cause: unknown) => {
+        if (current()) {
+          fail(cause);
+        }
+      })
+      .finally(() => {
+        if (!current()) {
+          return;
+        }
+        setSavingIds((ids) => {
+          const next = new Set(ids);
+          next.delete(transactionId);
+          return next;
+        });
+      });
   }
 
   async function addAccount(iban: string, name: string): Promise<void> {
@@ -184,6 +214,7 @@ export function AccountPage() {
                   transactions={transactions}
                   categories={categories}
                   onCategoryChange={changeCategory}
+                  savingIds={savingIds}
                 />
               </Stack>
             </CardContent>

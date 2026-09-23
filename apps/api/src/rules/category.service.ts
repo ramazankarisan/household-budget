@@ -77,9 +77,16 @@ export class CategoryService {
   async remove(categoryId: string): Promise<void> {
     await this.requireCategory(categoryId);
 
+    /*
+     * Live rows only. A soft-deleted row is invisible everywhere in the UI, so counting it
+     * refuses the deletion with a number the user cannot act on — there is nothing on
+     * screen to re-categorize. The relation is optional, so the delete sets `categoryId`
+     * to null on those rows rather than failing on the foreign key, and the next apply
+     * re-derives whatever a rule still says about them.
+     */
     const [rules, transactions] = await Promise.all([
       this.prisma.rule.count({ where: { categoryId } }),
-      this.prisma.transaction.count({ where: { categoryId } }),
+      this.prisma.transaction.count({ where: { categoryId, deletedAt: null } }),
     ]);
 
     if (rules > 0 || transactions > 0) {

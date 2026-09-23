@@ -1,4 +1,5 @@
 import {
+  type ApplySummary,
   type RuleField,
   type RuleInputError,
   type RuleInputErrorCode,
@@ -38,7 +39,6 @@ interface RulesText {
   readonly value: string;
   readonly category: string;
   readonly active: string;
-  readonly inactive: string;
   readonly uncategorized: string;
   readonly clearCategory: string;
   readonly lockedHint: string;
@@ -71,7 +71,6 @@ const TEXT: Record<Locale, RulesText> = {
     value: 'Suchbegriff',
     category: 'Kategorie',
     active: 'aktiv',
-    inactive: 'inaktiv',
     uncategorized: 'Ohne Kategorie',
     clearCategory: 'Kategorie entfernen',
     lockedHint: 'von Hand gesetzt — Regeln ändern das nicht',
@@ -112,7 +111,6 @@ const TEXT: Record<Locale, RulesText> = {
     value: 'Keyword',
     category: 'Category',
     active: 'active',
-    inactive: 'inactive',
     uncategorized: 'Uncategorized',
     clearCategory: 'Remove category',
     lockedHint: 'set by hand — rules will not change it',
@@ -188,4 +186,24 @@ export function describeCategoryInUse(
   locale: Locale = 'de',
 ): string {
   return CATEGORY_IN_USE[locale](rules, transactions);
+}
+
+const APPLY_SUMMARY: Record<Locale, (summary: ApplySummary) => string> = {
+  de: (summary) =>
+    `${String(summary.evaluated)} geprüft · ${String(summary.assigned)} zugeordnet · ` +
+    `${String(summary.cleared)} gelöscht · ${String(summary.locked)} manuell`,
+  en: (summary) =>
+    `${String(summary.evaluated)} checked · ${String(summary.assigned)} assigned · ` +
+    `${String(summary.cleared)} cleared · ${String(summary.locked)} set by hand`,
+};
+
+/**
+ * What an apply just did, in one line.
+ *
+ * A function rather than four labels the page concatenates: the four counts only mean
+ * anything together, and a page assembling them is how the German ended up hard-coded in
+ * `RulesPage` with nothing asserting an English half existed.
+ */
+export function describeApplySummary(summary: ApplySummary, locale: Locale = 'de'): string {
+  return APPLY_SUMMARY[locale](summary);
 }

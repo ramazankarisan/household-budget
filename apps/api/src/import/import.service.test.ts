@@ -426,6 +426,33 @@ describe('ImportService and the rules engine', () => {
     expect(restored.categoryId).toBeNull();
   });
 
+  it('categorizes both halves of a duplicate pair, and neither of them twice', async () => {
+    // The two REWE rows are byte-identical: same day, same amount, same purpose. They are
+    // one fingerprint told apart by an occurrence index, and an engine that walked
+    // fingerprints rather than rows would categorize one and leave the other behind.
+    const lebensmittel = await categories.create('Lebensmittel');
+    await rules.create({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'rewe',
+      categoryId: lebensmittel.id,
+    });
+    const accountId = await account();
+
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const second = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const rewe = (await liveRows(accountId)).filter(
+      (transaction) => transaction.counterpartyName === 'REWE SAGT DANKE; FILIALE 42',
+    );
+    expect(rewe).toHaveLength(2);
+    expect(rewe.every((transaction) => transaction.categoryId === lebensmittel.id)).toBe(true);
+    expect(first.categorized).toBe(2);
+    // Nothing new to insert the second time, so nothing to categorize either.
+    expect(second.imported).toBe(0);
+    expect(second.categorized).toBe(0);
+  });
+
   it('categorizes a restored row, not only a newly inserted one', async () => {
     // The rule is written after the first import and the row is deleted before the
     // second, so the row has never been categorized when it comes back. A restore that

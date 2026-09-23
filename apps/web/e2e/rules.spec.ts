@@ -47,15 +47,27 @@ test.describe.serial('categorization rules', () => {
     await page.getByRole('link', { name: 'Regeln' }).click();
     await expect(page.getByRole('heading', { name: 'Kategorien' })).toBeVisible();
 
-    await page.getByLabel('Name').fill('Wohnen');
-    await page.getByRole('button', { name: 'Kategorie anlegen' }).click();
-    await expect(page.getByText('Wohnen')).toBeVisible();
+    /*
+     * Both of these are asked for only when they are not already there. A retry — CI runs
+     * with two — re-runs the whole serial file against the database the failed attempt
+     * left behind, and a second `müller` rule would make the cell locator match twice and
+     * fail on strict mode, hiding whatever actually broke behind a locator error.
+     */
+    const wohnen = page.getByText('Wohnen', { exact: true });
+    if (!(await wohnen.first().isVisible())) {
+      await page.getByLabel('Name').fill('Wohnen');
+      await page.getByRole('button', { name: 'Kategorie anlegen' }).click();
+    }
+    await expect(wohnen.first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Regel anlegen' }).click();
-    await page.getByLabel('Suchbegriff').fill('müller');
-    await page.getByRole('button', { name: 'Speichern' }).click();
+    const keyword = page.getByRole('cell', { name: 'müller', exact: true });
+    if ((await keyword.count()) === 0) {
+      await page.getByRole('button', { name: 'Regel anlegen' }).click();
+      await page.getByLabel('Suchbegriff').fill('müller');
+      await page.getByRole('button', { name: 'Speichern' }).click();
+    }
 
-    await expect(page.getByRole('cell', { name: 'müller', exact: true })).toBeVisible();
+    await expect(keyword).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Regeln anwenden' }).click();
     await expect(page.getByText(/zugeordnet/)).toBeVisible();

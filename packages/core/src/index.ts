@@ -26,7 +26,7 @@ export type {
 } from './csv/transaction.js';
 export { toCents } from './csv/transaction.js';
 export type { MatchableTransaction, RuleCondition } from './rules/match.js';
-export { categorize, compareRules, matchRule, orderRules } from './rules/match.js';
+export { categorize, compareRules, matchingRule, matchRule, orderRules } from './rules/match.js';
 export { normalize, normalizeIban } from './rules/normalize.js';
 export type {
   ParseRuleInputResult,

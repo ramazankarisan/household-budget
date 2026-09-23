@@ -96,15 +96,26 @@ export function orderRules(rules: readonly Rule[]): readonly Rule[] {
 }
 
 /**
- * The category the first matching rule assigns, or `undefined` when none matches.
+ * The first rule that claims this transaction, or `undefined` when none does.
  *
- * First match wins, so the UI can say *which* rule decided. `ordered` is what
- * {@link orderRules} returned — passed in rather than sorted here, so a re-apply sorts
- * once for the whole database rather than once per row.
+ * Exported alongside {@link categorize} because "first match wins" is only worth the
+ * tiebreak it costs if something can say *which* rule won: an apply logs a match count
+ * per rule, and a rule that silently claimed nothing is the first thing to look at when a
+ * category did not appear. `ordered` is what {@link orderRules} returned — passed in
+ * rather than sorted here, so a re-apply sorts once for the whole database rather than
+ * once per row.
  */
+export function matchingRule(
+  ordered: readonly Rule[],
+  transaction: MatchableTransaction,
+): Rule | undefined {
+  return ordered.find((rule) => matchRule(rule, transaction));
+}
+
+/** The category {@link matchingRule} assigns, or `undefined` when no rule claims the row. */
 export function categorize(
   ordered: readonly Rule[],
   transaction: MatchableTransaction,
 ): string | undefined {
-  return ordered.find((rule) => matchRule(rule, transaction))?.categoryId;
+  return matchingRule(ordered, transaction)?.categoryId;
 }
