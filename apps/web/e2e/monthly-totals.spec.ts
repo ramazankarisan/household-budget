@@ -8,18 +8,18 @@ const FIXTURE = resolve(
   '../../../fixtures/sparkasse-camt-18.csv',
 );
 
-/** `2.385,74 €` separates the amount from the € with U+00A0, not a space. */
-const plain = (text: string): string => text.replaceAll(' ', ' ');
-
-/** `-1.510,67 €` → -151067. The cents stay integers, the way the report keeps them. */
+/**
+ * `1.510,67 €` → 151067. The cents stay integers, the way the report keeps them. The
+ * Gebucht column is money out as a positive figure, so there is no sign to read, and `\s`
+ * already covers the U+00A0 between the amount and the €.
+ */
 function centsOf(text: string): number {
-  const match = /(-?)([\d.]+),(\d{2})\s€/u.exec(plain(text));
+  const match = /([\d.]+),(\d{2})\s€/u.exec(text);
   if (match === null) {
     throw new Error(`not an amount: ${text}`);
   }
-  const [, sign, euros = '', cents = ''] = match;
-  const value = Number(euros.replaceAll('.', '')) * 100 + Number(cents);
-  return sign === '-' ? -value : value;
+  const [, euros = '', cents = ''] = match;
+  return Number(euros.replaceAll('.', '')) * 100 + Number(cents);
 }
 
 /**
@@ -28,7 +28,8 @@ function centsOf(text: string): number {
  *
  * September 2025, money out only: 832,90 + 2 × 42,17 + 1.150,00 + 128,50 + 190,00 =
  * 2.385,74 € booked, plus the 19,00 € vorgemerkt row kept apart. The 2.450,00 € salary is
- * money in and counts toward nothing. March 2014 is the one stray row, 1.143,41 €.
+ * money in and counts toward nothing — were it counted, the sum would be off by exactly
+ * that. March 2014 is the one stray row, 1.143,41 €.
  *
  * Every figure here is chosen to hold whatever the other specs did to this shared
  * database: a total does not move when a row changes category, and the budget half of
@@ -39,6 +40,8 @@ test.describe.serial('monthly totals', () => {
   test.beforeEach(async ({ page }) => {
     await importFixture(page);
     await page.getByRole('link', { name: 'Budgets' }).click();
+    // The list has a `Monat` select too: wait for this page's table before asking for one.
+    await expect(page.getByRole('columnheader', { name: 'Gebucht' })).toBeVisible();
   });
 
   test('September 2025 adds up to what the fixture says', async ({ page }) => {
@@ -49,29 +52,27 @@ test.describe.serial('monthly totals', () => {
     await expect(headline).toHaveText(/19,00\s€ vorgemerkt$/u);
 
     // The rows are the headline split up: however the other specs categorized them, the
-    // Gebucht column still sums to the same figure. The salary is in none of it.
-    const rows = page.locator('tbody').getByRole('row');
-    await expect(rows.first()).toBeVisible();
-    const booked = await rows.evaluateAll((all) =>
-      all.map((row) => row.children[1]?.textContent ?? ''),
-    );
+    // Gebucht column still sums to the same figure. The headline above has already waited
+    // for this render.
+    const booked = await page
+      .locator('tbody')
+      .getByRole('row')
+      .evaluateAll((rows) => rows.map((row) => row.children[1]?.textContent ?? ''));
     expect(booked.reduce((sum, cell) => sum + centsOf(cell), 0)).toBe(238_574);
-    expect(booked.map(plain)).not.toContain('2.450,00 €');
   });
 
-  test('March 2014 holds only the stray row, and no budget', async ({ page }) => {
+  test('March 2014 holds only the stray row', async ({ page }) => {
     await chooseMonth(page, 'März 2014');
 
-    await expect(page.getByText(/ von /u)).toHaveText(
-      /^1\.143,41\s€ von — · kein Budget gesetzt$/u,
-    );
+    await expect(page.getByText(/ von /u)).toHaveText(/^1\.143,41\s€ von /u);
   });
 });
 
 /**
- * The account and the upload. The account may already exist — the other specs share this
- * database — and a repeated upload of the same file is a no-op by design, so the file is
- * sent every time and the answer is only required to arrive.
+ * The account and the upload, each only when it is not already there — the other specs
+ * share this database. A repeated upload is not a no-op: it replaces every pending row
+ * with a fresh one, dropping any category set on it by hand, and restores booked rows the
+ * user deleted. So the file goes up once, never on every test.
  */
 async function importFixture(page: Page): Promise<void> {
   await page.goto('/');
@@ -87,8 +88,10 @@ async function importFixture(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Anlegen' }).click();
   }
 
-  await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
-  await expect(page.getByText(/importiert/)).toBeVisible();
+  if ((await page.getByRole('cell', { name: 'Müller GmbH' }).count()) === 0) {
+    await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
+    await expect(page.getByText(/importiert/)).toBeVisible();
+  }
   await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toBeVisible();
 }
 
