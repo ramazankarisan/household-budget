@@ -28,7 +28,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 /**
  * A rejection the API stated as a machine code rather than a sentence. Nest returns the
  * object thrown with it — `{ code, columns }` — verbatim and adds no `message`, so the
- * code is what reaches the UI, and `src/i18n` is what words it.
+ * code is what reaches the UI, and `src/locales` is what words it.
  */
 export class ApiError extends Error {
   readonly code: string;

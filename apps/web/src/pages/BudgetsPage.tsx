@@ -14,8 +14,10 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { type TFunction } from 'i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { useTranslation } from 'react-i18next';
 
 import {
   ApiError,
@@ -28,20 +30,20 @@ import {
 } from '../api/client';
 import { type ListEntryState, monthOf, monthsOf, UNCATEGORIZED } from '../filter';
 import { formatMonth } from '../format';
-import { budgetsText, describeBudgetErrors, describeMonthTotal } from '../i18n/budgets';
-import { transactionsText } from '../i18n/transactions';
+import { toLocale } from '../locales/messages';
+import { describeBudgetErrors, describeMonthTotal } from '../locales/sentences';
+import { AppHeader } from './AppHeader';
 import { BudgetTable } from './BudgetTable';
-import { Nav } from './Nav';
 import { SpendingChart } from './SpendingChart';
 
 /**
  * A refused write in words. `BUDGET_INVALID` carries one entry per bad field, which the
  * field itself would normally have caught — this is the path for when it did not.
  */
-function messageOf(cause: unknown): string {
+function messageOf(t: TFunction, cause: unknown): string {
   if (cause instanceof ApiError && cause.code === 'BUDGET_INVALID') {
     const { errors } = cause.details as { errors?: readonly BudgetInputError[] };
-    const sentences = Object.values(describeBudgetErrors(errors ?? []));
+    const sentences = Object.values(describeBudgetErrors(t, errors ?? []));
     if (sentences.length > 0) {
       return sentences.join(' · ');
     }
@@ -88,8 +90,7 @@ function inMonth<T>(cells: ReadonlyMap<string, T>, month: string): ReadonlyMap<s
  * the first time the month is shown (see `budgets`).
  */
 export function BudgetsPage() {
-  const text = budgetsText();
-  const listText = transactionsText();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
@@ -116,9 +117,15 @@ export function BudgetsPage() {
   }, [budgets]);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const fail = useCallback((cause: unknown) => {
-    setError(messageOf(cause));
-  }, []);
+  // The i18next instance, not `t`: it is stable, so a language switch does not hand the
+  // loading effects a new `fail` and send them fetching again. The sentence is worded in
+  // whatever language is current when the failure happens.
+  const fail = useCallback(
+    (cause: unknown) => {
+      setError(messageOf(i18n.getFixedT(i18n.language), cause));
+    },
+    [i18n],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -288,12 +295,7 @@ export function BudgetsPage() {
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Stack spacing={3}>
-        <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <Typography variant="h4" component="h1">
-            Household Budget
-          </Typography>
-          <Nav />
-        </Stack>
+        <AppHeader />
 
         {error !== undefined && <Alert severity="error">{error}</Alert>}
 
@@ -305,10 +307,10 @@ export function BudgetsPage() {
             sx={{ flexWrap: 'wrap', alignItems: 'center' }}
           >
             <Typography variant="body2" color="text.secondary">
-              {listText.noTransactions}
+              {t('transactions.noTransactions')}
             </Typography>
             <Button size="small" component={Link} to="/">
-              {text.toTransactions}
+              {t('budgets.toTransactions')}
             </Button>
           </Stack>
         ) : transactions === undefined ? (
@@ -325,7 +327,7 @@ export function BudgetsPage() {
                 select
                 size="small"
                 // The dashboard always shows exactly one month, so there is no "all" entry.
-                slotProps={{ select: { 'aria-label': listText.month } }}
+                slotProps={{ select: { 'aria-label': t('transactions.month') } }}
                 value={month}
                 onChange={(event) => {
                   setChosenMonth(event.target.value);
@@ -334,12 +336,12 @@ export function BudgetsPage() {
               >
                 {months.map((option) => (
                   <MenuItem key={option} value={option}>
-                    {formatMonth(option)}
+                    {formatMonth(option, toLocale(i18n.resolvedLanguage))}
                   </MenuItem>
                 ))}
               </TextField>
               <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                {describeMonthTotal(report, undefined, { limitsLoading })}
+                {describeMonthTotal(t, report, { limitsLoading })}
               </Typography>
             </Stack>
 

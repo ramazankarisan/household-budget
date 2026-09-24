@@ -1,3 +1,5 @@
+import { type Locale } from './locales/messages';
+
 const CURRENCY = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
 // The default de-DE date format is 22.9.2025, unpadded. A statement lines up or it does not.
@@ -31,13 +33,20 @@ export function formatBookingDate(isoDate: string): string {
   return DATE.format(new Date(year, month - 1, day));
 }
 
-const MONTH = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
+/**
+ * Month names are words, so they follow the language; amounts and dates are the
+ * statement's and stay de-DE in both (plan 07, decision 1). `en-GB`: `December 2024`.
+ */
+const MONTH: Record<Locale, Intl.DateTimeFormat> = {
+  de: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }),
+  en: new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }),
+};
 
 /** `2025-09`, and nothing else — the twelve real months, four-digit year, both padded. */
 const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/u;
 
 /**
- * `'2025-09'` to `September 2025`.
+ * `'2025-09'` to `September 2025` — or `Dezember 2024` / `December 2024`, by `locale`.
  *
  * Built from parts for the reason above, plus one this needs and `formatBookingDate` does
  * not: `Intl` throws `RangeError` on an invalid `Date`, so `'x-y'` would take the page
@@ -48,7 +57,7 @@ const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/u;
  * pair can be put to and renders as `Dezember 2024` — a month key one character short of
  * real, silently showing the wrong month rather than showing itself.
  */
-export function formatMonth(month: string): string {
+export function formatMonth(month: string, locale: Locale = 'de'): string {
   if (!MONTH_KEY.test(month)) {
     return month;
   }
@@ -56,5 +65,5 @@ export function formatMonth(month: string): string {
   if (year === undefined || monthNumber === undefined) {
     return month;
   }
-  return MONTH.format(new Date(year, monthNumber - 1, 1));
+  return MONTH[locale].format(new Date(year, monthNumber - 1, 1));
 }

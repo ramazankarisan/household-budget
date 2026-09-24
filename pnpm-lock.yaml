@@ -275,18 +275,27 @@ importers:
       '@household-budget/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@mui/icons-material':
+        specifier: ^9.4.0
+        version: 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@mui/material':
         specifier: ^9.4.0
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/x-charts':
         specifier: ^9.13.0
         version: 9.13.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mui/system@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      i18next:
+        specifier: ^26.4.2
+        version: 26.4.2(typescript@6.0.3)
       react:
         specifier: ^19.3.0
         version: 19.3.0
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
+      react-i18next:
+        specifier: ^17.0.15
+        version: 17.0.15(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
       react-router:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -813,6 +822,17 @@ packages:
 
   '@mui/core-downloads-tracker@9.4.0':
     resolution: {integrity: sha512-d+gIYM1raJP87yrVQcVg+Q3vycVMArMkgu/TjJLi2vTvO9FHKWNRR1xs9nnN4eLpM9nGxxm02UMvc9BrmcUKvQ==}
+
+  '@mui/icons-material@9.4.0':
+    resolution: {integrity: sha512-5PVgBYtLOXTk6u0YUAjoV9GoTUQDbeZ8g+pus2h0GphLT/rpmftRnB5D/Kw6QCAovB7EyBX7UxKdZqPBBAHUKw==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      '@mui/material': ^9.4.0
+      '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   '@mui/material@9.4.0':
     resolution: {integrity: sha512-6KKUIvkQ2r/s48s9VZV9JEZ1W2dRa7RndVsF+Ipx4CYxDOQeozeRsS5r9NiheFf8A5hpbqJJIGoX7hjg5X4XUw==}
@@ -2443,9 +2463,20 @@ packages:
     resolution: {integrity: sha512-UikN5yr7xsCDAq87Or5or0PAlD3HJJOKVzM05az588WnpDJ4Ux7a2A53Qi6gofGg2/EtvF/H4hCi/TXfCW4Y6w==}
     engines: {node: ^22.13.0 || >=24.0.0}
 
+  html-parse-stringify@4.0.1:
+    resolution: {integrity: sha512-0zHsZJrK7S3K2aucXWL6ycoYJ/iNtIcFHC/nYQgFklPtrv5LpJctIiSCroWZWeuoXvuyFdzp6KzjJQ+OT5MfFw==}
+
   http-errors@2.0.1:
     resolution: {integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==}
     engines: {node: '>= 0.8'}
+
+  i18next@26.4.2:
+    resolution: {integrity: sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug==}
+    peerDependencies:
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
@@ -3080,6 +3111,22 @@ packages:
     resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
       react: ^19.3.0
+
+  react-i18next@17.0.15:
+    resolution: {integrity: sha512-7uYpx/oBkesLto7cOzOmfITlUBaXHCAcFahmgETMfWr8nbbWRRnVGvz8wsH/xpbNcyoH+NpCcnOQEqWPMO6/hw==}
+    peerDependencies:
+      i18next: '>= 26.2.0'
+      react: '>= 16.8.0'
+      react-dom: '*'
+      react-native: '*'
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+      typescript:
+        optional: true
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -4220,6 +4267,14 @@ snapshots:
   '@lukeed/csprng@1.1.0': {}
 
   '@mui/core-downloads-tracker@9.4.0': {}
+
+  '@mui/icons-material@9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@mui/material': 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react: 19.3.0
+    optionalDependencies:
+      '@types/react': 19.3.0
 
   '@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
@@ -5861,6 +5916,8 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
+  html-parse-stringify@4.0.1: {}
+
   http-errors@2.0.1:
     dependencies:
       depd: 2.0.0
@@ -5868,6 +5925,10 @@ snapshots:
       setprototypeof: 1.2.0
       statuses: 2.0.2
       toidentifier: 1.0.1
+
+  i18next@26.4.2(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
 
   iconv-lite@0.7.3:
     dependencies:
@@ -6422,6 +6483,17 @@ snapshots:
     dependencies:
       react: 19.3.0
       scheduler: 0.28.0
+
+  react-i18next@17.0.15(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      html-parse-stringify: 4.0.1
+      i18next: 26.4.2(typescript@6.0.3)
+      react: 19.3.0
+      use-sync-external-store: 1.7.0(react@19.3.0)
+    optionalDependencies:
+      react-dom: 19.3.0(react@19.3.0)
+      typescript: 6.0.3
 
   react-is@16.13.1: {}
 

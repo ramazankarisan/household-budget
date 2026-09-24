@@ -120,6 +120,8 @@ re-derive them — in particular §3, which is the reason matching is not a `WHE
     - Impact: `src/i18n/rules.ts` exports `rulesText(locale = 'de')`. **No locale switcher, no
       context, no hook** — the same "German by default, English available and tested" posture the
       error messages already have. The three existing pages keep their inline strings.
+    - Superseded by [plan 07](07-language-and-theme-switch.md): UI text now lives in src/locales
+      via i18next, with a switch.
 12. **Out of scope, deliberately.** User-authored regex (research §10 measured `/^(a+)+$/` at
     1 261 ms on 28 characters, and substring covers every fixture); amount and date conditions;
     seeding rules from `bankCategory`; multi-condition rules; reporting.

@@ -48,6 +48,13 @@ describe('formatMonth', () => {
     expect(formatMonth('2025-01')).toBe('Januar 2025');
   });
 
+  it('names the month in English when asked, and German by default', () => {
+    // A month name is a word, not a number format (plan 07, decision 1).
+    expect(formatMonth('2024-12', 'en')).toBe('December 2024');
+    expect(formatMonth('2024-12', 'de')).toBe('Dezember 2024');
+    expect(formatMonth('2024-12')).toBe('Dezember 2024');
+  });
+
   it('renders the calendar month, not a UTC instant', () => {
     // Built from parts for `formatBookingDate`'s reason: `new Date('2025-01')` is UTC
     // midnight, which is December anywhere west of Greenwich.

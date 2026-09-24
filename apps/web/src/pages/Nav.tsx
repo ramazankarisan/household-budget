@@ -1,22 +1,20 @@
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
-
-import { budgetsText } from '../i18n/budgets';
-import { rulesText } from '../i18n/rules';
 
 /**
  * The app's navigation. Three links, because the product is import → categorize →
  * report, and each of those is a page of its own.
  */
 export function Nav() {
-  const text = rulesText();
+  const { t } = useTranslation();
 
   return (
     <Stack component="nav" direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-      <NavItem to="/" label={text.navTransactions} />
-      <NavItem to="/rules" label={text.navRules} />
-      <NavItem to="/budgets" label={budgetsText().navBudgets} />
+      <NavItem to="/" label={t('common.nav.transactions')} />
+      <NavItem to="/rules" label={t('common.nav.rules')} />
+      <NavItem to="/budgets" label={t('common.nav.budgets')} />
     </Stack>
   );
 }

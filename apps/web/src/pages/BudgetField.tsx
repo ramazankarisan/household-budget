@@ -3,8 +3,9 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { budgetsText, describeBudgetError } from '../i18n/budgets';
+import { describeBudgetError } from '../locales/sentences';
 
 interface BudgetFieldProps {
   /** The limit as stored, or `null` when this month has none for the category. */
@@ -58,7 +59,7 @@ export function BudgetField({
   onSave,
   onClear,
 }: BudgetFieldProps) {
-  const text = budgetsText();
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(() => draftOf(budgetCents));
   const [error, setError] = useState<string | undefined>(undefined);
   const input = useRef<HTMLInputElement>(null);
@@ -88,7 +89,7 @@ export function BudgetField({
       parsed.errors.find((entry) => entry.field === 'amountCents') ?? parsed.errors[0];
     return {
       kind: 'refused',
-      message: refusal === undefined ? '' : describeBudgetError(refusal),
+      message: refusal === undefined ? '' : describeBudgetError(t, refusal),
     };
   }
 
@@ -119,7 +120,7 @@ export function BudgetField({
     <TextField
       size="small"
       value={draft}
-      placeholder={text.setBudget}
+      placeholder={t('budgets.setBudget')}
       disabled={disabled}
       error={error !== undefined}
       helperText={error}
@@ -147,7 +148,7 @@ export function BudgetField({
       }}
       slotProps={{
         htmlInput: {
-          'aria-label': `${text.columns.budget} ${categoryName}`,
+          'aria-label': `${t('budgets.columns.budget')} ${categoryName}`,
           inputMode: 'decimal',
           style: { textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
         },
@@ -157,7 +158,7 @@ export function BudgetField({
               <InputAdornment position="end">
                 <IconButton
                   size="small"
-                  aria-label={`${text.clearBudget}: ${categoryName}`}
+                  aria-label={`${t('budgets.clearBudget')}: ${categoryName}`}
                   disabled={disabled}
                   // Keeps focus in the input: a blur would commit whatever is typed
                   // before the clear it is about to be replaced by.

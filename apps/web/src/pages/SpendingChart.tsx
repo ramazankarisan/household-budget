@@ -3,10 +3,9 @@ import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { BarChart } from '@mui/x-charts/BarChart';
+import { useTranslation } from 'react-i18next';
 
 import { formatAmount } from '../format';
-import { budgetsText } from '../i18n/budgets';
-import { transactionsText } from '../i18n/transactions';
 
 interface SpendingChartProps {
   /** The same object the table renders. The chart has no data path of its own. */
@@ -54,7 +53,7 @@ export function SpendingChart({
   limitsLoading = false,
 }: SpendingChartProps) {
   const theme = useTheme();
-  const text = budgetsText();
+  const { t } = useTranslation();
   const names = new Map(categories.map((category) => [category.id, category.name]));
 
   const shown = report.categories.filter(
@@ -66,14 +65,14 @@ export function SpendingChart({
 
   const labels = shown.map((entry) =>
     entry.categoryId === null
-      ? transactionsText().uncategorized
+      ? t('transactions.uncategorized')
       : (names.get(entry.categoryId) ?? entry.categoryId),
   );
 
   const spent = [
     {
       id: 'booked',
-      label: text.columns.booked,
+      label: t('budgets.columns.booked'),
       data: shown.map((entry) => entry.bookedCents),
       stack: 'ist',
       color: theme.palette.primary.main,
@@ -81,7 +80,7 @@ export function SpendingChart({
     },
     {
       id: 'pending',
-      label: text.columns.pending,
+      label: t('budgets.columns.pending'),
       data: shown.map((entry) => entry.pendingCents),
       stack: 'ist',
       color: theme.palette.primary.light,
@@ -90,7 +89,7 @@ export function SpendingChart({
   ];
   const budget = {
     id: 'budget',
-    label: text.columns.budget,
+    label: t('budgets.columns.budget'),
     // `null`, not 0: an unbudgeted category has no Budget bar, rather than one
     // of zero height that the tooltip would report as a limit of 0,00 €.
     data: shown.map((entry) => entry.budgetCents),
@@ -101,15 +100,15 @@ export function SpendingChart({
   return (
     <Box
       component="figure"
-      aria-label={text.chartTitle}
+      aria-label={t('budgets.chartTitle')}
       aria-busy={limitsLoading || undefined}
       sx={{ m: 0 }}
     >
       <Typography variant="subtitle1" component="figcaption">
-        {text.chartTitle}
+        {t('budgets.chartTitle')}
         {limitsLoading && (
           <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-            · {text.loadingLimits} …
+            · {t('budgets.loadingLimits')} …
           </Typography>
         )}
       </Typography>

@@ -3,6 +3,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import './locales/i18n';
+
 import { App } from './App';
 import { theme } from './theme';
 

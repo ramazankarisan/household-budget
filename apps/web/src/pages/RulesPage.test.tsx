@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // The mocked module's own class, not a copy: the page narrows with `instanceof`, and a
 // second class with the same shape is a different class.
 import { ApiError } from '../api/client';
+import i18n from '../locales/i18n';
 import { RulesPage } from './RulesPage';
 
 const initialCategories: CategoryPayload[] = [
@@ -447,5 +448,22 @@ describe('RulesPage, a category that cannot be deleted', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Wird noch verwendet/)).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('RulesPage, in English', () => {
+  it('switches its words without a reload', async () => {
+    applied.mockResolvedValue({ evaluated: 412, assigned: 318, cleared: 4, locked: 11 });
+    render(page());
+    await screen.findByRole('button', { name: 'Regeln anwenden' });
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply rules' }));
+    expect(
+      await screen.findByText('412 checked · 318 assigned · 4 cleared · 11 set by hand'),
+    ).toBeInTheDocument();
   });
 });

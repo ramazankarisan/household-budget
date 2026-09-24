@@ -33,6 +33,7 @@ import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   ApiError,
@@ -52,9 +53,8 @@ import {
   describeCategoryInUse,
   describeRuleDeleted,
   describeRuleErrors,
-  rulesText,
-} from '../i18n/rules';
-import { Nav } from './Nav';
+} from '../locales/sentences';
+import { AppHeader } from './AppHeader';
 
 type ApplyState =
   | { readonly status: 'idle' }
@@ -105,7 +105,7 @@ function ruleErrorsOf(error: unknown): readonly RuleInputError[] {
 }
 
 export function RulesPage() {
-  const text = rulesText();
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
   const [rules, setRules] = useState<readonly RulePayload[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -188,12 +188,7 @@ export function RulesPage() {
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Stack spacing={3}>
-        <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <Typography variant="h4" component="h1">
-            Household Budget
-          </Typography>
-          <Nav />
-        </Stack>
+        <AppHeader />
 
         {error !== undefined && <Alert severity="error">{error}</Alert>}
 
@@ -213,7 +208,7 @@ export function RulesPage() {
                 sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
               >
                 <Typography variant="h6" component="h2">
-                  {text.rulesTitle}
+                  {t('rules.rulesTitle')}
                 </Typography>
                 <Button
                   variant="contained"
@@ -223,7 +218,7 @@ export function RulesPage() {
                     apply.status === 'applying' ? <CircularProgress size={16} /> : undefined
                   }
                 >
-                  {apply.status === 'applying' ? text.applying : text.applyRules}
+                  {apply.status === 'applying' ? t('rules.applying') : t('rules.applyRules')}
                 </Button>
               </Stack>
 
@@ -265,7 +260,7 @@ export function RulesPage() {
                 restore().then(changed).catch(fail);
               }}
             >
-              {text.undo}
+              {t('rules.undo')}
             </Button>
           }
         />
@@ -293,7 +288,7 @@ interface CategoryStripProps {
  * pointed at by a rule, and the two are always edited in the same sitting.
  */
 function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryStripProps) {
-  const text = rulesText();
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [refusal, setRefusal] = useState<string | undefined>(undefined);
 
@@ -324,7 +319,7 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
     deleteCategory(category.id)
       .then(() => {
         setRefusal(undefined);
-        onUndoable(describeCategoryDeleted(category.name), () => createCategory(category.name));
+        onUndoable(describeCategoryDeleted(t, category.name), () => createCategory(category.name));
         onChanged();
       })
       .catch((cause: unknown) => {
@@ -337,7 +332,7 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
           };
           const count = (value: unknown) => (typeof value === 'number' ? value : 0);
           setRefusal(
-            describeCategoryInUse({
+            describeCategoryInUse(t, {
               rules: count(rules),
               transactions: count(transactions),
               budgets: count(budgets),
@@ -357,12 +352,12 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
       <CardContent>
         <Stack spacing={2}>
           <Typography variant="h6" component="h2">
-            {text.categoriesTitle}
+            {t('rules.categoriesTitle')}
           </Typography>
 
           {categories.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              {text.noCategories}
+              {t('rules.noCategories')}
             </Typography>
           ) : (
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -380,7 +375,7 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
                     <Box
                       component="span"
                       role="button"
-                      aria-label={`${text.deleteCategory}: ${category.name}`}
+                      aria-label={`${t('rules.deleteCategory')}: ${category.name}`}
                       sx={{ px: 0.5, cursor: 'pointer' }}
                     >
                       ✕
@@ -405,14 +400,14 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
           >
             <TextField
               size="small"
-              label={text.categoryName}
+              label={t('rules.categoryName')}
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
               }}
             />
             <Button type="submit" variant="outlined">
-              {text.addCategory}
+              {t('rules.addCategory')}
             </Button>
           </Stack>
         </Stack>
@@ -430,7 +425,7 @@ interface RuleTableProps {
 }
 
 function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTableProps) {
-  const text = rulesText();
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<RuleDraft | undefined>(undefined);
   const nameOf = (categoryId: string) =>
     categories.find((category) => category.id === categoryId)?.name ?? '—';
@@ -439,19 +434,19 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
     <Stack spacing={2}>
       {rules.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          {text.noRules}
+          {t('rules.noRules')}
         </Typography>
       ) : (
         <TableContainer component={Paper} variant="outlined">
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>{text.priority}</TableCell>
-                <TableCell>{text.field}</TableCell>
-                <TableCell>{text.operator}</TableCell>
-                <TableCell>{text.value}</TableCell>
-                <TableCell>{text.category}</TableCell>
-                <TableCell align="right">{text.active}</TableCell>
+                <TableCell>{t('rules.priority')}</TableCell>
+                <TableCell>{t('rules.field')}</TableCell>
+                <TableCell>{t('rules.operator')}</TableCell>
+                <TableCell>{t('rules.value')}</TableCell>
+                <TableCell>{t('rules.category')}</TableCell>
+                <TableCell align="right">{t('rules.active')}</TableCell>
                 <TableCell />
               </TableRow>
             </TableHead>
@@ -461,8 +456,8 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
               {rules.map((rule) => (
                 <TableRow key={rule.id} hover>
                   <TableCell>{rule.priority}</TableCell>
-                  <TableCell>{text.fields[rule.field]}</TableCell>
-                  <TableCell>{text.operators[rule.operator]}</TableCell>
+                  <TableCell>{t(`rules.fields.${rule.field}`)}</TableCell>
+                  <TableCell>{t(`rules.operators.${rule.operator}`)}</TableCell>
                   {/* An IBAN is stored normalized — no spaces, lower case, so matching
                       never depends on how it was typed — and `de89370400440532013000` is
                       not how anyone reads one back. Upper-cased for the eye only; the
@@ -474,7 +469,7 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
                       size="small"
                       checked={rule.active}
                       slotProps={{
-                        input: { 'aria-label': `${text.active}: ${displayValue(rule)}` },
+                        input: { 'aria-label': `${t('rules.active')}: ${displayValue(rule)}` },
                       }}
                       onChange={(event) => {
                         updateRule(rule.id, { ...toRuleInput(rule), active: event.target.checked })
@@ -491,17 +486,17 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
                           setDraft({ ...rule, priority: String(rule.priority) });
                         }}
                       >
-                        {text.editRule}
+                        {t('rules.editRule')}
                       </Button>
                       <IconButton
                         size="small"
-                        aria-label={`${text.deleteRule}: ${displayValue(rule)}`}
+                        aria-label={`${t('rules.deleteRule')}: ${displayValue(rule)}`}
                         onClick={() => {
                           // The API answers with the rule as it stood, `createdAt` and all,
                           // so an undo puts it back in the same place in the order.
                           deleteRule(rule.id)
                             .then((deleted) => {
-                              onUndoable(describeRuleDeleted(displayValue(rule)), () =>
+                              onUndoable(describeRuleDeleted(t, displayValue(rule)), () =>
                                 restoreRule(deleted),
                               );
                               onChanged();
@@ -529,7 +524,7 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
             setDraft({ ...EMPTY_DRAFT, categoryId: categories[0]?.id ?? '' });
           }}
         >
-          {text.addRule}
+          {t('rules.addRule')}
         </Button>
       ) : (
         <RuleForm
@@ -582,7 +577,7 @@ interface RuleFormProps {
 }
 
 function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormProps) {
-  const text = rulesText();
+  const { t } = useTranslation();
   const [current, setCurrent] = useState(draft);
   const [marks, setMarks] = useState<Readonly<Record<string, string>>>({});
 
@@ -590,7 +585,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
     // The same parser the API runs, so the common mistake never leaves the browser.
     const parsed = parseRuleInput(toBody(current));
     if (!parsed.ok) {
-      setMarks(describeRuleErrors(parsed.errors));
+      setMarks(describeRuleErrors(t, parsed.errors));
       return;
     }
     setMarks({});
@@ -601,7 +596,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
     saved.then(onSaved).catch((cause: unknown) => {
       const errors = ruleErrorsOf(cause);
       if (errors.length > 0) {
-        setMarks(describeRuleErrors(errors));
+        setMarks(describeRuleErrors(t, errors));
         return;
       }
       onError(cause);
@@ -620,14 +615,14 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
           }}
         >
           <Typography variant="subtitle1">
-            {current.id === undefined ? text.addRule : text.editRule}
+            {current.id === undefined ? t('rules.addRule') : t('rules.editRule')}
           </Typography>
 
           <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
             <TextField
               select
               size="small"
-              label={text.field}
+              label={t('rules.field')}
               value={current.field}
               error={marks['field'] !== undefined}
               helperText={marks['field']}
@@ -648,7 +643,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
             >
               {RULE_FIELDS.map((field) => (
                 <MenuItem key={field} value={field}>
-                  {text.fields[field]}
+                  {t(`rules.fields.${field}`)}
                 </MenuItem>
               ))}
             </TextField>
@@ -656,7 +651,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
             <TextField
               select
               size="small"
-              label={text.operator}
+              label={t('rules.operator')}
               value={current.operator}
               error={marks['operator'] !== undefined}
               helperText={marks['operator']}
@@ -669,14 +664,14 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
                   and the parser cannot disagree about it. */}
               {operatorsForField(current.field).map((operator) => (
                 <MenuItem key={operator} value={operator}>
-                  {text.operators[operator]}
+                  {t(`rules.operators.${operator}`)}
                 </MenuItem>
               ))}
             </TextField>
 
             <TextField
               size="small"
-              label={text.value}
+              label={t('rules.value')}
               value={current.value}
               error={marks['value'] !== undefined}
               helperText={marks['value']}
@@ -687,7 +682,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
 
             <TextField
               size="small"
-              label={text.priority}
+              label={t('rules.priority')}
               value={current.priority}
               error={marks['priority'] !== undefined}
               helperText={marks['priority']}
@@ -700,7 +695,7 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
             <TextField
               select
               size="small"
-              label={text.category}
+              label={t('rules.category')}
               value={current.categoryId}
               error={marks['categoryId'] !== undefined}
               helperText={marks['categoryId']}
@@ -719,9 +714,9 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
 
           <Stack direction="row" spacing={1}>
             <Button type="submit" variant="contained">
-              {text.saveRule}
+              {t('rules.saveRule')}
             </Button>
-            <Button onClick={onCancel}>{text.cancel}</Button>
+            <Button onClick={onCancel}>{t('rules.cancel')}</Button>
           </Stack>
         </Stack>
       </CardContent>
@@ -730,9 +725,11 @@ function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormPro
 }
 
 function ApplyResult({ summary }: { readonly summary: ApplySummary }) {
+  const { t } = useTranslation();
+
   return (
     <Alert severity="success">
-      <Box component="span">{describeApplySummary(summary)}</Box>
+      <Box component="span">{describeApplySummary(t, summary)}</Box>
     </Alert>
   );
 }

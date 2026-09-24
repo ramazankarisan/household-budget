@@ -1,6 +1,7 @@
 import { type AccountPayload } from '@household-budget/core';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import { useTranslation } from 'react-i18next';
 
 interface AccountSelectProps {
   readonly accounts: readonly AccountPayload[];
@@ -15,11 +16,13 @@ interface AccountSelectProps {
 
 /** How an account is chosen, once, so the two pages that choose one cannot drift apart. */
 export function AccountSelect({ accounts, value, onChange }: AccountSelectProps) {
+  const { t } = useTranslation();
+
   return (
     <TextField
       select
       size="small"
-      label="Konto"
+      label={t('common.account.select')}
       value={value}
       onChange={(event) => {
         onChange(event.target.value);
