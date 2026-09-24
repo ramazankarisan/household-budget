@@ -9,6 +9,7 @@ export type {
   ApplySummary,
   BudgetPayload,
   CategoryPayload,
+  DeletedRulePayload,
   ImportSummary,
   RulePayload,
   TransactionPayload,

@@ -1,6 +1,7 @@
 import {
   ApplySummary,
   compareRules,
+  DeletedRulePayload,
   MatchableTransaction,
   matchingRule,
   orderRules,
@@ -10,10 +11,19 @@ import {
   RuleOperator,
   RulePayload,
 } from '@household-budget/core';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CategoryService } from './category.service.js';
+
+/** Prisma's code for a unique-constraint violation; here, a rule id restored twice. */
+const UNIQUE_CONSTRAINT = 'P2002';
 
 /**
  * What an apply is allowed to write with. `$transaction`'s client is the same shape as
@@ -160,12 +170,60 @@ export class RuleService {
     return toPayload(updated);
   }
 
-  async remove(ruleId: string): Promise<void> {
-    await this.requireRule(ruleId);
+  /**
+   * Returns the rule as it stood, `createdAt` included, so the UI can offer an undo that
+   * puts it back exactly — see {@link restore}.
+   */
+  async remove(ruleId: string): Promise<DeletedRulePayload> {
+    const row = await this.prisma.rule.findUnique({ where: { id: ruleId } });
+    if (row === null) {
+      throw new NotFoundException(`No rule ${ruleId}`);
+    }
     await this.prisma.rule.delete({ where: { id: ruleId } });
     // A deleted rule leaves the categories it assigned behind until the next apply
     // clears them, which is why an apply writes null as well as matches.
     this.logger.log(`delete rule=${ruleId}`);
+    return toCoreRule(row);
+  }
+
+  /**
+   * Puts a deleted rule back with its own id and `createdAt`, so it sorts exactly where it
+   * did. A plain create would stamp it now and move it behind every rule of equal
+   * priority — a different rule could then win the tie on the next apply, with nothing
+   * on screen to say why.
+   *
+   * The rule itself is validated by `parseRuleInput`, like any create. Refused when the
+   * id is taken again (restored twice) or its category has gone in the meantime.
+   */
+  async restore(body: unknown): Promise<RulePayload> {
+    const source = isObject(body) ? body : {};
+    const { id, createdAt } = source;
+    const stamp = typeof createdAt === 'string' ? new Date(createdAt) : undefined;
+    if (
+      typeof id !== 'string' ||
+      id.trim() === '' ||
+      stamp === undefined ||
+      Number.isNaN(stamp.getTime())
+    ) {
+      throw new BadRequestException({ code: 'RULE_RESTORE_INVALID' });
+    }
+    const input = this.parse(body);
+    await this.categories.requireCategory(input.categoryId);
+    /*
+     * No look-before-insert: two restores of the same rule (two tabs, a retried request)
+     * could both pass a check and the second would fail on the primary key as a 500. The
+     * insert is the check, and its unique-constraint error is the 409.
+     */
+    try {
+      const restored = await this.prisma.rule.create({ data: { ...input, id, createdAt: stamp } });
+      this.logger.log(`restore rule=${restored.id} field=${restored.field}`);
+      return toPayload(restored);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+        throw new ConflictException({ code: 'RULE_EXISTS' });
+      }
+      throw error;
+    }
   }
 
   /** Throws rather than returning null: every caller here needs the rule to exist. */

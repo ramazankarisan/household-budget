@@ -1,4 +1,9 @@
-import { type ApplySummary, type CategoryPayload, type RulePayload } from '@household-budget/core';
+import {
+  type ApplySummary,
+  type CategoryPayload,
+  type DeletedRulePayload,
+  type RulePayload,
+} from '@household-budget/core';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +41,8 @@ const created = vi.fn();
 const applied = vi.fn<() => Promise<ApplySummary>>();
 const removedCategory = vi.fn<(id: string) => Promise<void>>();
 const createdCategory = vi.fn<(name: string) => Promise<CategoryPayload>>();
+const removedRule = vi.fn<(id: string) => Promise<DeletedRulePayload>>();
+const restoredRule = vi.fn<(rule: DeletedRulePayload) => Promise<RulePayload>>();
 
 vi.mock('../api/client', () => ({
   ApiError: class extends Error {
@@ -64,7 +71,8 @@ vi.mock('../api/client', () => ({
     return Promise.resolve(rule());
   },
   updateRule: () => Promise.resolve(rule()),
-  deleteRule: () => Promise.resolve(),
+  deleteRule: (id: string) => removedRule(id),
+  restoreRule: (deleted: DeletedRulePayload) => restoredRule(deleted),
   applyRules: () => applied(),
 }));
 
@@ -84,6 +92,21 @@ beforeEach(() => {
     const category = { id: `cat-${name.toLowerCase()}-new`, name };
     categories = [...categories, category];
     return Promise.resolve(category);
+  });
+});
+
+beforeEach(() => {
+  removedRule.mockReset();
+  removedRule.mockImplementation((id) => {
+    const gone = rules.find((candidate) => candidate.id === id) ?? rule({ id });
+    rules = rules.filter((candidate) => candidate.id !== id);
+    return Promise.resolve({ ...gone, createdAt: '2026-09-20T10:00:00.000Z' });
+  });
+  restoredRule.mockReset();
+  restoredRule.mockImplementation((deleted) => {
+    const { createdAt: _createdAt, ...back } = deleted;
+    rules = [...rules, back];
+    return Promise.resolve(back);
   });
 });
 
@@ -324,5 +347,105 @@ describe('RulesPage, deleting a category', () => {
     await screen.findByText('Wird noch verwendet: 2 Regeln, 47 Umsätze, 3 Budgets.');
     expect(screen.queryByText('„Wohnen“ gelöscht')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rückgängig' })).not.toBeInTheDocument();
+  });
+});
+
+describe('RulesPage, deleting a rule', () => {
+  // Dogfood ISSUE-011: the same undo as a category, and an exact one — the API hands the
+  // rule back with its createdAt, and the undo sends exactly that to restore.
+  it('says which rule went and offers it back', async () => {
+    rules = [rule({ id: 'r-mueller', value: 'müller' })];
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: 'Regel löschen: müller' }));
+
+    expect(await screen.findByText('Regel „müller“ gelöscht')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Regel löschen: müller' })).toBeNull();
+    });
+  });
+
+  it('restores the rule exactly as the API returned it, createdAt included', async () => {
+    rules = [rule({ id: 'r-mueller', value: 'müller' })];
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: 'Regel löschen: müller' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Rückgängig' }));
+
+    expect(restoredRule).toHaveBeenCalledExactlyOnceWith({
+      ...rule({ id: 'r-mueller', value: 'müller' }),
+      createdAt: '2026-09-20T10:00:00.000Z',
+    });
+    expect(await screen.findByRole('button', { name: 'Regel löschen: müller' })).toBeVisible();
+  });
+
+  it('shares one snackbar with category deletes, so only the latest is offered', async () => {
+    rules = [rule({ id: 'r-mueller', value: 'müller', categoryId: 'cat-lebensmittel' })];
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText('„Wohnen“ gelöscht');
+    fireEvent.click(await screen.findByRole('button', { name: 'Regel löschen: müller' }));
+
+    expect(await screen.findByText('Regel „müller“ gelöscht')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('„Wohnen“ gelöscht')).not.toBeInTheDocument();
+    });
+    expect(screen.getAllByRole('button', { name: 'Rückgängig' })).toHaveLength(1);
+  });
+});
+
+describe('RulesPage, a category that cannot be deleted', () => {
+  it('keeps the same warning on screen when ✕ is clicked again', async () => {
+    // Dogfood ISSUE-012: the warning was cleared before each request and put back by the
+    // 409, so every repeat click removed and re-inserted it and the form below jumped.
+    removedCategory.mockRejectedValue(
+      new ApiError('CATEGORY_IN_USE', [], { rules: 0, transactions: 1, budgets: 1 }),
+    );
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    const warning = await screen.findByText('Wird noch verwendet: 0 Regeln, 1 Umsätze, 1 Budgets.');
+
+    fireEvent.click(screen.getByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await waitFor(() => {
+      expect(removedCategory).toHaveBeenCalledTimes(2);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // The very same node: never detached, so never re-inserted.
+    expect(warning.isConnected).toBe(true);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('drops an earlier warning when a later delete fails for another reason', async () => {
+    // Review of #15: the counts do not name their category, so left up beside an
+    // unrelated error they would read as that category's.
+    removedCategory
+      .mockRejectedValueOnce(
+        new ApiError('CATEGORY_IN_USE', [], { rules: 0, transactions: 1, budgets: 1 }),
+      )
+      .mockRejectedValueOnce(new Error('Netzwerkfehler'));
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText(/Wird noch verwendet/);
+
+    fireEvent.click(screen.getByRole('button', { name: /Kategorie löschen: Lebensmittel/ }));
+
+    expect(await screen.findByText('Netzwerkfehler')).toBeInTheDocument();
+    expect(screen.queryByText(/Wird noch verwendet/)).not.toBeInTheDocument();
+  });
+
+  it('clears the warning once a delete goes through', async () => {
+    removedCategory.mockRejectedValueOnce(
+      new ApiError('CATEGORY_IN_USE', [], { rules: 0, transactions: 1, budgets: 1 }),
+    );
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText(/Wird noch verwendet/);
+
+    fireEvent.click(screen.getByRole('button', { name: /Kategorie löschen: Lebensmittel/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Wird noch verwendet/)).not.toBeInTheDocument();
+    });
   });
 });

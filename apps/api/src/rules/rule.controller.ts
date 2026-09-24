@@ -1,4 +1,4 @@
-import { ApplySummary, RulePayload } from '@household-budget/core';
+import { ApplySummary, DeletedRulePayload, RulePayload } from '@household-budget/core';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 
 import { RuleService } from './rule.service.js';
@@ -28,6 +28,12 @@ export class RuleController {
     return this.rules.applyAll();
   }
 
+  /** POST /api/rules/restore — a rule `DELETE` returned, put back with its id and `createdAt`. */
+  @Post('restore')
+  restore(@Body() body: unknown): Promise<RulePayload> {
+    return this.rules.restore(body);
+  }
+
   /** POST /api/rules */
   @Post()
   create(@Body() body: unknown): Promise<RulePayload> {
@@ -40,10 +46,13 @@ export class RuleController {
     return this.rules.update(id, body);
   }
 
-  /** DELETE /api/rules/:id — the categories it assigned stay until the next apply. */
+  /**
+   * DELETE /api/rules/:id — 200 with the rule as it stood, which is what an undo sends to
+   * `restore`. The categories it assigned stay until the next apply.
+   */
   @Delete(':id')
-  @HttpCode(204)
-  remove(@Param('id') id: string): Promise<void> {
+  @HttpCode(200)
+  remove(@Param('id') id: string): Promise<DeletedRulePayload> {
     return this.rules.remove(id);
   }
 }

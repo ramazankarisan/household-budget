@@ -211,6 +211,16 @@ export function describeCategoryDeleted(name: string, locale: Locale = 'de'): st
   return CATEGORY_DELETED[locale](name);
 }
 
+const RULE_DELETED: Record<Locale, (label: string) => string> = {
+  de: (label) => `Regel „${label}“ gelöscht`,
+  en: (label) => `Rule "${label}" deleted`,
+};
+
+/** The same snackbar for a rule, named by its search term — what the table shows for it. */
+export function describeRuleDeleted(label: string, locale: Locale = 'de'): string {
+  return RULE_DELETED[locale](label);
+}
+
 const APPLY_SUMMARY: Record<Locale, (summary: ApplySummary) => string> = {
   de: (summary) =>
     `${String(summary.evaluated)} geprüft · ${String(summary.assigned)} zugeordnet · ` +
