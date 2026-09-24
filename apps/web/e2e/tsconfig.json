@@ -1,0 +1,5 @@
+{
+  "//": "For the editor only. tsserver picks the nearest tsconfig.json, and ../tsconfig.json covers src/ with DOM types and no Node — so without this file the specs open in an inferred project that cannot resolve node:path. The compiler options live in ../tsconfig.e2e.json, which `typecheck` and ESLint use.",
+  "extends": "../tsconfig.e2e.json",
+  "include": ["."]
+}
