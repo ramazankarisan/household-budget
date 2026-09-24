@@ -19,14 +19,20 @@ interface BudgetFieldProps {
   readonly onClear: () => void;
 }
 
-/** `70000` to `700,00` — what the field shows at rest. No `€`: the column header says it. */
+/** Whole euros with the German thousands dot. Integers only — the cents are appended by hand. */
+const EUROS = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0, useGrouping: true });
+
+/**
+ * `123456` to `1.234,56` — what the field shows at rest. No `€`: the column header says it.
+ * Grouped like every other amount on the page; `parseGermanAmount` reads the dot back.
+ */
 function draftOf(cents: number | null): string {
   if (cents === null) {
     return '';
   }
   const euros = Math.trunc(cents / 100);
   const fraction = String(cents % 100).padStart(2, '0');
-  return `${String(euros)},${fraction}`;
+  return `${EUROS.format(euros)},${fraction}`;
 }
 
 /**

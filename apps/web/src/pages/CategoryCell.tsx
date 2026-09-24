@@ -110,16 +110,21 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
           </MenuItem>
         ))}
       </TextField>
-      {locked && (
-        <Box
-          component="span"
-          aria-label={text.lockedHint}
-          title={text.lockedHint}
-          sx={{ fontSize: '0.75rem', lineHeight: 1 }}
-        >
-          🔒
-        </Box>
-      )}
+      {/*
+        The slot is always there, lock or not. The select is `flex: 1`, so a lock that only
+        appeared on locked rows made their select narrower and moved the chevron out of the
+        column every other row lines up in.
+      */}
+      <Box
+        component="span"
+        data-testid="lock-slot"
+        aria-hidden={locked ? undefined : true}
+        aria-label={locked ? text.lockedHint : undefined}
+        title={locked ? text.lockedHint : undefined}
+        sx={{ width: '1rem', flexShrink: 0, fontSize: '0.75rem', lineHeight: 1 }}
+      >
+        {locked ? '🔒' : null}
+      </Box>
     </Box>
   );
 }

@@ -84,6 +84,46 @@ describe('CategoryService', () => {
     await expect(categories.create('Wohnen')).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('refuses a name that differs from an existing one only in case or spacing', async () => {
+    // Dogfood ISSUE-004: `Wohnen` went in next to `wohnen` and split the spending.
+    await categories.create('wohnen');
+
+    for (const variant of ['Wohnen', 'WOHNEN', ' wohnen ']) {
+      const refusal = categories.create(variant);
+      await expect(refusal).rejects.toBeInstanceOf(ConflictException);
+      // The message names the spelling the user already has, not the one just typed.
+      await expect(refusal).rejects.toThrow('A category named wohnen already exists');
+    }
+    expect(await categories.list()).toHaveLength(1);
+  });
+
+  it('lets a rename change only the case of its own name', async () => {
+    const wohnen = await categories.create('wohnen');
+
+    const renamed = await categories.rename(wohnen.id, 'Wohnen');
+
+    expect(renamed).toEqual({ id: wohnen.id, name: 'Wohnen' });
+  });
+
+  it('refuses a rename onto another category under a different case', async () => {
+    await categories.create('wohnen');
+    const doctor = await categories.create('doctor');
+
+    await expect(categories.rename(doctor.id, 'WOHNEN')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('leaves case duplicates stored before the check alone, and refuses a third', async () => {
+    // Written straight through Prisma, the way they got in before the service checked.
+    await prisma.category.create({ data: { name: 'Test' } });
+    await prisma.category.create({ data: { name: 'test' } });
+
+    expect((await categories.list()).map((category) => category.name).sort()).toEqual([
+      'Test',
+      'test',
+    ]);
+    await expect(categories.create('TEST')).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it('deletes a category nothing points at', async () => {
     const created = await categories.create('Unbenutzt');
 

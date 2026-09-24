@@ -34,12 +34,6 @@ import { BudgetTable } from './BudgetTable';
 import { Nav } from './Nav';
 import { SpendingChart } from './SpendingChart';
 
-/** The limits loaded, and which month they are for — a load for a month left behind is not. */
-interface LoadedBudgets {
-  readonly month: string;
-  readonly rows: readonly BudgetPayload[];
-}
-
 /**
  * A refused write in words. `BUDGET_INVALID` carries one entry per bad field, which the
  * field itself would normally have caught — this is the path for when it did not.
@@ -90,7 +84,8 @@ function inMonth<T>(cells: ReadonlyMap<string, T>, month: string): ReadonlyMap<s
  * It owns the loads, the selected month and the writes; the arithmetic is
  * `monthlyReport` from `packages/core`, run over the rows loaded the same way
  * `AccountPage` loads them, once per account. A month switch re-derives the table from
- * what is already loaded and fetches only that month's limits.
+ * what is already loaded, shows that month's spending at once, and fetches its limits only
+ * the first time the month is shown (see `budgets`).
  */
 export function BudgetsPage() {
   const text = budgetsText();
@@ -102,7 +97,23 @@ export function BudgetsPage() {
   const [loaded, setLoaded] = useState<readonly AccountRows[] | undefined>(undefined);
   // What the user picked. `''` until they pick — the page then shows the newest month.
   const [chosenMonth, setChosenMonth] = useState('');
-  const [budgets, setBudgets] = useState<LoadedBudgets | undefined>(undefined);
+  /*
+   * The limits per month, kept for as long as the page is. A month switch shows the
+   * cached month at once and fetches only a month not seen yet; writes update the entry
+   * for their month. Nothing else writes limits while this page is open — it is the one
+   * place they are edited — so a cached month cannot go stale under it.
+   */
+  const [budgets, setBudgets] = useState<ReadonlyMap<string, readonly BudgetPayload[]>>(
+    () => new Map(),
+  );
+  // Read by the fetch effect so it can skip a cached month without depending on
+  // `budgets` — which would refetch after every write. Synced in an effect, not during
+  // render (react-hooks/refs); it is declared before the fetch effect, and effects run in
+  // declaration order, so the fetch always sees this render's cache.
+  const budgetsRef = useRef(budgets);
+  useEffect(() => {
+    budgetsRef.current = budgets;
+  }, [budgets]);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
@@ -162,7 +173,7 @@ export function BudgetsPage() {
     chosenMonth !== '' && months.includes(chosenMonth) ? chosenMonth : (months[0] ?? '');
 
   useEffect(() => {
-    if (month === '') {
+    if (month === '' || budgetsRef.current.has(month)) {
       return;
     }
     const controller = new AbortController();
@@ -170,7 +181,7 @@ export function BudgetsPage() {
     listBudgets(month, controller.signal)
       .then((rows) => {
         if (!controller.signal.aborted) {
-          setBudgets({ month, rows });
+          setBudgets((stored) => new Map(stored).set(month, rows));
         }
       })
       .catch((cause: unknown) => {
@@ -217,11 +228,12 @@ export function BudgetsPage() {
           return;
         }
         setBudgets((stored) => {
-          if (stored?.month !== forMonth) {
+          const rows = stored.get(forMonth);
+          if (rows === undefined) {
             return stored;
           }
-          const others = stored.rows.filter((row) => row.categoryId !== categoryId);
-          return { month: forMonth, rows: saved === null ? others : [...others, saved] };
+          const others = rows.filter((row) => row.categoryId !== categoryId);
+          return new Map(stored).set(forMonth, saved === null ? others : [...others, saved]);
         });
       })
       .catch((cause: unknown) => {
@@ -248,7 +260,9 @@ export function BudgetsPage() {
   );
   const monthRevisions = useMemo(() => inMonth(revisions, month), [revisions, month]);
 
-  const loadedBudgets = budgets?.month === month ? budgets.rows : undefined;
+  const loadedBudgets = budgets.get(month);
+  // The rows are in memory, so spending never waits; only the limits can be in flight.
+  const limitsLoading = loadedBudgets === undefined;
   const report = useMemo(
     () => monthlyReport(transactions ?? [], loadedBudgets ?? [], categories, month),
     [transactions, loadedBudgets, categories, month],
@@ -297,7 +311,7 @@ export function BudgetsPage() {
               {text.toTransactions}
             </Button>
           </Stack>
-        ) : transactions === undefined || loadedBudgets === undefined ? (
+        ) : transactions === undefined ? (
           <CircularProgress size={24} />
         ) : (
           <Stack spacing={2}>
@@ -325,7 +339,7 @@ export function BudgetsPage() {
                 ))}
               </TextField>
               <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                {describeMonthTotal(report)}
+                {describeMonthTotal(report, undefined, { limitsLoading })}
               </Typography>
             </Stack>
 
@@ -334,6 +348,7 @@ export function BudgetsPage() {
               categories={categories}
               savingIds={savingIds}
               revisions={monthRevisions}
+              limitsLoading={limitsLoading}
               onSave={(categoryId, amountCents) => {
                 write(categoryId, () => setBudget(month, categoryId, amountCents));
               }}

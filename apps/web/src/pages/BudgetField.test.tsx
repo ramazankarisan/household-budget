@@ -59,6 +59,32 @@ describe('BudgetField', () => {
     expect(onSave).toHaveBeenCalledExactlyOnceWith(123456);
   });
 
+  it('shows a stored limit with the thousands dot', () => {
+    const { input } = renderField(123456);
+
+    expect(input).toHaveValue('1.234,56');
+  });
+
+  it('keeps a grouped entry grouped once it is committed', () => {
+    const { onSave, input } = renderField();
+
+    type(input, '1.234,56');
+    fireEvent.blur(input);
+
+    expect(onSave).toHaveBeenCalledExactlyOnceWith(123456);
+    expect(input).toHaveValue('1.234,56');
+  });
+
+  it('groups an ungrouped entry once it is committed', () => {
+    const { onSave, input } = renderField();
+
+    type(input, '1234,56');
+    fireEvent.blur(input);
+
+    expect(onSave).toHaveBeenCalledExactlyOnceWith(123456);
+    expect(input).toHaveValue('1.234,56');
+  });
+
   it('clears a set limit when emptied', () => {
     const { onSave, onClear, input } = renderField(70000);
 

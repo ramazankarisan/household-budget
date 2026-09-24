@@ -29,6 +29,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -46,6 +47,7 @@ import {
 } from '../api/client';
 import {
   describeApplySummary,
+  describeCategoryDeleted,
   describeCategoryInUse,
   describeRuleErrors,
   rulesText,
@@ -232,6 +234,13 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
   const text = rulesText();
   const [name, setName] = useState('');
   const [refusal, setRefusal] = useState<string | undefined>(undefined);
+  /*
+   * The last category deleted, for the undo snackbar. `key` is new for every delete, so a
+   * second delete remounts the snackbar with its own message and a fresh timer rather
+   * than inheriting what is left of the first one's six seconds.
+   */
+  const [deleted, setDeleted] = useState<{ key: number; name: string } | undefined>(undefined);
+  const deleteSeq = useRef(0);
 
   function add(): void {
     if (name.trim() === '') {
@@ -246,10 +255,19 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
       .catch(onError);
   }
 
-  function remove(categoryId: string): void {
+  /*
+   * Deleting stays one click and immediate; the snackbar offers the way back. Undo is a
+   * re-create by name, and that loses nothing: the API refuses to delete a category any
+   * rule, row or budget points at, so the one that went was only ever a name.
+   */
+  function remove(category: CategoryPayload): void {
     setRefusal(undefined);
-    deleteCategory(categoryId)
-      .then(onChanged)
+    deleteCategory(category.id)
+      .then(() => {
+        deleteSeq.current += 1;
+        setDeleted({ key: deleteSeq.current, name: category.name });
+        onChanged();
+      })
       .catch((cause: unknown) => {
         // The counts are the answer to "why not", so they are shown rather than logged.
         if (cause instanceof ApiError && cause.code === 'CATEGORY_IN_USE') {
@@ -272,6 +290,12 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
       });
   }
 
+  function undo(deletedName: string): void {
+    setDeleted(undefined);
+    // A 409 here means the name was taken again meanwhile; the page's alert says so.
+    createCategory(deletedName).then(onChanged).catch(onError);
+  }
+
   return (
     <Card variant="outlined">
       <CardContent>
@@ -291,7 +315,7 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
                   key={category.id}
                   label={category.name}
                   onDelete={() => {
-                    remove(category.id);
+                    remove(category);
                   }}
                   // MUI clones this and attaches its own onClick. Supplied rather than
                   // defaulted so the control that deletes has a name that says which
@@ -337,6 +361,32 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
           </Stack>
         </Stack>
       </CardContent>
+
+      {deleted !== undefined && (
+        <Snackbar
+          key={deleted.key}
+          open
+          autoHideDuration={6000}
+          message={describeCategoryDeleted(deleted.name)}
+          onClose={(_event, reason) => {
+            // A click anywhere else on the page is not a decision about the undo.
+            if (reason !== 'clickaway') {
+              setDeleted(undefined);
+            }
+          }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                undo(deleted.name);
+              }}
+            >
+              {text.undo}
+            </Button>
+          }
+        />
+      )}
     </Card>
   );
 }

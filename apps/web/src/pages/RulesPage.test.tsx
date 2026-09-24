@@ -1,17 +1,19 @@
 import { type ApplySummary, type CategoryPayload, type RulePayload } from '@household-budget/core';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The mocked module's own class, not a copy: the page narrows with `instanceof`, and a
 // second class with the same shape is a different class.
 import { ApiError } from '../api/client';
 import { RulesPage } from './RulesPage';
 
-const categories: CategoryPayload[] = [
+const initialCategories: CategoryPayload[] = [
   { id: 'cat-wohnen', name: 'Wohnen' },
   { id: 'cat-lebensmittel', name: 'Lebensmittel' },
 ];
+/** What the mocked API currently holds: deletes and re-creates change it, as the real one would. */
+let categories: CategoryPayload[] = [...initialCategories];
 
 /** Mirrors `transaction()` in TransactionList.test.tsx. */
 function rule(overrides: Partial<RulePayload> = {}): RulePayload {
@@ -32,7 +34,8 @@ let rules: RulePayload[] = [];
 let listFailure: Error | undefined;
 const created = vi.fn();
 const applied = vi.fn<() => Promise<ApplySummary>>();
-const removedCategory = vi.fn<() => Promise<void>>();
+const removedCategory = vi.fn<(id: string) => Promise<void>>();
+const createdCategory = vi.fn<(name: string) => Promise<CategoryPayload>>();
 
 vi.mock('../api/client', () => ({
   ApiError: class extends Error {
@@ -54,8 +57,8 @@ vi.mock('../api/client', () => ({
     listFailure === undefined ? Promise.resolve(categories) : Promise.reject(listFailure),
   listRules: () =>
     listFailure === undefined ? Promise.resolve(rules) : Promise.reject(listFailure),
-  createCategory: () => Promise.resolve({ id: 'cat-new', name: 'Neu' }),
-  deleteCategory: () => removedCategory(),
+  createCategory: (name: string) => createdCategory(name),
+  deleteCategory: (id: string) => removedCategory(id),
   createRule: (input: unknown) => {
     created(input);
     return Promise.resolve(rule());
@@ -70,7 +73,22 @@ beforeEach(() => {
   listFailure = undefined;
   created.mockClear();
   applied.mockReset();
+  categories = [...initialCategories];
   removedCategory.mockReset();
+  removedCategory.mockImplementation((id) => {
+    categories = categories.filter((category) => category.id !== id);
+    return Promise.resolve();
+  });
+  createdCategory.mockReset();
+  createdCategory.mockImplementation((name) => {
+    const category = { id: `cat-${name.toLowerCase()}-new`, name };
+    categories = [...categories, category];
+    return Promise.resolve(category);
+  });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 const page = () => (
@@ -234,5 +252,77 @@ describe('RulesPage', () => {
     // Both categories exist here, so the button is live; the guard is the disabled state
     // when the list is empty, which is what the strip's own empty text explains.
     expect(await screen.findByRole('button', { name: 'Regel anlegen' })).toBeEnabled();
+  });
+});
+
+describe('RulesPage, deleting a category', () => {
+  // Dogfood ISSUE-010: the ✕ deleted at once with no way back. It still deletes at once;
+  // a snackbar offers undo, which re-creates the name. The API refuses to delete a
+  // category anything points at, so a name is all there ever is to restore.
+  const chip = (name: string) =>
+    screen.queryByRole('button', { name: `Kategorie löschen: ${name}` });
+
+  it('removes the chip and says which category went', async () => {
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+
+    expect(await screen.findByText('„Wohnen“ gelöscht')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(chip('Wohnen')).not.toBeInTheDocument();
+    });
+  });
+
+  it('brings the category back by name when undone', async () => {
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Rückgängig' }));
+
+    expect(createdCategory).toHaveBeenCalledExactlyOnceWith('Wohnen');
+    expect(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ })).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByText('„Wohnen“ gelöscht')).not.toBeInTheDocument();
+    });
+  });
+
+  it('lets the undo lapse after six seconds without re-creating anything', async () => {
+    // Fake from the start: the snackbar's timer is set when it opens. shouldAdvanceTime
+    // keeps the promise-driven loads and findBy polling moving on their own.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText('„Wohnen“ gelöscht');
+
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('„Wohnen“ gelöscht')).not.toBeInTheDocument();
+    });
+    expect(createdCategory).not.toHaveBeenCalled();
+  });
+
+  it('shows only the latest deletion when two happen in a row', async () => {
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText('„Wohnen“ gelöscht');
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Lebensmittel/ }));
+
+    expect(await screen.findByText('„Lebensmittel“ gelöscht')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('„Wohnen“ gelöscht')).not.toBeInTheDocument();
+    });
+  });
+
+  it('offers no undo when the deletion was refused', async () => {
+    removedCategory.mockRejectedValue(
+      new ApiError('CATEGORY_IN_USE', [], { rules: 2, transactions: 47, budgets: 3 }),
+    );
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+
+    await screen.findByText('Wird noch verwendet: 2 Regeln, 47 Umsätze, 3 Budgets.');
+    expect(screen.queryByText('„Wohnen“ gelöscht')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rückgängig' })).not.toBeInTheDocument();
   });
 });
