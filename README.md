@@ -85,8 +85,10 @@ consume its compiled `.d.ts` rather than its source.
 - **core → apps.** The response shapes (`AccountPayload`, `TransactionPayload`,
   `ImportSummary`) are defined once in core; `apps/api` builds them and `apps/web`
   renders them. A break in either import path fails `pnpm typecheck`.
-- **web → api.** The Vite dev server proxies `/api` to `localhost:3000`, so the
-  browser only ever talks to one origin. There is no API base URL to configure.
+- **web → api.** The Vite dev server proxies `/api` to `127.0.0.1:3000`, so the
+  browser only ever talks to one origin. There is no API base URL to configure. The API
+  binds `127.0.0.1` only, sends no CORS headers, and answers `403` to a request whose
+  `Host` or `Origin` is not loopback (`apps/api/src/security/loopback.ts`).
 - **api → SQLite.** Prisma 7 is driver-adapter based (`@prisma/adapter-better-sqlite3`),
   so there is no Rust query engine at runtime. `Account`, `ImportBatch` and
   `Transaction` live there; transactions are soft-deleted so a re-import can bring

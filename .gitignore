@@ -147,6 +147,8 @@ vite.config.ts.timestamp-*
 data/
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 
@@ -159,6 +161,10 @@ data/
 # depth. That mismatch silently keeps packages/core/fixtures/*.csv out of git.
 *.csv
 !**/fixtures/**/*.csv
+
+# Dogfood screenshots can show local data. Only the screenshots: dogfood-output/report.md
+# stays trackable, docs/plans/05-dogfood-fixes.md links it as its findings log.
+dogfood-output/screenshots/
 
 # Playwright output
 test-results/

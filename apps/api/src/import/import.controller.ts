@@ -25,8 +25,35 @@ interface UploadedCsv {
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
-/** Sparkasse's own export dialog serves a .csv as application/vnd.ms-excel. */
-const ACCEPTED_TYPES = new Set(['text/csv', 'application/vnd.ms-excel']);
+/**
+ * The form is one file plus one `accountId` field (a ~25-char id). Nest turns every
+ * overrun but `fileSize` into a 400; `fileSize` stays a 413.
+ */
+const UPLOAD_LIMITS = {
+  fileSize: MAX_BYTES,
+  files: 1,
+  // `accountId` plus headroom; anything past this is not our form.
+  fields: 5,
+  // Bytes per field value — an id, not a document.
+  fieldSize: 1024,
+  // files + fields.
+  parts: 6,
+  fieldNameSize: 100,
+};
+
+/**
+ * What a browser labels a CSV varies: Sparkasse's own export dialog serves it as
+ * application/vnd.ms-excel, and depending on OS and file associations a picked .csv
+ * arrives as text/plain, application/octet-stream or untyped. The parser's
+ * HEADER_NOT_FOUND is the real gate; this list only turns away obvious non-text types.
+ */
+const ACCEPTED_TYPES = new Set([
+  'text/csv',
+  'application/vnd.ms-excel',
+  'text/plain',
+  'application/octet-stream',
+  '',
+]);
 
 @Controller('imports')
 export class ImportController {
@@ -34,7 +61,7 @@ export class ImportController {
 
   /** POST /api/imports — multipart: `file` plus an `accountId` field. */
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES } }))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   upload(
     @UploadedFile() file: UploadedCsv | undefined,
     @Body('accountId') accountId: unknown,
@@ -49,7 +76,7 @@ export class ImportController {
       throw new BadRequestException(`file is larger than ${String(MAX_BYTES)} bytes`);
     }
     if (!ACCEPTED_TYPES.has(file.mimetype)) {
-      throw new BadRequestException(`unsupported content type ${file.mimetype}`);
+      throw new BadRequestException({ code: 'UNSUPPORTED_CONTENT_TYPE' });
     }
 
     return this.imports.importCsv({

@@ -8,7 +8,7 @@ import camt17Csv from '../../../../fixtures/sparkasse-camt-17.csv?raw';
 import camt18BomCsv from '../../../../fixtures/sparkasse-camt-18-utf8-bom.csv?raw';
 import camt18Csv from '../../../../fixtures/sparkasse-camt-18-utf8.csv?raw';
 
-import { CsvFileError } from './errors.js';
+import { CsvFileError, truncateErrorValue } from './errors.js';
 import { parseSparkasseCsv, type ParseSparkasseCsvContext } from './parse.js';
 import type { Transaction } from './transaction.js';
 
@@ -129,6 +129,23 @@ describe('parseSparkasseCsv, bad rows', () => {
     ]);
     expect(transactions).toHaveLength(3);
     expect(transactions.map((t) => t.source.lineNumber)).toEqual([2, 4, 7]);
+  });
+
+  it('cuts a long offending value to 100 characters plus an ellipsis', () => {
+    // One bad cell must not cost a 5 KB string in the log, the response and the DOM.
+    const long = `12,3,4${'x'.repeat(4_994)}`;
+    const { errors } = parseSparkasseCsv(badRowsCsv.replace('12,3,4', long), context);
+
+    const amount = errors.find((error) => error.code === 'AMOUNT_UNPARSEABLE');
+    expect(amount?.value).toHaveLength(101);
+    expect(amount?.value).toBe(`${long.slice(0, 100)}…`);
+  });
+
+  it('never splits a surrogate pair when it cuts a value', () => {
+    const value = `${'a'.repeat(99)}😀tail`;
+
+    expect(truncateErrorValue(value)).toBe(`${'a'.repeat(99)}…`);
+    expect(truncateErrorValue('short')).toBe('short');
   });
 
   it('never silently treats an unknown Info value as booked', () => {

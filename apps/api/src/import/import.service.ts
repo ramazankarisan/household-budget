@@ -13,6 +13,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { AccountService } from '../accounts/account.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RuleService } from '../rules/rule.service.js';
+import { sanitizeForLog } from '../security/sanitize-log.js';
 import { decodeBankCsv } from './decode.js';
 import { dedupKeyHash, sha256Hex } from './hash.js';
 
@@ -23,6 +24,13 @@ export interface ImportRequest {
   /** Resolves two-digit years. Defaults to now; injected so tests are not time-dependent. */
   readonly referenceYear?: number;
 }
+
+/**
+ * Row errors logged and returned per import. A malformed 10 MB file can fail on every one
+ * of its rows; past this many the user has the pattern, and `failedCount` keeps the total
+ * honest.
+ */
+const MAX_REPORTED_ROW_ERRORS = 100;
 
 /** `DE89…3000` — enough to tell two accounts apart in a log, not enough to be one. */
 function maskIban(iban: string): string {
@@ -122,7 +130,7 @@ export class ImportService {
 
     const { text, encoding } = decodeBankCsv(request.bytes);
     this.logger.log(
-      `import account=${maskIban(account.iban)} file="${request.fileName}" encoding=${encoding}`,
+      `import account=${maskIban(account.iban)} file="${sanitizeForLog(request.fileName)}" encoding=${encoding}`,
     );
 
     const { transactions, errors } = this.parse(text, request, encoding);
@@ -133,8 +141,14 @@ export class ImportService {
       `import parsed=${String(transactions.length)} booked=${String(booked.length)} ` +
         `pending=${String(pending.length)} errors=${String(errors.length)}`,
     );
-    for (const error of errors) {
+    const reported = errors.slice(0, MAX_REPORTED_ROW_ERRORS);
+    for (const error of reported) {
       this.logRowError(error);
+    }
+    if (reported.length < errors.length) {
+      this.logger.warn(
+        `import row errors capped: logged ${String(reported.length)} of ${String(errors.length)}`,
+      );
     }
 
     const dedupKeys = this.dedupKeysFor(booked);
@@ -230,7 +244,8 @@ export class ImportService {
       restored: toRestore.length,
       pendingReplaced: pendingToStore.length,
       categorized,
-      failed: errors,
+      failed: reported,
+      failedCount: errors.length,
       encoding,
       ...(priorBatch === null ? {} : { duplicateOfBatchId: priorBatch.id }),
     };
@@ -353,7 +368,7 @@ export class ImportService {
    */
   private logRowError(error: RowError): void {
     const field = error.field === undefined ? '' : ` field=${error.field}`;
-    const value = error.value === undefined ? '' : ` value="${error.value}"`;
+    const value = error.value === undefined ? '' : ` value="${sanitizeForLog(error.value)}"`;
     this.logger.warn(`import row ${String(error.line)} ${error.code}${field}${value}`);
   }
 }
