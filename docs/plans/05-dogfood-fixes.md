@@ -69,6 +69,7 @@ This plan does **not** edit plans 01–04.
 4. **Delete undo (010): MUI `Snackbar` with **RÜCKGÄNGIG**, where undo calls
    `createCategory(name)`.**
    - Why: the server already refuses to delete a category that is in use, so undo loses nothing.
+     (Review of #13 questioned this for soft-deleted rows. Checked, and it holds: see ISSUE-013 in the report.)
      The re-created category gets a new id, but nothing pointed at the old one.
    - Impact: the categories card in `RulesPage.tsx`, plus new strings (de + en) in
      `i18n/rules.ts`.

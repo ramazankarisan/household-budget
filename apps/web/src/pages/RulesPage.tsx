@@ -258,7 +258,9 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
   /*
    * Deleting stays one click and immediate; the snackbar offers the way back. Undo is a
    * re-create by name, and that loses nothing: the API refuses to delete a category any
-   * rule, row or budget points at, so the one that went was only ever a name.
+   * rule, budget or live row points at, so the one that went was only ever a name. A
+   * soft-deleted row that pointed at it is detached, but it is never locked — soft delete
+   * releases the lock — so the next apply re-derives its category if it is restored.
    */
   function remove(category: CategoryPayload): void {
     setRefusal(undefined);

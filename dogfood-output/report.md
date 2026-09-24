@@ -24,18 +24,19 @@
 
 Triaged 2026-09-24. Fixes are planned in [`docs/plans/05-dogfood-fixes.md`](../docs/plans/05-dogfood-fixes.md). When a fix lands, add a dated **Resolution** line under its issue below and update the Status here.
 
-| Issue                                           | Decision                                     | Status                    |
-| ----------------------------------------------- | -------------------------------------------- | ------------------------- |
-| ISSUE-001 pending row missing from summary      | Could not reproduce                          | closed – not reproducible |
-| ISSUE-002 raw "Failed to fetch"                 | Not important; moves to the translation plan | deferred                  |
-| ISSUE-003 chevron misaligned on locked rows     | Fix (plan 05, phase 1)                       | fixed (2026-09-24)        |
-| ISSUE-004 case-variant category names           | Fix, low priority (plan 05, phase 2)         | fixed (2026-09-24)        |
-| ISSUE-005 English API errors                    | Moves to the separate translation plan       | deferred                  |
-| ISSUE-006 budget field thousands separator      | Fix (plan 05, phase 1)                       | fixed (2026-09-24)        |
-| ISSUE-007 budgets only for months with bookings | Not important                                | won't fix (for now)       |
-| ISSUE-008 headline counts unbudgeted spend      | Not now                                      | won't fix (for now)       |
-| ISSUE-009 month switch blanks budgets page      | Fix (plan 05, phase 4)                       | fixed (2026-09-24)        |
-| ISSUE-010 category delete without undo          | Fix: undo snackbar (plan 05, phase 3)        | fixed (2026-09-24)        |
+| Issue                                                                     | Decision                                     | Status                    |
+| ------------------------------------------------------------------------- | -------------------------------------------- | ------------------------- |
+| ISSUE-001 pending row missing from summary                                | Could not reproduce                          | closed – not reproducible |
+| ISSUE-002 raw "Failed to fetch"                                           | Not important; moves to the translation plan | deferred                  |
+| ISSUE-003 chevron misaligned on locked rows                               | Fix (plan 05, phase 1)                       | fixed (2026-09-24)        |
+| ISSUE-004 case-variant category names                                     | Fix, low priority (plan 05, phase 2)         | fixed (2026-09-24)        |
+| ISSUE-005 English API errors                                              | Moves to the separate translation plan       | deferred                  |
+| ISSUE-006 budget field thousands separator                                | Fix (plan 05, phase 1)                       | fixed (2026-09-24)        |
+| ISSUE-007 budgets only for months with bookings                           | Not important                                | won't fix (for now)       |
+| ISSUE-008 headline counts unbudgeted spend                                | Not now                                      | won't fix (for now)       |
+| ISSUE-009 month switch blanks budgets page                                | Fix (plan 05, phase 4)                       | fixed (2026-09-24)        |
+| ISSUE-010 category delete without undo                                    | Fix: undo snackbar (plan 05, phase 3)        | fixed (2026-09-24)        |
+| ISSUE-013 (review claim) category delete strands soft-deleted locked rows | Checked in code: does not occur              | closed – not a bug        |
 
 ## Issues
 
@@ -257,6 +258,13 @@ The ✕ on a category chip deletes it immediately: no dialog, no snackbar, no un
 
 **Resolution** (2026-09-24, plan 05): Fixed with an undo snackbar instead of a confirm dialog. Delete stays one click and immediate. A snackbar then shows `„<name>“ gelöscht · RÜCKGÄNGIG` for 6 s. Undo re-creates the category by name, and nothing is lost because the API already refuses to delete a category any rule, transaction or budget uses. A second delete replaces the snackbar, a click elsewhere does not dismiss it, and a refused (in-use) delete shows no snackbar. Files: `apps/web/src/pages/RulesPage.tsx`, `RulesPage.test.tsx`, `apps/web/src/i18n/rules.ts`, `rules.test.ts`.
 
+---
+
+### ISSUE-013: (review claim, not a bug) category delete strands soft-deleted locked rows
+
+**Claim** (code review of PR #13): deleting a category nulls `categoryId` on soft-deleted rows (the optional relation defaults to `SetNull`) but leaves them locked. A re-import restore then brings them back uncategorized and locked, so rules skip them forever, and the category undo cannot re-link them.
+
+**Checked 2026-09-24: does not occur.** The only soft-delete path, `AccountService.softDeleteTransaction` (`apps/api/src/accounts/account.service.ts:183`), writes `{ deletedAt: new Date(), categoryLockedAt: null }`, so a soft-deleted row is never locked. After a category delete and a re-import restore, the row is unlocked and the next apply re-derives its category. The only way to hit it would be a row soft-deleted by hand in the database with its lock left on. No change made. The undo comment in `RulesPage.tsx` now says why it holds.
 ---
 
 ## Scope notes
