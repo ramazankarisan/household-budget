@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { type Locale } from './importErrors';
 import {
   describeApplySummary,
+  describeCategoryDeleted,
   describeCategoryInUse,
   describeRuleError,
   describeRuleErrors,
@@ -110,6 +111,13 @@ describe('describeCategoryInUse', () => {
     expect(describeCategoryInUse(use, 'en')).toBe(
       'Still in use: 2 rules, 47 transactions, 3 budgets.',
     );
+  });
+});
+
+describe('describeCategoryDeleted', () => {
+  it('names the category that went, in both languages', () => {
+    expect(describeCategoryDeleted('Wohnen')).toBe('„Wohnen“ gelöscht');
+    expect(describeCategoryDeleted('Wohnen', 'en')).toBe('"Wohnen" deleted');
   });
 });
 

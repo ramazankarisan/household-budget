@@ -1,4 +1,4 @@
-import { CategoryPayload } from '@household-budget/core';
+import { CategoryPayload, normalize } from '@household-budget/core';
 import {
   BadRequestException,
   ConflictException,
@@ -34,6 +34,7 @@ export class CategoryService {
     if (trimmed === '') {
       throw new BadRequestException('name is required');
     }
+    await this.assertNameFree('create', trimmed);
 
     try {
       const created = await this.prisma.category.create({ data: { name: trimmed } });
@@ -52,6 +53,7 @@ export class CategoryService {
       throw new BadRequestException('name is required');
     }
     await this.requireCategory(categoryId);
+    await this.assertNameFree('rename', trimmed, categoryId);
 
     try {
       const renamed = await this.prisma.category.update({
@@ -101,6 +103,35 @@ export class CategoryService {
     }
 
     await this.prisma.category.delete({ where: { id: categoryId } });
+  }
+
+  /**
+   * Refuses a name another category already has under `normalize` — the fold rules and
+   * search use — so `Wohnen` and `wohnen` cannot both exist. The `@unique` on `name` is
+   * exact-match only (SQLite compares bytes), so without this the case variant went in
+   * as a second category and the spending split between the two.
+   *
+   * In JavaScript over every name rather than in SQL, for the reason in CLAUDE.md: SQLite
+   * folds ASCII only. Check-then-insert can race; this is a single-user local app, and
+   * `@unique` still catches the exact duplicate. `exceptId` lets a rename change only the
+   * case of its own name. Duplicates stored before this check are left alone.
+   */
+  private async assertNameFree(
+    operation: 'create' | 'rename',
+    name: string,
+    exceptId?: string,
+  ): Promise<void> {
+    const wanted = normalize(name);
+    const existing = await this.prisma.category.findMany({ select: { id: true, name: true } });
+    const clash = existing.find(
+      (category) => category.id !== exceptId && normalize(category.name) === wanted,
+    );
+    if (clash !== undefined) {
+      this.logger.log(
+        `${operation} refused name=${JSON.stringify(name)} collides with ${clash.id} ${JSON.stringify(clash.name)}`,
+      );
+      throw new ConflictException(`A category named ${clash.name} already exists`);
+    }
   }
 
   /** Throws rather than returning null: every caller here needs the category to exist. */

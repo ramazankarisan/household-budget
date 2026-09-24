@@ -90,6 +90,24 @@ describe('describeMonthTotal', () => {
     );
   });
 
+  it('states only what was spent while the limits are still loading', () => {
+    // The rows are in memory, the limits are not: saying "kein Budget gesetzt" here would
+    // be a claim about data that has not arrived (dogfood ISSUE-009).
+    const loading = { limitsLoading: true };
+    expect(plain(describeMonthTotal(report({ totalBookedCents: 241364 }), 'de', loading))).toBe(
+      '2.413,64 € ausgegeben',
+    );
+    expect(
+      plain(
+        describeMonthTotal(
+          report({ totalBookedCents: 241364, totalPendingCents: 1900 }),
+          'en',
+          loading,
+        ),
+      ),
+    ).toBe('2.413,64 € spent · 19,00 € pending');
+  });
+
   it('says no budget is set rather than comparing against zero', () => {
     expect(
       plain(describeMonthTotal(report({ totalBookedCents: 114341, totalBudgetCents: null }))),

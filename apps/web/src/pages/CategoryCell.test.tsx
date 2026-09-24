@@ -103,6 +103,40 @@ describe('CategoryCell', () => {
       screen.queryByLabelText('von Hand gesetzt — Regeln ändern das nicht'),
     ).not.toBeInTheDocument();
   });
+
+  it('keeps the lock slot on an unlocked row, so the chevrons line up down the column', () => {
+    // The select is flex: 1. A slot present only on locked rows made their select
+    // narrower and pushed the chevron out of line (dogfood ISSUE-003).
+    render(
+      <CategoryCell
+        transaction={transaction({ categoryId: 'cat-wohnen' })}
+        categories={CATEGORIES}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const slot = screen.getByTestId('lock-slot');
+    expect(slot).toBeEmptyDOMElement();
+    expect(slot).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('puts the lock in the same slot on a locked row', () => {
+    render(
+      <CategoryCell
+        transaction={transaction({
+          categoryId: 'cat-wohnen',
+          categoryLockedAt: '2026-09-23T08:00:00.000Z',
+        })}
+        categories={CATEGORIES}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const slot = screen.getByTestId('lock-slot');
+    expect(slot).toHaveTextContent('🔒');
+    expect(slot).toHaveAccessibleName('von Hand gesetzt — Regeln ändern das nicht');
+    expect(slot).not.toHaveAttribute('aria-hidden');
+  });
 });
 
 describe('CategoryCell, where a choice could not survive', () => {

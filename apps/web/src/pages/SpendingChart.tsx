@@ -18,6 +18,13 @@ interface SpendingChartProps {
    */
   readonly width?: number;
   readonly height?: number;
+  /**
+   * The month's limits have not arrived. The report then holds `null` for every limit,
+   * which drawn as-is says "nothing is budgeted" — the claim the table's `…` exists to
+   * avoid. So the Budget series is left out, the chart is dimmed and marked busy, and the
+   * caption says why, until the limits land.
+   */
+  readonly limitsLoading?: boolean;
 }
 
 /** A bar series' value formatter: cents in, `875,07 €` out, nothing for a missing bar. */
@@ -44,6 +51,7 @@ export function SpendingChart({
   categories,
   width = 800,
   height = 280,
+  limitsLoading = false,
 }: SpendingChartProps) {
   const theme = useTheme();
   const text = budgetsText();
@@ -62,46 +70,58 @@ export function SpendingChart({
       : (names.get(entry.categoryId) ?? entry.categoryId),
   );
 
+  const spent = [
+    {
+      id: 'booked',
+      label: text.columns.booked,
+      data: shown.map((entry) => entry.bookedCents),
+      stack: 'ist',
+      color: theme.palette.primary.main,
+      valueFormatter: formatCents,
+    },
+    {
+      id: 'pending',
+      label: text.columns.pending,
+      data: shown.map((entry) => entry.pendingCents),
+      stack: 'ist',
+      color: theme.palette.primary.light,
+      valueFormatter: formatCents,
+    },
+  ];
+  const budget = {
+    id: 'budget',
+    label: text.columns.budget,
+    // `null`, not 0: an unbudgeted category has no Budget bar, rather than one
+    // of zero height that the tooltip would report as a limit of 0,00 €.
+    data: shown.map((entry) => entry.budgetCents),
+    color: theme.palette.text.disabled,
+    valueFormatter: formatCents,
+  };
+
   return (
-    <Box component="figure" aria-label={text.chartTitle} sx={{ m: 0 }}>
+    <Box
+      component="figure"
+      aria-label={text.chartTitle}
+      aria-busy={limitsLoading || undefined}
+      sx={{ m: 0 }}
+    >
       <Typography variant="subtitle1" component="figcaption">
         {text.chartTitle}
+        {limitsLoading && (
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+            · {text.loadingLimits} …
+          </Typography>
+        )}
       </Typography>
       {/* Scrolls rather than squeezes on a narrow window: the size is fixed on purpose. */}
-      <Box sx={{ overflowX: 'auto' }}>
+      <Box sx={{ overflowX: 'auto', opacity: limitsLoading ? 0.5 : 1 }}>
         <BarChart
           width={width}
           height={height}
           skipAnimation
           xAxis={[{ scaleType: 'band', data: labels }]}
           yAxis={[{ valueFormatter: (value: number) => formatAmount(value), width: 90 }]}
-          series={[
-            {
-              id: 'booked',
-              label: text.columns.booked,
-              data: shown.map((entry) => entry.bookedCents),
-              stack: 'ist',
-              color: theme.palette.primary.main,
-              valueFormatter: formatCents,
-            },
-            {
-              id: 'pending',
-              label: text.columns.pending,
-              data: shown.map((entry) => entry.pendingCents),
-              stack: 'ist',
-              color: theme.palette.primary.light,
-              valueFormatter: formatCents,
-            },
-            {
-              id: 'budget',
-              label: text.columns.budget,
-              // `null`, not 0: an unbudgeted category has no Budget bar, rather than one
-              // of zero height that the tooltip would report as a limit of 0,00 €.
-              data: shown.map((entry) => entry.budgetCents),
-              color: theme.palette.text.disabled,
-              valueFormatter: formatCents,
-            },
-          ]}
+          series={limitsLoading ? spent : [...spent, budget]}
         />
       </Box>
     </Box>

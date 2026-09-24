@@ -40,7 +40,7 @@ const REPORT: MonthlyReport = {
   totalBudgetCents: 110000,
 };
 
-function renderTable() {
+function renderTable(limitsLoading = false) {
   const handlers = {
     onSave: vi.fn<(categoryId: string, amountCents: number) => void>(),
     onClear: vi.fn<(categoryId: string) => void>(),
@@ -52,6 +52,7 @@ function renderTable() {
       categories={CATEGORIES}
       savingIds={new Set(['cat-essen'])}
       revisions={new Map()}
+      limitsLoading={limitsLoading}
       {...handlers}
     />,
   );
@@ -124,5 +125,19 @@ describe('BudgetTable', () => {
     fireEvent.blur(field);
 
     expect(onSave).toHaveBeenCalledExactlyOnceWith('cat-reise', 15000);
+  });
+
+  it('holds the Budget and Rest cells while the month’s limits are loading', () => {
+    // Spending is already known; an empty field here would read as "no limit" and invite
+    // typing over one that has simply not arrived yet (dogfood ISSUE-009).
+    renderTable(true);
+
+    expect(screen.queryByRole('textbox')).toBeNull();
+    const wohnen = rowOf('Wohnen');
+    expect(plain(wohnen.textContent)).toContain('875,07 €');
+    expect(within(wohnen).getAllByLabelText('Budgets werden geladen')).toHaveLength(2);
+    // Over is a statement about the limit, so it waits for the limit too.
+    expect(plain(wohnen.textContent)).not.toContain('über');
+    expect(wohnen).not.toHaveAttribute('aria-label');
   });
 });

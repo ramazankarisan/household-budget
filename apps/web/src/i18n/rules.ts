@@ -23,6 +23,7 @@ interface RulesText {
   readonly categoryName: string;
   readonly addCategory: string;
   readonly deleteCategory: string;
+  readonly undo: string;
   readonly noCategories: string;
   readonly rulesTitle: string;
   readonly applyRules: string;
@@ -55,6 +56,7 @@ const TEXT: Record<Locale, RulesText> = {
     categoryName: 'Name',
     addCategory: 'Kategorie anlegen',
     deleteCategory: 'Kategorie löschen',
+    undo: 'Rückgängig',
     noCategories: 'Noch keine Kategorien. Legen Sie eine an, bevor Sie eine Regel schreiben.',
     rulesTitle: 'Regeln',
     applyRules: 'Regeln anwenden',
@@ -95,6 +97,7 @@ const TEXT: Record<Locale, RulesText> = {
     categoryName: 'Name',
     addCategory: 'Add category',
     deleteCategory: 'Delete category',
+    undo: 'Undo',
     noCategories: 'No categories yet. Add one before writing a rule.',
     rulesTitle: 'Rules',
     applyRules: 'Apply rules',
@@ -196,6 +199,16 @@ const CATEGORY_IN_USE: Record<Locale, (use: CategoryUse) => string> = {
  */
 export function describeCategoryInUse(use: CategoryUse, locale: Locale = 'de'): string {
   return CATEGORY_IN_USE[locale](use);
+}
+
+const CATEGORY_DELETED: Record<Locale, (name: string) => string> = {
+  de: (name) => `„${name}“ gelöscht`,
+  en: (name) => `"${name}" deleted`,
+};
+
+/** The snackbar after a category is deleted, next to the button that brings it back. */
+export function describeCategoryDeleted(name: string, locale: Locale = 'de'): string {
+  return CATEGORY_DELETED[locale](name);
 }
 
 const APPLY_SUMMARY: Record<Locale, (summary: ApplySummary) => string> = {

@@ -32,6 +32,12 @@ interface BudgetTableProps {
   readonly onSave: (categoryId: string, amountCents: number) => void;
   readonly onClear: (categoryId: string) => void;
   readonly onShowUncategorized: () => void;
+  /**
+   * The month's limits are still loading. Spending is shown — it comes from rows already
+   * in memory — and the Budget and Rest cells hold `…` until the limits arrive, rather
+   * than an empty field that reads as "no limit" and invites typing over one.
+   */
+  readonly limitsLoading?: boolean;
 }
 
 /** The amount columns: right-aligned, tabular figures, never wrapped mid-number. */
@@ -54,6 +60,7 @@ export function BudgetTable({
   onSave,
   onClear,
   onShowUncategorized,
+  limitsLoading = false,
 }: BudgetTableProps) {
   const text = budgetsText();
   const names = new Map(categories.map((category) => [category.id, category.name]));
@@ -87,6 +94,7 @@ export function BudgetTable({
                 month={report.month}
                 saving={savingIds.has(entry.categoryId)}
                 revision={revisions.get(entry.categoryId) ?? 0}
+                limitsLoading={limitsLoading}
                 onSave={onSave}
                 onClear={onClear}
               />
@@ -130,8 +138,22 @@ interface CategoryRowProps {
   readonly month: string;
   readonly saving: boolean;
   readonly revision: number;
+  readonly limitsLoading: boolean;
   readonly onSave: (categoryId: string, amountCents: number) => void;
   readonly onClear: (categoryId: string) => void;
+}
+
+/** `…` in a cell whose number depends on limits not loaded yet. */
+function LoadingCell() {
+  const text = budgetsText();
+
+  return (
+    <TableCell align="right" sx={{ ...AMOUNT, color: 'text.secondary' }}>
+      <Box component="span" aria-label={text.loadingLimits} title={text.loadingLimits}>
+        …
+      </Box>
+    </TableCell>
+  );
 }
 
 function CategoryRow({
@@ -141,10 +163,25 @@ function CategoryRow({
   month,
   saving,
   revision,
+  limitsLoading,
   onSave,
   onClear,
 }: CategoryRowProps) {
   const remaining = describeRemaining(entry.remainingCents);
+
+  if (limitsLoading) {
+    return (
+      <TableRow hover>
+        <TableCell>{name}</TableCell>
+        <TableCell align="right" sx={AMOUNT}>
+          {formatAmount(entry.bookedCents)}
+        </TableCell>
+        <PendingCell cents={entry.pendingCents} />
+        <LoadingCell />
+        <LoadingCell />
+      </TableRow>
+    );
+  }
 
   return (
     <TableRow

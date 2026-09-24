@@ -338,4 +338,80 @@ describe('BudgetsPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Zu den Umsätzen' })).toHaveAttribute('href', '/');
   });
+
+  it('keeps the page on screen while another month’s limits load', async () => {
+    // Dogfood ISSUE-009: a month switch used to swap the whole page for a spinner.
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
+    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    await waitFor(() => {
+      expect(budgetLoads.has('2014-03')).toBe(true);
+    });
+
+    // March's limits are still unanswered: picker, table and spending are all there.
+    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('März 2014');
+    expect(screen.getByText('1.143,41 € ausgegeben', { normalizer: plain })).toBeInTheDocument();
+    expect(within(rowOf('Wohnen')).getAllByLabelText('Budgets werden geladen')).toHaveLength(2);
+    expect(screen.queryByRole('textbox', { name: 'Budget Wohnen' })).toBeNull();
+    // The chart waits for the limits too, rather than drawing a month with none.
+    expect(screen.getByRole('figure', { name: 'Ausgaben nach Kategorie' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+
+    budgetLoads.get('2014-03')?.([
+      { categoryId: 'cat-wohnen', month: '2014-03', amountCents: 50000 },
+    ]);
+
+    expect(await screen.findByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('500,00');
+  });
+
+  it('fetches each month’s limits once, however often it is shown', async () => {
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
+    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    await waitFor(() => {
+      expect(budgetLoads.has('2014-03')).toBe(true);
+    });
+    budgetLoads.get('2014-03')?.([]);
+    await screen.findByText('1.143,41 € von — · kein Budget gesetzt', { normalizer: plain });
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
+    fireEvent.click(screen.getByRole('option', { name: 'September 2025' }));
+
+    // Straight back, with no load in between: the field is there on the next render.
+    expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
+    expect(vi.mocked(listBudgets).mock.calls.map(([month]) => month)).toEqual([
+      '2025-09',
+      '2014-03',
+    ]);
+  });
+
+  it('keeps a write in the cached month when the user comes back to it', async () => {
+    await withGiro();
+
+    const field = screen.getByRole('textbox', { name: 'Budget Wohnen' });
+    fireEvent.change(field, { target: { value: '700' } });
+    fireEvent.blur(field);
+    writes[0]?.resolve({ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 });
+    await waitFor(() => {
+      expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
+    });
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
+    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    await waitFor(() => {
+      expect(budgetLoads.has('2014-03')).toBe(true);
+    });
+    budgetLoads.get('2014-03')?.([]);
+    await screen.findByText('1.143,41 € von — · kein Budget gesetzt', { normalizer: plain });
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
+    fireEvent.click(screen.getByRole('option', { name: 'September 2025' }));
+
+    expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
+    expect(listBudgets).toHaveBeenCalledTimes(2);
+  });
 });

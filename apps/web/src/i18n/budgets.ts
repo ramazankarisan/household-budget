@@ -37,6 +37,8 @@ interface BudgetsText {
   readonly toTransactions: string;
   /** The chart's caption, and its accessible name. */
   readonly chartTitle: string;
+  /** The `…` in a Budget or Rest cell while the month's limits are still on their way. */
+  readonly loadingLimits: string;
 }
 
 const TEXT: Record<Locale, BudgetsText> = {
@@ -58,6 +60,7 @@ const TEXT: Record<Locale, BudgetsText> = {
     showUncategorized: 'Umsätze ohne Kategorie in diesem Monat zeigen',
     toTransactions: 'Zu den Umsätzen',
     chartTitle: 'Ausgaben nach Kategorie',
+    loadingLimits: 'Budgets werden geladen',
   },
   en: {
     navBudgets: 'Budgets',
@@ -77,6 +80,7 @@ const TEXT: Record<Locale, BudgetsText> = {
     showUncategorized: 'Show this month’s transactions without a category',
     toTransactions: 'Go to transactions',
     chartTitle: 'Spending by category',
+    loadingLimits: 'loading budgets',
   },
 };
 
@@ -110,10 +114,22 @@ export function describeRemaining(remainingCents: number | null, locale: Locale 
     : describeLeft(remainingCents, locale);
 }
 
-const MONTH_TOTAL: Record<Locale, { readonly of: string; readonly pending: string }> = {
-  de: { of: 'von', pending: 'vorgemerkt' },
-  en: { of: 'of', pending: 'pending' },
+const MONTH_TOTAL: Record<
+  Locale,
+  { readonly of: string; readonly pending: string; readonly spent: string }
+> = {
+  de: { of: 'von', pending: 'vorgemerkt', spent: 'ausgegeben' },
+  en: { of: 'of', pending: 'pending', spent: 'spent' },
 };
+
+export interface MonthTotalOptions {
+  /**
+   * The month's limits have not arrived yet. The spending is known — the rows are already
+   * loaded — so it is said; what it is measured against is not, so nothing is said about
+   * that rather than "kein Budget gesetzt", which would be a claim.
+   */
+  readonly limitsLoading?: boolean;
+}
 
 /**
  * The month in one line: `2.385,74 € von 700,00 € · 1.685,74 € über`.
@@ -126,12 +142,17 @@ const MONTH_TOTAL: Record<Locale, { readonly of: string; readonly pending: strin
  * A function rather than pieces a page concatenates — "no budget set" is a different
  * sentence, not the same sentence with a dash in it.
  */
-export function describeMonthTotal(report: MonthlyReport, locale: Locale = 'de'): string {
+export function describeMonthTotal(
+  report: MonthlyReport,
+  locale: Locale = 'de',
+  { limitsLoading = false }: MonthTotalOptions = {},
+): string {
   const words = MONTH_TOTAL[locale];
   const text = TEXT[locale];
   const booked = formatAmount(report.totalBookedCents);
-  const parts =
-    report.totalBudgetCents === null
+  const parts = limitsLoading
+    ? [`${booked} ${words.spent}`]
+    : report.totalBudgetCents === null
       ? [`${booked} ${words.of} —`, text.noBudgets]
       : [
           `${booked} ${words.of} ${formatAmount(report.totalBudgetCents)}`,
