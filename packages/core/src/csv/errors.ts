@@ -20,8 +20,27 @@ export interface RowError {
   readonly line: number;
   /** German column name, as it appears in the export's header. */
   readonly field?: string;
-  /** The offending raw value. Never a whole row — that is the user's spending history. */
+  /**
+   * The offending raw value, cut to `MAX_ERROR_VALUE_LENGTH` plus `…`. Never a whole row —
+   * that is the user's spending history — and never unbounded, because it reaches the log,
+   * the response and the DOM once per bad row.
+   */
   readonly value?: string;
+}
+
+export const MAX_ERROR_VALUE_LENGTH = 100;
+
+/**
+ * The first `MAX_ERROR_VALUE_LENGTH` UTF-16 units plus `…` when longer, so the result is
+ * never more than 101 long. Backs off one unit rather than split a surrogate pair.
+ */
+export function truncateErrorValue(value: string): string {
+  if (value.length <= MAX_ERROR_VALUE_LENGTH) {
+    return value;
+  }
+  const last = value.charCodeAt(MAX_ERROR_VALUE_LENGTH - 1);
+  const splitsPair = last >= 0xd800 && last <= 0xdbff;
+  return `${value.slice(0, splitsPair ? MAX_ERROR_VALUE_LENGTH - 1 : MAX_ERROR_VALUE_LENGTH)}…`;
 }
 
 /** A file that cannot be read at all, as opposed to a row that cannot be understood. */

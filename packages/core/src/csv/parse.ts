@@ -8,7 +8,7 @@
  */
 import { parse } from 'csv-parse/sync';
 
-import { type RowError, CsvFileError } from './errors.js';
+import { type RowError, CsvFileError, truncateErrorValue } from './errors.js';
 import { parseGermanAmount, parseGermanDate } from './fields.js';
 import { findHeaderLine, mapColumns } from './header.js';
 import type { BankFileEncoding, BookingStatus, Transaction } from './transaction.js';
@@ -125,7 +125,12 @@ function mapRow(
     return index === undefined ? undefined : record[index];
   };
   const fail = (code: RowError['code'], field: string, value?: string): RowOutcome => ({
-    error: { code, line: lineNumber, field, ...(value === undefined ? {} : { value }) },
+    error: {
+      code,
+      line: lineNumber,
+      field,
+      ...(value === undefined ? {} : { value: truncateErrorValue(value) }),
+    },
   });
 
   // Unreachable while `relax_column_count` is false — csv-parse throws first — but a

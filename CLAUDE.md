@@ -11,7 +11,8 @@ packages/core   Domain logic: CSV parsing, categorization rules, budget math.
                 Pure TypeScript, no framework deps. Compiles to dist/ (ESM + .d.ts).
                 Two entry points — the root is browser-safe; `/csv` holds the parser.
 apps/api        NestJS 12 REST API. SQLite via Prisma 7 (driver adapter, no Rust engine).
-                Global route prefix `api`; listens on :3000.
+                Global route prefix `api`; listens on 127.0.0.1:3000 only; rejects
+                non-loopback Host/Origin (`src/security/loopback.ts`).
 apps/web        React 19 + Vite 8 + MUI 9 + react-router. Dev server on :5173,
                 proxies /api to :3000.
 fixtures/       Synthetic bank CSVs, byte-exact: CRLF, and Windows-1252 for the

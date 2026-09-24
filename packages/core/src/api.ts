@@ -94,7 +94,10 @@ export interface ImportSummary {
   readonly pendingReplaced: number;
   /** Rows this import categorized on the way in, so no second step is needed. */
   readonly categorized: number;
+  /** The first rows that failed, capped by the API; `failedCount` is the true total. */
   readonly failed: readonly RowError[];
+  /** True total of failed rows; `failed` is capped. */
+  readonly failedCount: number;
   readonly encoding: BankFileEncoding;
   /** Set when this exact file was uploaded to this account before. */
   readonly duplicateOfBatchId?: string;

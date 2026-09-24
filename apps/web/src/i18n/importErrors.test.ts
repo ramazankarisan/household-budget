@@ -62,6 +62,15 @@ describe('describeFileError', () => {
     );
   });
 
+  it('words the upload check that turns away a non-CSV file, in both locales', () => {
+    expect(describeFileError('UNSUPPORTED_CONTENT_TYPE')).toBe(
+      'Dateityp nicht unterstützt — bitte den CSV-Export der Sparkasse hochladen',
+    );
+    expect(describeFileError('UNSUPPORTED_CONTENT_TYPE', [], 'en')).toBe(
+      'unsupported file type — upload the Sparkasse CSV export',
+    );
+  });
+
   it('still shows an unknown code rather than swallowing it', () => {
     // csv-parse's code list is open-ended, and a code the user can quote is worth more
     // than a generic "import failed".

@@ -43,13 +43,18 @@ export function describeRowError(error: RowError, locale: Locale = 'de'): string
 }
 
 /**
- * A file that was rejected whole. Two sources of code: core's own
- * `ImportFileErrorCode`, and the `CSV_`-prefixed codes csv-parse raises for a structurally
- * broken file. The latter set is open-ended, so an unknown one still reaches the user as
- * its code rather than as silence.
+ * A file that was rejected whole. Three sources of code: core's own
+ * `ImportFileErrorCode`, the upload checks in the API's import controller, and the
+ * `CSV_`-prefixed codes csv-parse raises for a structurally broken file. The last set is
+ * open-ended, so an unknown one still reaches the user as its code rather than as silence.
  */
-const FILE_MESSAGES: Record<Locale, Record<ImportFileErrorCode | KnownCsvErrorCode, string>> = {
+const FILE_MESSAGES: Record<
+  Locale,
+  Record<ImportFileErrorCode | KnownUploadErrorCode | KnownCsvErrorCode, string>
+> = {
   de: {
+    UNSUPPORTED_CONTENT_TYPE:
+      'Dateityp nicht unterstützt — bitte den CSV-Export der Sparkasse hochladen',
     HEADER_NOT_FOUND: 'Keine Kopfzeile gefunden — ist das ein CSV-CAMT-Export der Sparkasse?',
     REQUIRED_COLUMN_MISSING: 'Pflichtspalte fehlt',
     CSV_QUOTE_NOT_CLOSED: 'Ein Anführungszeichen in der Datei wird nie geschlossen',
@@ -57,6 +62,7 @@ const FILE_MESSAGES: Record<Locale, Record<ImportFileErrorCode | KnownCsvErrorCo
     CSV_RECORD_INCONSISTENT_FIELDS_LENGTH: 'Eine Zeile hat die falsche Spaltenzahl',
   },
   en: {
+    UNSUPPORTED_CONTENT_TYPE: 'unsupported file type — upload the Sparkasse CSV export',
     HEADER_NOT_FOUND: 'no header row found — is this a Sparkasse CSV-CAMT export?',
     REQUIRED_COLUMN_MISSING: 'required column missing',
     CSV_QUOTE_NOT_CLOSED: 'a quoted value in the file is never closed',
@@ -64,6 +70,9 @@ const FILE_MESSAGES: Record<Locale, Record<ImportFileErrorCode | KnownCsvErrorCo
     CSV_RECORD_INCONSISTENT_FIELDS_LENGTH: 'a row has the wrong number of columns',
   },
 };
+
+/** Raised by the API before the parser sees the file, so not part of core's codes. */
+type KnownUploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE';
 
 type KnownCsvErrorCode =
   'CSV_QUOTE_NOT_CLOSED' | 'CSV_INVALID_CLOSING_QUOTE' | 'CSV_RECORD_INCONSISTENT_FIELDS_LENGTH';

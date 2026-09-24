@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AccountService } from '../accounts/account.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -283,8 +283,36 @@ describe('ImportService', () => {
       { code: 'DATE_UNPARSEABLE', line: 5, field: 'Buchungstag', value: '32.13.25' },
       { code: 'STATUS_UNKNOWN', line: 6, field: 'Info', value: 'Umsatz storniert' },
     ]);
+    expect(summary.failedCount).toBe(3);
     expect(summary.imported).toBe(3);
     expect(await liveRows(accountId)).toHaveLength(3);
+  });
+
+  it('caps the reported row errors at 100 and keeps the true total', async () => {
+    const accountId = await account();
+    // The fixture's header plus its `12,3,4` row, 150 times over.
+    const [header, , badAmount] = readFileSync(
+      resolve(fixtures, 'sparkasse-camt-18-bad-rows.csv'),
+      'utf-8',
+    ).split('\r\n');
+    const csv = [header, ...Array.from({ length: 150 }, () => badAmount), ''].join('\r\n');
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    const summary = await imports.importCsv({
+      accountId,
+      fileName: 'many-bad-rows.csv',
+      bytes: new TextEncoder().encode(csv),
+      referenceYear,
+    });
+    const batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: summary.batchId } });
+
+    expect(summary.failed).toHaveLength(100);
+    expect(summary.failedCount).toBe(150);
+    expect(batch.rowsFailed).toBe(150);
+    // 100 row lines plus the one that says the rest were dropped.
+    expect(warn).toHaveBeenCalledTimes(101);
+    expect(warn).toHaveBeenLastCalledWith('import row errors capped: logged 100 of 150');
+    warn.mockRestore();
   });
 
   it('rejects an unparseable file with a 4xx and imports nothing', async () => {

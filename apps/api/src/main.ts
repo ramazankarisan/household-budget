@@ -4,9 +4,15 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module.js';
+import { loopbackGuard } from './security/loopback.js';
 
 const DEFAULT_PORT = 3000;
 const MAX_PORT = 65_535;
+/**
+ * Loopback only. The app is local by design (CLAUDE.md → WHY) and has no auth, so it must
+ * not be reachable from another device on the network. The Vite proxy targets 127.0.0.1.
+ */
+const LISTEN_HOST = '127.0.0.1';
 
 /**
  * A copied .env often carries `PORT=`, and `Number('')` is 0, which makes Nest
@@ -29,16 +35,16 @@ function resolvePort(): number {
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
+  // Before the prefix and every route, so it covers 404s too. No CORS: the web dev server
+  // proxies /api, and nothing on another origin has any business reading this API.
+  app.use(loopbackGuard);
   app.setGlobalPrefix('api');
-  // The web dev server proxies /api, so CORS is not needed for it. This is
-  // here for direct browser calls to :3000 while debugging.
-  app.enableCors({ origin: true });
   app.enableShutdownHooks();
 
   const port = resolvePort();
-  await app.listen(port);
+  await app.listen(port, LISTEN_HOST);
 
-  Logger.log(`API listening on http://localhost:${port}/api`, 'Bootstrap');
+  Logger.log(`API listening on http://${LISTEN_HOST}:${port}/api`, 'Bootstrap');
 }
 
 void bootstrap();

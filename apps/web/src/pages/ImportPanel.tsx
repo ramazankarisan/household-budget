@@ -119,12 +119,14 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
   );
 }
 
-function ImportResult({ summary }: { readonly summary: ImportSummary }) {
+export function ImportResult({ summary }: { readonly summary: ImportSummary }) {
+  // `failed` is capped by the API; `failedCount` is how many rows really failed.
   const failed = summary.failed;
+  const notListed = summary.failedCount - failed.length;
 
   return (
     <Stack spacing={1}>
-      <Alert severity={failed.length > 0 ? 'warning' : 'success'}>
+      <Alert severity={summary.failedCount > 0 ? 'warning' : 'success'}>
         <Stack
           direction="row"
           spacing={1}
@@ -133,7 +135,7 @@ function ImportResult({ summary }: { readonly summary: ImportSummary }) {
         >
           <Typography variant="body2">
             {summary.imported} importiert · {summary.skipped} Duplikate übersprungen ·{' '}
-            {summary.restored} wiederhergestellt · {failed.length} fehlerhaft
+            {summary.restored} wiederhergestellt · {summary.failedCount} fehlerhaft
           </Typography>
           {/* A surprise utf-8 here means the bank changed its export format. */}
           <Chip label={summary.encoding} size="small" variant="outlined" />
@@ -156,6 +158,11 @@ function ImportResult({ summary }: { readonly summary: ImportSummary }) {
               </Typography>
             ))}
           </Stack>
+          {notListed > 0 && (
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              … und {notListed} weitere
+            </Typography>
+          )}
         </Alert>
       )}
     </Stack>

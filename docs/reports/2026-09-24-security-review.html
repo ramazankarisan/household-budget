@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security Review — household-budget</title>
+    <style>
+      :root {
+        --fg: #1f2430;
+        --muted: #6b7280;
+        --bg: #fafbff;
+        --card: #fff;
+        --border: #e4e7ef;
+        --code-bg: #eef1f8;
+        --accent: #4f46e5;
+        --accent2: #0d9488;
+        --accent3: #db2777;
+        --ok: #059669;
+        --warn: #d97706;
+        --bad: #dc2626;
+        --h1: #4338ca;
+        --h2: #0f766e;
+        --h3: #b45309;
+        --code-fg: #be185d;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #e6e8ef;
+          --muted: #9aa0ae;
+          --bg: #15171e;
+          --card: #1e2029;
+          --border: #333745;
+          --code-bg: #262a36;
+          --accent: #818cf8;
+          --accent2: #2dd4bf;
+          --accent3: #f472b6;
+          --ok: #34d399;
+          --warn: #fbbf24;
+          --bad: #f87171;
+          --h1: #a5b4fc;
+          --h2: #5eead4;
+          --h3: #fcd34d;
+          --code-fg: #f9a8d4;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font:
+          16px/1.65 -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          system-ui,
+          sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 5rem;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.25;
+        font-weight: 680;
+      }
+      h1 {
+        font-size: 1.95rem;
+        margin: 0 0 0.3rem;
+        color: var(--h1);
+      }
+      h2 {
+        font-size: 1.35rem;
+        margin: 2.4rem 0 0.9rem;
+        color: var(--h2);
+        padding: 0.1rem 0 0.1rem 0.7rem;
+        border-left: 4px solid var(--accent2);
+      }
+      h3 {
+        font-size: 1.1rem;
+        margin: 1.6rem 0 0.5rem;
+        color: var(--h3);
+      }
+      .meta {
+        display: inline-block;
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 2rem;
+        padding: 0.2rem 0.7rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+      p {
+        margin: 0.7rem 0;
+      }
+      a {
+        color: var(--accent);
+      }
+      strong {
+        color: color-mix(in srgb, var(--fg) 82%, var(--accent));
+      }
+      code {
+        font:
+          0.88em ui-monospace,
+          'SF Mono',
+          Menlo,
+          Consolas,
+          monospace;
+        background: var(--code-bg);
+        color: var(--code-fg);
+        padding: 0.12em 0.4em;
+        border-radius: 4px;
+      }
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem 1.1rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        border-left: 4px solid var(--accent);
+      }
+      pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1rem 0;
+        font-size: 0.92rem;
+      }
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        color: var(--h1);
+        font-weight: 650;
+      }
+      tr:nth-child(even) td {
+        background: color-mix(in srgb, var(--code-bg) 55%, transparent);
+      }
+      blockquote {
+        margin: 1rem 0;
+        padding: 0.6rem 1rem;
+        border-left: 4px solid var(--accent3);
+        background: color-mix(in srgb, var(--accent3) 8%, transparent);
+        border-radius: 0 8px 8px 0;
+      }
+      ul,
+      ol {
+        padding-left: 1.4rem;
+      }
+      li {
+        margin: 0.25rem 0;
+      }
+      li::marker {
+        color: var(--accent2);
+      }
+      details {
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--accent2);
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        margin: 1rem 0;
+        background: var(--card);
+      }
+      details[open] {
+        border-left-color: var(--accent);
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 640;
+        color: var(--h2);
+      }
+      .tag {
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.12rem 0.55rem;
+        border-radius: 999px;
+      }
+      .tag-ok {
+        color: #fff;
+        background: var(--ok);
+      }
+      .tag-warn {
+        color: #fff;
+        background: var(--warn);
+      }
+      .tag-bad {
+        color: #fff;
+        background: var(--bad);
+      }
+      hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 2rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Security Review — household-budget</h1>
+    <div class="meta">security audit · api + csv import + repo hygiene · 2026-09-24</div>
+
+    <blockquote>
+      <strong>Verdict:</strong> no critical issues. Biggest risk is how the API is exposed on the
+      network. Upload limits, CSV parsing and path handling are mostly solid. No secrets in the repo
+      or its history. Report only — nothing was changed.
+    </blockquote>
+
+    <h2>Tracking</h2>
+    <p>
+      <strong>Status:</strong> <span class="tag tag-ok">FIXED</span> — all findings fixed by
+      <a href="../plans/06-security-hardening.md"
+        ><code>docs/plans/06-security-hardening.md</code></a
+      >.
+    </p>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Finding</th>
+        <th>Status</th>
+        <th>Fixed in</th>
+        <th>Decision</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>API exposure (bind / CORS / CSRF / DNS rebinding)</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 2</td>
+        <td>Bind 127.0.0.1, remove CORS, loopback Host/Origin guard</td>
+      </tr>
+      <tr>
+        <td>2b</td>
+        <td>Missing multer limits</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 3</td>
+        <td><code>files:1, fields:5, fieldSize:1024, parts:6, fieldNameSize:100</code></td>
+      </tr>
+      <tr>
+        <td>2c</td>
+        <td>Client-trusted content type</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 3</td>
+        <td>
+          Widen allowlist (+ text/plain, octet-stream, empty); coded
+          <code>UNSUPPORTED_CONTENT_TYPE</code>
+        </td>
+      </tr>
+      <tr>
+        <td>3a</td>
+        <td>Row errors uncapped</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 4</td>
+        <td>
+          Truncate value to 100 chars (core); cap list at 100 (API); new <code>failedCount</code>
+        </td>
+      </tr>
+      <tr>
+        <td>3b</td>
+        <td>Log injection</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 4</td>
+        <td><code>sanitizeForLog()</code> on fileName and value</td>
+      </tr>
+      <tr>
+        <td>6a</td>
+        <td><code>*.db-wal</code> / <code>*.db-shm</code> not ignored</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 1</td>
+        <td>Add to <code>.gitignore</code></td>
+      </tr>
+      <tr>
+        <td>6b</td>
+        <td><code>dogfood-output/</code> not ignored</td>
+        <td><span class="tag tag-ok">FIXED</span></td>
+        <td>Phase 1</td>
+        <td>
+          Ignore <code>dogfood-output/screenshots/</code> only; <code>report.md</code> stays
+          trackable (plan 05 links it)
+        </td>
+      </tr>
+    </table>
+    <h3>Change log</h3>
+    <table>
+      <tr>
+        <th>Date</th>
+        <th>Change</th>
+        <th>Commit</th>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>Review written; all findings open.</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>
+          Fix plan created (<code>docs/plans/06-security-hardening.md</code>); all findings →
+          planned.
+        </td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>
+          Plan renumbered to <code>06-security-hardening.md</code> (05 = dogfood fixes), status
+          ready. #6b narrowed to <code>dogfood-output/screenshots/</code>.
+        </td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>
+          Phase 1: <code>*.db-wal</code>, <code>*.db-shm</code> and
+          <code>dogfood-output/screenshots/</code> added to <code>.gitignore</code>; #6a, #6b →
+          fixed. Screenshots committed earlier in <code>f320b62</code> stay tracked (<code
+            >report.md</code
+          >
+          embeds them); only new ones are ignored.
+        </td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>
+          Phase 2: API binds <code>127.0.0.1</code>, <code>enableCors</code> removed,
+          <code>loopbackGuard</code> answers 403 <code>FORBIDDEN_ORIGIN</code> to a non-loopback
+          Host or Origin; #1 → fixed.
+        </td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>
+          Phase 3: multer limits
+          <code>files:1, fields:5, fieldSize:1024, parts:6, fieldNameSize:100</code>; content-type
+          allowlist widened to <code>text/plain</code>, <code>application/octet-stream</code> and
+          empty, rejection coded <code>UNSUPPORTED_CONTENT_TYPE</code> with German wording; #2b, #2c
+          → fixed.
+        </td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>2026-09-24</td>
+        <td>
+          Phase 4: core truncates <code>RowError.value</code> to 100 chars + <code>…</code>; API
+          logs and returns at most 100 row errors, adds <code>failedCount</code>, logs one capped
+          line; <code>fileName</code> and <code>value</code> pass through
+          <code>sanitizeForLog</code>; UI shows the true count and <code>… und N weitere</code>.
+          #3a, #3b → fixed; all findings fixed.
+        </td>
+        <td>—</td>
+      </tr>
+    </table>
+
+    <h2>Findings at a glance</h2>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Finding</th>
+        <th>Where</th>
+        <th>Severity</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>
+          API listens on all interfaces, no login, CORS accepts any origin, open to cross-site
+          requests
+        </td>
+        <td><code>apps/api/src/main.ts:35,39</code></td>
+        <td><span class="tag tag-bad">HIGH</span></td>
+      </tr>
+      <tr>
+        <td>2b</td>
+        <td>
+          No multer <code>fields</code> / <code>fieldSize</code> / <code>parts</code> /
+          <code>files</code> limits
+        </td>
+        <td><code>import.controller.ts:37</code></td>
+        <td><span class="tag tag-warn">LOW</span></td>
+      </tr>
+      <tr>
+        <td>2c</td>
+        <td>
+          Type check trusts client <code>mimetype</code>; rejects valid CSVs sent as
+          <code>text/plain</code> / octet-stream / empty
+        </td>
+        <td><code>import.controller.ts:29,51</code></td>
+        <td><span class="tag tag-warn">LOW</span></td>
+      </tr>
+      <tr>
+        <td>3a</td>
+        <td>
+          Row errors uncapped: every error logged and returned, <code>value</code> untruncated
+        </td>
+        <td><code>import.service.ts:136-138</code>, <code>parse.ts</code></td>
+        <td><span class="tag tag-warn">LOW</span></td>
+      </tr>
+      <tr>
+        <td>3b</td>
+        <td>
+          Log injection via <code>fileName</code> and row <code>value</code> (CR/LF, terminal
+          escapes)
+        </td>
+        <td><code>import.service.ts:125,356</code></td>
+        <td><span class="tag tag-warn">LOW</span></td>
+      </tr>
+      <tr>
+        <td>6a</td>
+        <td>
+          <code>*.db-wal</code> / <code>*.db-shm</code> not in <code>.gitignore</code> (covered only
+          by <code>data/</code> + pre-commit hook)
+        </td>
+        <td><code>.gitignore</code></td>
+        <td><span class="tag tag-warn">LOW</span></td>
+      </tr>
+      <tr>
+        <td>6b</td>
+        <td>
+          <code>dogfood-output/</code> untracked, not ignored; <code>git add .</code> would commit
+          screenshots
+        </td>
+        <td><code>.gitignore</code></td>
+        <td><span class="tag tag-warn">LOW</span></td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td>10 MB file-size limit</td>
+        <td><code>import.controller.ts:37</code></td>
+        <td><span class="tag tag-ok">OK</span></td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td>Malformed CSV handling</td>
+        <td><code>packages/core/src/csv</code></td>
+        <td><span class="tag tag-ok">OK</span></td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td>Path handling</td>
+        <td>api + scripts</td>
+        <td><span class="tag tag-ok">OK</span></td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td>Secrets in repo / history</td>
+        <td>all 47 commits</td>
+        <td><span class="tag tag-ok">OK</span></td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td><code>data/</code>, <code>.db</code>, <code>.env</code> ignored</td>
+        <td><code>.gitignore</code></td>
+        <td><span class="tag tag-ok">OK</span></td>
+      </tr>
+    </table>
+
+    <h2>
+      1. API reachable from the network and from any website <span class="tag tag-bad">HIGH</span>
+    </h2>
+    <ul>
+      <li>
+        <code>apps/api/src/main.ts:39</code> — <code>app.listen(port)</code> has no host, so it
+        binds every interface. Anyone on the same LAN / Wi-Fi can use the API; there is no auth.
+      </li>
+      <li>
+        <code>apps/api/src/main.ts:35</code> — <code>enableCors({ origin: true })</code> reflects
+        any origin. Any page open in the browser can read
+        <code>/api/accounts/:id/transactions</code>.
+      </li>
+      <li>
+        Even without CORS, a malicious page can send a multipart <code>POST /api/imports</code> (a
+        "simple" request, no preflight), and <code>PATCH</code> / <code>DELETE</code> once CORS
+        allows it — cross-site request forgery.
+      </li>
+    </ul>
+    <p>
+      <strong>Fix direction:</strong> <code>app.listen(port, '127.0.0.1')</code>; limit CORS to
+      <code>http://localhost:5173</code> or drop it (the Vite proxy makes it unnecessary).
+    </p>
+
+    <h2>2. Upload size and type (<code>apps/api/src/import/import.controller.ts</code>)</h2>
+    <h3>2a. File size <span class="tag tag-ok">OK</span></h3>
+    <p>
+      <code>FileInterceptor</code> sets <code>limits: { fileSize: MAX_BYTES }</code> (10 MB); multer
+      rejects larger files with 413. The manual check at line 48 is unreachable but harmless.
+    </p>
+    <h3>2b. Missing multer limits <span class="tag tag-warn">LOW</span></h3>
+    <p>
+      No <code>fields</code>, <code>fieldSize</code>, <code>parts</code>, <code>files</code>. Multer
+      defaults allow unlimited non-file fields at up to 1 MB each — a memory-exhaustion vector,
+      reachable only because of #1.
+    </p>
+    <h3>2c. Client-trusted content type <span class="tag tag-warn">LOW</span></h3>
+    <p>
+      <code>file.mimetype</code> is whatever the client sends. Not a security hole — the parser
+      rejects anything without a Sparkasse header (<code>HEADER_NOT_FOUND</code> → 400). But real
+      CSVs sent as <code>text/plain</code>, <code>application/octet-stream</code> or with an empty
+      type are wrongly rejected. Extension is not checked.
+    </p>
+
+    <h2>3. Malformed CSV handling</h2>
+    <p><span class="tag tag-ok">WORKS</span></p>
+    <ul>
+      <li>Invalid UTF-8 falls back to Windows-1252 (cannot throw) — <code>decode.ts</code>.</li>
+      <li>
+        Structural errors (<code>CSV_*</code>) and <code>CsvFileError</code> return 400 —
+        <code>import.service.ts:240-261</code>.
+      </li>
+      <li>A bad row is reported; other rows still import.</li>
+      <li>
+        Amounts checked as safe integers; dates validated incl. leap years — <code>fields.ts</code>.
+      </li>
+      <li>Binary junk → no header → 400.</li>
+      <li>
+        No SQL injection: Prisma queries parameterized, no <code>$queryRaw</code> /
+        <code>$executeRaw</code>.
+      </li>
+    </ul>
+    <h3>3a. Error output uncapped <span class="tag tag-warn">LOW</span></h3>
+    <p>
+      <code>RowError.value</code> holds the full raw bad value.
+      <code>import.service.ts:136-138</code> logs one line per error, and the response returns all
+      of them. A 10 MB file of bad rows (or one huge field) floods the log and bloats the response.
+      <strong>Fix:</strong> cap error count, truncate <code>value</code>.
+    </p>
+    <h3>3b. Log injection <span class="tag tag-warn">LOW</span></h3>
+    <p>
+      <code>import.service.ts:125</code> logs <code>file="${request.fileName}"</code>;
+      <code>:356</code> logs <code>value="…"</code>. Both unescaped. <code>originalname</code> and
+      cell values can contain CR/LF or ANSI escape codes → forged log lines.
+      <strong>Fix:</strong> escape control characters before logging.
+    </p>
+
+    <h2>4. Path handling <span class="tag tag-ok">NOTHING FOUND</span></h2>
+    <ul>
+      <li>
+        Uploads stay in memory (no multer <code>dest</code>). <code>originalname</code> is only
+        stored and displayed; React escapes it; no <code>dangerouslySetInnerHTML</code> anywhere.
+      </li>
+      <li>
+        <code>mkdirSync</code> in <code>prisma.service.ts:18</code> uses only
+        <code>DATABASE_URL</code> (trusted config).
+      </li>
+      <li>
+        <code>rmSync</code> in <code>scripts/reset-e2e-db.mjs</code> and
+        <code>apps/api/src/test/global-setup.ts</code> delete fixed paths only.
+      </li>
+    </ul>
+
+    <h2>5. Secrets <span class="tag tag-ok">CLEAN</span></h2>
+    <ul>
+      <li>
+        <code>gitleaks git</code> over all 47 commits: <em>no leaks found</em>. No pattern hits for
+        key / secret / password / token / private key in tracked files.
+      </li>
+      <li>
+        <code>.env.example</code> has only a DB path and a port. <code>apps/api/.env</code> is
+        ignored and untracked (contents not read — access blocked).
+      </li>
+      <li>
+        No <code>.env</code>, <code>.db</code> or <code>data/</code> file ever appears in git
+        history.
+      </li>
+      <li>
+        Fixture IBANs look synthetic (<code>DE89370400440532013000</code> is the standard example
+        IBAN); others not proven fake.
+      </li>
+    </ul>
+
+    <h2>6. <code>.gitignore</code> coverage</h2>
+    <p><span class="tag tag-ok">COVERED</span></p>
+    <ul>
+      <li>
+        <code>data/</code> (line 147) ignores <code>budget.db</code>, <code>e2e.db</code>,
+        <code>test.db</code>.
+      </li>
+      <li>
+        <code>*.db</code>, <code>*.db-journal</code>, <code>*.sqlite</code>, <code>*.sqlite3</code>,
+        <code>.env</code>, <code>.env.*</code> ignored; <code>!.env.example</code> kept.
+      </li>
+      <li><code>*.csv</code> ignored except <code>**/fixtures/**/*.csv</code>.</li>
+      <li>
+        Backup: pre-commit hook <code>scripts/check-staged-data.mjs</code> blocks <code>.db</code>,
+        <code>-wal</code>, <code>-shm</code>, <code>.sqlite</code>, <code>.env</code> and CSV
+        outside <code>fixtures/</code>. Gitleaks runs pre-commit too.
+      </li>
+    </ul>
+    <h3>6a. WAL/SHM files <span class="tag tag-warn">LOW</span></h3>
+    <p>
+      <code>*.db-wal</code> / <code>*.db-shm</code> not listed. Covered today only because they live
+      in <code>data/</code>; the pre-commit hook catches them elsewhere.
+    </p>
+    <h3>6b. <code>dogfood-output/</code> <span class="tag tag-warn">LOW</span></h3>
+    <p>
+      Untracked and not ignored — <code>git add .</code> would commit its screenshots and report.
+      Made from the synthetic fixture, but the report says the DB "already held data (account
+      <code>test</code>)". Check screenshots before any commit.
+    </p>
+
+    <h2>Suggested fix order</h2>
+    <ol>
+      <li>Bind to <code>127.0.0.1</code>, tighten CORS (#1).</li>
+      <li>
+        Ignore <code>dogfood-output/screenshots/</code>, <code>*.db-wal</code>,
+        <code>*.db-shm</code> (#6).
+      </li>
+      <li>Cap row errors, escape logged values (#3).</li>
+      <li>Add missing multer limits, relax type check (#2b, #2c).</li>
+    </ol>
+
+    <details>
+      <summary>Method</summary>
+      <p>
+        Read <code>apps/api/src</code> (main, controllers, import service/decode/hash, prisma
+        service, config), <code>packages/core/src/csv</code>, rule matcher, Vite config,
+        <code>.gitignore</code>, lefthook + guard scripts. Grepped for raw SQL,
+        <code>innerHTML</code>, <code>eval</code>, fs/path use. Ran <code>git check-ignore</code> on
+        DB/env/build paths, <code>git log --all --name-only</code> for leaked files,
+        <code>gitleaks git --redact</code> over history.
+      </p>
+    </details>
+  </body>
+</html>
