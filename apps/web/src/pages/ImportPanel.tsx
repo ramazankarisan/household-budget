@@ -6,12 +6,11 @@ import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { type TFunction } from 'i18next';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ApiError, uploadImport } from '../api/client';
-import { describeFileError, describeRowError } from '../locales/sentences';
+import { uploadImport } from '../api/client';
+import { describeImportFailure, describeRowError } from '../locales/sentences';
 
 interface ImportPanelProps {
   readonly accountId: string;
@@ -22,15 +21,8 @@ type PanelState =
   | { readonly status: 'idle' }
   | { readonly status: 'uploading' }
   | { readonly status: 'done'; readonly summary: ImportSummary }
-  | { readonly status: 'error'; readonly message: string };
-
-/** A rejected file states a code; the wording for it lives in `src/locales`. */
-function describeFailure(t: TFunction, error: unknown): string {
-  if (error instanceof ApiError) {
-    return describeFileError(t, error.code, error.columns);
-  }
-  return error instanceof Error ? error.message : String(error);
-}
+  // The cause, not its sentence: worded at render, so it follows a language switch.
+  | { readonly status: 'error'; readonly cause: unknown };
 
 export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
   const { t } = useTranslation();
@@ -53,7 +45,7 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
         onImported();
       })
       .catch((error: unknown) => {
-        setState({ status: 'error', message: describeFailure(t, error) });
+        setState({ status: 'error', cause: error });
       });
   }
 
@@ -111,7 +103,7 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
       {state.status === 'error' && (
         <Alert severity="error">
           <AlertTitle>{t('common.import.failed')}</AlertTitle>
-          {state.message}
+          {describeImportFailure(t, state.cause)}
         </Alert>
       )}
 

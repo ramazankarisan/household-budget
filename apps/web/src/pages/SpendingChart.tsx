@@ -65,7 +65,7 @@ export function SpendingChart({
 
   const labels = shown.map((entry) =>
     entry.categoryId === null
-      ? t('transactions.uncategorized')
+      ? t('common.uncategorized')
       : (names.get(entry.categoryId) ?? entry.categoryId),
   );
 

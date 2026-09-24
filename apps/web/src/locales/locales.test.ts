@@ -36,12 +36,7 @@ describe('locales', () => {
     // that name is a strict-mode locator failure in the e2e specs.
     for (const tree of [de, en]) {
       expect(tree.transactions.filterCategory).not.toBe(tree.rules.category);
-    }
-  });
-
-  it('calls a pending amount the same word on both pages', () => {
-    for (const tree of [de, en]) {
-      expect(tree.transactions.pendingHint).toBe(tree.budgets.pendingHint);
+      expect(tree.transactions.filterCategory).not.toBe(tree.transactions.columns.category);
     }
   });
 });

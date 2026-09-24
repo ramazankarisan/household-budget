@@ -1,6 +1,5 @@
 import {
   type AccountPayload,
-  type BudgetInputError,
   type BudgetPayload,
   type CategoryPayload,
   monthlyReport,
@@ -14,13 +13,11 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { type TFunction } from 'i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import {
-  ApiError,
   clearBudget,
   listAccounts,
   listBudgets,
@@ -31,25 +28,10 @@ import {
 import { type ListEntryState, monthOf, monthsOf, UNCATEGORIZED } from '../filter';
 import { formatMonth } from '../format';
 import { toLocale } from '../locales/messages';
-import { describeBudgetErrors, describeMonthTotal } from '../locales/sentences';
+import { describeFailure, describeMonthTotal } from '../locales/sentences';
 import { AppHeader } from './AppHeader';
 import { BudgetTable } from './BudgetTable';
 import { SpendingChart } from './SpendingChart';
-
-/**
- * A refused write in words. `BUDGET_INVALID` carries one entry per bad field, which the
- * field itself would normally have caught — this is the path for when it did not.
- */
-function messageOf(t: TFunction, cause: unknown): string {
-  if (cause instanceof ApiError && cause.code === 'BUDGET_INVALID') {
-    const { errors } = cause.details as { errors?: readonly BudgetInputError[] };
-    const sentences = Object.values(describeBudgetErrors(t, errors ?? []));
-    if (sentences.length > 0) {
-      return sentences.join(' · ');
-    }
-  }
-  return cause instanceof Error ? cause.message : String(cause);
-}
 
 /** One account's rows, kept apart so the uncategorized row can say whose they are. */
 interface AccountRows {
@@ -115,17 +97,16 @@ export function BudgetsPage() {
   useEffect(() => {
     budgetsRef.current = budgets;
   }, [budgets]);
-  const [error, setError] = useState<string | undefined>(undefined);
+  // A refused write is worded by `describeFailure` — `BUDGET_INVALID` as one sentence per
+  // bad field, which the field itself would normally have caught; this is the path for
+  // when it did not.
+  // The cause, not its sentence: worded at render by `describeFailure`, so an alert already
+  // on screen follows a language switch rather than staying in the old language.
+  const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
 
-  // The i18next instance, not `t`: it is stable, so a language switch does not hand the
-  // loading effects a new `fail` and send them fetching again. The sentence is worded in
-  // whatever language is current when the failure happens.
-  const fail = useCallback(
-    (cause: unknown) => {
-      setError(messageOf(i18n.getFixedT(i18n.language), cause));
-    },
-    [i18n],
-  );
+  const fail = useCallback((cause: unknown) => {
+    setError({ cause });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -297,7 +278,7 @@ export function BudgetsPage() {
       <Stack spacing={3}>
         <AppHeader />
 
-        {error !== undefined && <Alert severity="error">{error}</Alert>}
+        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
         {empty ? (
           <Stack

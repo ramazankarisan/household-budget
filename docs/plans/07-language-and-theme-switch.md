@@ -504,8 +504,9 @@ The remaining two pages switch; `src/i18n/` goes away; the docs catch up.
 - [ ] In English and dark mode, walk the product end to end: create a category and a rule, apply
       rules (summary line English), delete the category that is in use (refusal English), undo a
       delete, set and clear a budget, enter `-5` (validation English), read the chart legend.
-- [ ] Switch language while the undo snackbar is open: the snackbar keeps its original language
-      (decision 11); everything else switches.
+- [ ] Switch language while the undo snackbar, a refused-delete warning or an error alert is
+      open: each switches with the rest of the page (decision 11 reversed in review, see
+      Implementation Notes).
 
 ## Implementation Notes
 
@@ -536,6 +537,34 @@ The remaining two pages switch; `src/i18n/` goes away; the docs catch up.
   locators are `exact`: the uncategorized chip's name, `… zeigen`, contains `en`.
 - **The two `grep` checks in phase 3 print comments only** — doc comments that quote German
   wording (`über`, `vorgemerkt`, `Empfänger and Zweck`). No rendered literal remains.
+
+### After review (PR #17, `/code-review high`)
+
+- **Decision 11 reversed: nothing stores a finished sentence.** Pages keep the cause
+  (`{ cause }`), core's errors, or the counts in state, and word them at render. The snackbar
+  keeps a `(t) => string`. An alert whose title switched while its body stayed German was a
+  real defect, not a moment nobody would notice. This also makes the `i18n.getFixedT` note
+  above moot: `BudgetsPage`'s `fail` is back to `setError({ cause })` with no dependencies.
+- **`describeFailure(t, cause)` in `sentences.ts` is the one place a caught error becomes
+  words.** Coded refusals the API sends (`TRANSACTION_PENDING`, `RULE_EXISTS`,
+  `RULE_RESTORE_INVALID`, `FORBIDDEN_ORIGIN`) have wording under `errors.api`;
+  `CATEGORY_IN_USE`, `RULE_INVALID` and `BUDGET_INVALID` are unpacked; an unknown code is
+  quoted (`Anfrage abgelehnt (CODE)`); an uncoded failure is framed
+  (`Anfrage fehlgeschlagen: …`). Before, `RULE_EXISTS` reached the alert as the bare code.
+  `describeImportFailure` keeps the import's "file not readable (CODE)" fallback.
+- **Decision 8's flash is gone:** `ThemeProvider noSsr` reads the stored scheme on the first
+  render, so no light frame on a dark reload and no toggle popping in.
+- **`errors.{row,file,rule,budget}` are `satisfies Record<Code, string>`**, so a code core
+  adds without wording fails typecheck (the old `Record<…>` modules did this; the
+  `Object.hasOwn` lookup alone had lost it for file codes).
+- **Duplicate words merged** into `common.pending` (was `transactions.pendingHint`,
+  `budgets.pendingHint`, `budgets.monthTotal.pending`) and `common.uncategorized` (was
+  `transactions.uncategorized`, `rules.uncategorized`); the test that kept the copies equal is
+  gone. `describeRuleErrors` / `describeBudgetErrors` share one `markFields`.
+- **Not taken:** i18next plurals for `1 Regeln` / `1 duplicates` — decision 5 rules out new
+  plurals, and those sentences carry several counts each, which one `count` cannot serve; a
+  change of its own. Lifting `useTranslation()` out of per-row cells — its cost is one
+  listener per row on a rare event, against threading `t` through every row's props.
 
 ## References
 

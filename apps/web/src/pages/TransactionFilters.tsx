@@ -83,7 +83,7 @@ export function TransactionFilters({
         sx={{ minWidth: 200 }}
       >
         <MenuItem value="">{t('transactions.allCategories')}</MenuItem>
-        <MenuItem value={UNCATEGORIZED}>{t('transactions.uncategorized')}</MenuItem>
+        <MenuItem value={UNCATEGORIZED}>{t('common.uncategorized')}</MenuItem>
         {categories.map((category) => (
           <MenuItem key={category.id} value={category.id}>
             {category.name}

@@ -9,8 +9,8 @@ import { useTranslation } from 'react-i18next';
  * (`localStorage['mui-mode']`) and what follows the OS until the first click.
  *
  * The button shows the scheme a click goes *to*. It renders nothing while `mode` is
- * unknown: before MUI's mount effect has run, and outside a `ThemeProvider` altogether,
- * where `useColorScheme()` is a no-op.
+ * unknown — outside a `ThemeProvider`, where `useColorScheme()` is a no-op, or inside one
+ * without `noSsr` until MUI's mount effect has run.
  */
 export function ThemeToggle() {
   const { t } = useTranslation();

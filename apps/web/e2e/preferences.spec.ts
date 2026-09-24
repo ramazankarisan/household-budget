@@ -31,8 +31,8 @@ test.describe('theme', () => {
       await page.getByRole('button', { name: 'Dunkles Design' }).click();
       await expect(body).toHaveCSS('background-color', DARK_BACKGROUND);
 
-      // The first paint after a reload is light for a frame (plan 07, decision 8); the
-      // assertion retries past it.
+      // `noSsr` reads the stored scheme on the first render; the assertion retries anyway,
+      // since the page is still loading when it starts.
       await page.reload();
       await expect(body).toHaveCSS('background-color', DARK_BACKGROUND);
       await expect(page.getByRole('button', { name: 'Helles Design' })).toBeVisible();

@@ -183,7 +183,9 @@ describe('AccountPage, setting a category by hand', () => {
     });
     writes[0]?.reject(new Error('Kategorie nicht gefunden'));
 
-    expect(await screen.findByText('Kategorie nicht gefunden')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Anfrage fehlgeschlagen: Kategorie nicht gefunden'),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(categorySelect()).not.toHaveAttribute('aria-disabled', 'true');
     });

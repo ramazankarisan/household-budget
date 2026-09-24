@@ -5,6 +5,8 @@ import { type Messages } from './messages';
 export const en: Messages<typeof de> = {
   common: {
     appTitle: 'Household Budget',
+    pending: 'pending',
+    uncategorized: 'Uncategorized',
     nav: {
       transactions: 'Transactions',
       rules: 'Rules',
@@ -46,7 +48,6 @@ export const en: Messages<typeof de> = {
     allMonths: 'All months',
     filterCategory: 'Filter by category',
     allCategories: 'All categories',
-    uncategorized: 'Uncategorized',
     showUncategorized: 'Show only transactions without a category',
     search: 'Search',
     clearSearch: 'Clear search',
@@ -55,7 +56,6 @@ export const en: Messages<typeof de> = {
     noMatches: 'No transactions match this selection.',
     uncategorizedCount: '{{uncategorized}} uncategorized',
     allCategorized: 'All categorized',
-    pendingHint: 'pending',
     columns: {
       date: 'Date',
       counterparty: 'Payee',
@@ -86,7 +86,6 @@ export const en: Messages<typeof de> = {
     value: 'Keyword',
     category: 'Category',
     active: 'active',
-    uncategorized: 'Uncategorized',
     clearCategory: 'Remove category',
     lockedHint: 'set by hand — rules will not change it',
     pendingHint:
@@ -122,14 +121,12 @@ export const en: Messages<typeof de> = {
     over: 'over',
     left: 'left',
     noBudgets: 'no budget set',
-    pendingHint: 'pending',
     showUncategorized: 'Show this month’s transactions without a category',
     toTransactions: 'Go to transactions',
     chartTitle: 'Spending by category',
     loadingLimits: 'loading budgets',
     monthTotal: {
       of: 'of',
-      pending: 'pending',
       spent: 'spent',
     },
   },
@@ -151,6 +148,15 @@ export const en: Messages<typeof de> = {
       CSV_RECORD_INCONSISTENT_FIELDS_LENGTH: 'a row has the wrong number of columns',
     },
     unknownFile: 'file not readable ({{code}})',
+    api: {
+      TRANSACTION_PENDING:
+        'A pending transaction cannot take a category — the next import replaces it.',
+      RULE_EXISTS: 'This rule already exists.',
+      RULE_RESTORE_INVALID: 'This rule cannot be restored.',
+      FORBIDDEN_ORIGIN: 'Request refused: it did not come from this page.',
+    },
+    unknownApi: 'request refused ({{code}})',
+    requestFailed: 'Request failed: {{detail}}',
     rule: {
       FIELD_UNKNOWN: 'unknown field',
       OPERATOR_UNKNOWN: 'unknown operator',

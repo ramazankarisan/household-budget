@@ -119,8 +119,8 @@ function PendingCell({ cents }: { readonly cents: number }) {
           {formatAmount(cents)}
           <Box
             component="span"
-            aria-label={t('budgets.pendingHint')}
-            title={t('budgets.pendingHint')}
+            aria-label={t('common.pending')}
+            title={t('common.pending')}
             sx={{ ml: 1 }}
           >
             ⏳
@@ -259,7 +259,7 @@ function UncategorizedRow({ entry, onShowUncategorized }: UncategorizedRowProps)
           onClick={onShowUncategorized}
           sx={{ ml: -1, textTransform: 'none' }}
         >
-          {t('transactions.uncategorized')}
+          {t('common.uncategorized')}
         </Button>
       </TableCell>
       <TableCell align="right" sx={AMOUNT}>

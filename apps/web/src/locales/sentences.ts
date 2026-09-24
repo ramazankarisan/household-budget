@@ -7,6 +7,7 @@ import {
 } from '@household-budget/core';
 import { type TFunction } from 'i18next';
 
+import { ApiError } from '../api/client';
 import { formatAmount } from '../format';
 import { de } from './de';
 
@@ -73,16 +74,27 @@ export function describeRuleError(t: TFunction, error: RuleInputError): string {
   return t(`errors.rule.${error.code}`);
 }
 
+/**
+ * One sentence per bad form field, keyed by the field: the first error core reported for
+ * it wins. Shared by the rule form and the budget writes, so the two cannot drift.
+ */
+function markFields<E extends { readonly field: string }>(
+  errors: readonly E[],
+  describe: (error: E) => string,
+): Readonly<Record<string, string>> {
+  const marked: Record<string, string> = {};
+  for (const error of errors) {
+    marked[error.field] ??= describe(error);
+  }
+  return marked;
+}
+
 /** `{ value: 'Suchbegriff fehlt' }` — what a form marks each field with. */
 export function describeRuleErrors(
   t: TFunction,
   errors: readonly RuleInputError[],
 ): Readonly<Record<string, string>> {
-  const marked: Record<string, string> = {};
-  for (const error of errors) {
-    marked[error.field] ??= describeRuleError(t, error);
-  }
-  return marked;
+  return markFields(errors, (error) => describeRuleError(t, error));
 }
 
 /** What points at a category: the three counts a refused delete carries. */
@@ -100,6 +112,16 @@ export interface CategoryUse {
  */
 export function describeCategoryInUse(t: TFunction, use: CategoryUse): string {
   return t('rules.categoryInUse', { ...use });
+}
+
+/** The counts a `CATEGORY_IN_USE` refusal carries, read defensively: it is JSON. */
+export function categoryUseOf(details: Readonly<Record<string, unknown>>): CategoryUse {
+  const count = (value: unknown) => (typeof value === 'number' ? value : 0);
+  return {
+    rules: count(details['rules']),
+    transactions: count(details['transactions']),
+    budgets: count(details['budgets']),
+  };
 }
 
 /** The snackbar after a category is deleted, next to the button that brings it back. */
@@ -181,7 +203,7 @@ export function describeMonthTotal(
         ];
 
   if (report.totalPendingCents > 0) {
-    parts.push(`${formatAmount(report.totalPendingCents)} ${t('budgets.monthTotal.pending')}`);
+    parts.push(`${formatAmount(report.totalPendingCents)} ${t('common.pending')}`);
   }
   return parts.join(' · ');
 }
@@ -195,9 +217,72 @@ export function describeBudgetErrors(
   t: TFunction,
   errors: readonly BudgetInputError[],
 ): Readonly<Record<string, string>> {
-  const marked: Record<string, string> = {};
-  for (const error of errors) {
-    marked[error.field] ??= describeBudgetError(t, error);
+  return markFields(errors, (error) => describeBudgetError(t, error));
+}
+
+// ── failures ──────────────────────────────────────────────────────────────────────────
+
+type ApiRefusalCode = keyof typeof de.errors.api;
+
+function isApiRefusalCode(code: string): code is ApiRefusalCode {
+  return Object.hasOwn(de.errors.api, code);
+}
+
+/** The per-field errors a `RULE_INVALID` / `BUDGET_INVALID` refusal carries. */
+function fieldErrorsOf<E>(cause: ApiError): readonly E[] {
+  const { errors } = cause.details as { errors?: unknown };
+  return Array.isArray(errors) ? (errors as E[]) : [];
+}
+
+/**
+ * Any failed request, in words — the one place a caught `unknown` becomes a sentence.
+ *
+ * Called at render, not when the failure happens: pages keep the cause in state, so an
+ * alert already on screen switches language with everything around it rather than
+ * staying half in the old one.
+ *
+ * Coded refusals get the UI's wording; one this UI has no sentence for still shows its
+ * code. A failure with no code — the network, a 500 — shows what the browser or the
+ * server said, which is the only detail there is.
+ */
+export function describeFailure(t: TFunction, cause: unknown): string {
+  if (cause instanceof ApiError) {
+    switch (cause.code) {
+      case 'CATEGORY_IN_USE':
+        return describeCategoryInUse(t, categoryUseOf(cause.details));
+      case 'RULE_INVALID': {
+        const sentences = Object.values(describeRuleErrors(t, fieldErrorsOf(cause)));
+        if (sentences.length > 0) {
+          return sentences.join(' · ');
+        }
+        break;
+      }
+      case 'BUDGET_INVALID': {
+        const sentences = Object.values(describeBudgetErrors(t, fieldErrorsOf(cause)));
+        if (sentences.length > 0) {
+          return sentences.join(' · ');
+        }
+        break;
+      }
+    }
+    if (isApiRefusalCode(cause.code)) {
+      return t(`errors.api.${cause.code}`);
+    }
+    if (isKnownFileErrorCode(cause.code)) {
+      return describeFileError(t, cause.code, cause.columns);
+    }
+    return t('errors.unknownApi', { code: cause.code });
   }
-  return marked;
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return t('errors.requestFailed', { detail });
+}
+
+/**
+ * A failed upload. Every code there is about the file, so an unknown one — csv-parse's
+ * list is open-ended — reads as "file not readable (CODE)" rather than a refused request.
+ */
+export function describeImportFailure(t: TFunction, cause: unknown): string {
+  return cause instanceof ApiError
+    ? describeFileError(t, cause.code, cause.columns)
+    : describeFailure(t, cause);
 }

@@ -40,11 +40,11 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
         <Typography
           variant="body2"
-          title={pending ? t('rules.pendingHint') : (current?.name ?? t('rules.uncategorized'))}
+          title={pending ? t('rules.pendingHint') : (current?.name ?? t('common.uncategorized'))}
           color={current === undefined ? 'text.disabled' : 'text.primary'}
           sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
-          {current?.name ?? t('rules.uncategorized')}
+          {current?.name ?? t('common.uncategorized')}
         </Typography>
       </Box>
     );
@@ -54,7 +54,7 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
     // minWidth 0 on the flex child: without it the select refuses to shrink below its
     // longest option and widens the fixed column it is supposed to fit inside.
     <Box
-      title={current?.name ?? t('rules.uncategorized')}
+      title={current?.name ?? t('common.uncategorized')}
       sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}
     >
       <TextField
@@ -100,7 +100,7 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
               categories arrive — "Kategorie entfernen" would be shown as though that were
               the row's current category.
             */}
-            {current === undefined ? t('rules.uncategorized') : t('rules.clearCategory')}
+            {current === undefined ? t('common.uncategorized') : t('rules.clearCategory')}
           </Box>
         </MenuItem>
         {categories.map((category) => (

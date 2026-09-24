@@ -35,6 +35,7 @@ import {
   type TransactionFilterState,
   uncategorizedCount,
 } from '../filter';
+import { describeFailure } from '../locales/sentences';
 import { AccountSelect } from './AccountSelect';
 import { AppHeader } from './AppHeader';
 import { ImportPanel } from './ImportPanel';
@@ -58,10 +59,12 @@ export function AccountPage() {
       ? NO_FILTERS
       : { ...NO_FILTERS, month: entry.month, categoryId: entry.categoryId },
   );
-  const [error, setError] = useState<string | undefined>(undefined);
+  // The cause, not its sentence: worded at render by `describeFailure`, so an alert already
+  // on screen follows a language switch rather than staying in the old language.
+  const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
-    setError(cause instanceof Error ? cause.message : String(cause));
+    setError({ cause });
   }, []);
 
   useEffect(() => {
@@ -225,7 +228,7 @@ export function AccountPage() {
           </Box>
         )}
 
-        {error !== undefined && <Alert severity="error">{error}</Alert>}
+        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
         {accounts === undefined && <CircularProgress size={24} />}
 

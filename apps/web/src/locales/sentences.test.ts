@@ -7,6 +7,7 @@ import {
 } from '@household-budget/core';
 import { describe, expect, it } from 'vitest';
 
+import { ApiError } from '../api/client';
 import i18n from './i18n';
 import {
   describeApplySummary,
@@ -14,7 +15,9 @@ import {
   describeBudgetErrors,
   describeCategoryDeleted,
   describeCategoryInUse,
+  describeFailure,
   describeFileError,
+  describeImportFailure,
   describeLeft,
   describeMonthTotal,
   describeOverBy,
@@ -355,5 +358,58 @@ describe('describeBudgetError', () => {
         { code: 'AMOUNT_TOO_LARGE', field: 'amountCents' },
       ]),
     ).toEqual({ month: 'Ungültiger Monat', amountCents: 'Ein Budget kann nicht negativ sein' });
+  });
+});
+
+describe('describeFailure', () => {
+  it('words a coded refusal the API sends, in both languages', () => {
+    expect(describeFailure(de, new ApiError('RULE_EXISTS'))).toBe('Diese Regel gibt es bereits.');
+    expect(describeFailure(en, new ApiError('RULE_EXISTS'))).toBe('This rule already exists.');
+    expect(describeFailure(en, new ApiError('TRANSACTION_PENDING'))).toContain('pending');
+  });
+
+  it('unpacks a refusal that carries its own details', () => {
+    expect(
+      describeFailure(
+        de,
+        new ApiError('CATEGORY_IN_USE', [], { rules: 2, transactions: 47, budgets: 3 }),
+      ),
+    ).toBe('Wird noch verwendet: 2 Regeln, 47 Umsätze, 3 Budgets.');
+    expect(
+      describeFailure(
+        en,
+        new ApiError('BUDGET_INVALID', [], {
+          errors: [{ code: 'AMOUNT_NEGATIVE', field: 'amountCents' }],
+        }),
+      ),
+    ).toBe('a budget cannot be negative');
+  });
+
+  it('still quotes a code it has no sentence for', () => {
+    expect(describeFailure(de, new ApiError('SOMETHING_NEW'))).toBe(
+      'Anfrage abgelehnt (SOMETHING_NEW)',
+    );
+    // A validation refusal whose details did not survive is still a refusal, not silence.
+    expect(describeFailure(en, new ApiError('RULE_INVALID'))).toBe(
+      'request refused (RULE_INVALID)',
+    );
+  });
+
+  it('frames an uncoded failure rather than showing it bare', () => {
+    expect(describeFailure(de, new Error('/rules failed: 500 Internal Server Error'))).toBe(
+      'Anfrage fehlgeschlagen: /rules failed: 500 Internal Server Error',
+    );
+    expect(describeFailure(en, 'offline')).toBe('Request failed: offline');
+  });
+});
+
+describe('describeImportFailure', () => {
+  it('reads every code as a file problem, an unknown one included', () => {
+    expect(describeImportFailure(de, new ApiError('HEADER_NOT_FOUND'))).toBe(
+      'Keine Kopfzeile gefunden — ist das ein CSV-CAMT-Export der Sparkasse?',
+    );
+    expect(describeImportFailure(en, new ApiError('CSV_SOMETHING_NEW'))).toBe(
+      'file not readable (CSV_SOMETHING_NEW)',
+    );
   });
 });

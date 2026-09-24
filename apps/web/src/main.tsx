@@ -16,7 +16,12 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
+    {/*
+      noSsr: the app only ever renders in the browser, so the stored scheme can be read on
+      the first render instead of after a mount effect — no light frame on a dark reload,
+      and the theme button is in the header from the start rather than popping in.
+    */}
+    <ThemeProvider theme={theme} noSsr>
       <CssBaseline />
       <App />
     </ThemeProvider>

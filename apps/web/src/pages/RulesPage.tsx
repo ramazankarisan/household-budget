@@ -32,6 +32,7 @@ import Paper from '@mui/material/Paper';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { type TFunction } from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,9 +49,12 @@ import {
   updateRule,
 } from '../api/client';
 import {
+  categoryUseOf,
+  type CategoryUse,
   describeApplySummary,
   describeCategoryDeleted,
   describeCategoryInUse,
+  describeFailure,
   describeRuleDeleted,
   describeRuleErrors,
 } from '../locales/sentences';
@@ -60,7 +64,7 @@ type ApplyState =
   | { readonly status: 'idle' }
   | { readonly status: 'applying' }
   | { readonly status: 'done'; readonly summary: ApplySummary }
-  | { readonly status: 'error'; readonly message: string };
+  | { readonly status: 'error'; readonly cause: unknown };
 
 /** What the form holds while it is being typed: priority is a string until it parses. */
 interface RuleDraft {
@@ -108,7 +112,9 @@ export function RulesPage() {
   const { t } = useTranslation();
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
   const [rules, setRules] = useState<readonly RulePayload[]>([]);
-  const [error, setError] = useState<string | undefined>(undefined);
+  // Causes and codes, not sentences, throughout this page: everything is worded at render,
+  // so a message already on screen follows a language switch with the rest of the page.
+  const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
   const [apply, setApply] = useState<ApplyState>({ status: 'idle' });
   /*
    * The one undo on offer: the last category or rule deleted. One slot for both, so a
@@ -118,13 +124,13 @@ export function RulesPage() {
    */
   const [undoable, setUndoable] = useState<Undoable | undefined>(undefined);
   const undoSeq = useRef(0);
-  const offerUndo = useCallback((message: string, restore: () => Promise<unknown>) => {
+  const offerUndo = useCallback((describe: Describe, restore: () => Promise<unknown>) => {
     undoSeq.current += 1;
-    setUndoable({ key: undoSeq.current, message, restore });
+    setUndoable({ key: undoSeq.current, describe, restore });
   }, []);
 
   const fail = useCallback((cause: unknown) => {
-    setError(cause instanceof Error ? cause.message : String(cause));
+    setError({ cause });
   }, []);
 
   // The load in flight. Every reload goes through it, the mount and the five mutations
@@ -178,10 +184,7 @@ export function RulesPage() {
         setApply({ status: 'done', summary });
       })
       .catch((cause: unknown) => {
-        setApply({
-          status: 'error',
-          message: cause instanceof Error ? cause.message : String(cause),
-        });
+        setApply({ status: 'error', cause });
       });
   }
 
@@ -190,7 +193,7 @@ export function RulesPage() {
       <Stack spacing={3}>
         <AppHeader />
 
-        {error !== undefined && <Alert severity="error">{error}</Alert>}
+        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
         <CategoryStrip
           categories={categories}
@@ -231,7 +234,9 @@ export function RulesPage() {
               />
 
               {apply.status === 'done' && <ApplyResult summary={apply.summary} />}
-              {apply.status === 'error' && <Alert severity="error">{apply.message}</Alert>}
+              {apply.status === 'error' && (
+                <Alert severity="error">{describeFailure(t, apply.cause)}</Alert>
+              )}
             </Stack>
           </CardContent>
         </Card>
@@ -242,7 +247,7 @@ export function RulesPage() {
           key={undoable.key}
           open
           autoHideDuration={6000}
-          message={undoable.message}
+          message={undoable.describe(t)}
           onClose={(_event, reason) => {
             // A click anywhere else on the page is not a decision about the undo.
             if (reason !== 'clickaway') {
@@ -269,10 +274,13 @@ export function RulesPage() {
   );
 }
 
+/** A sentence still to be worded, in whatever language is current when it renders. */
+type Describe = (t: TFunction) => string;
+
 /** What the undo snackbar offers: its sentence, and the call that reverses the delete. */
 interface Undoable {
   readonly key: number;
-  readonly message: string;
+  readonly describe: Describe;
   readonly restore: () => Promise<unknown>;
 }
 
@@ -280,7 +288,7 @@ interface CategoryStripProps {
   readonly categories: readonly CategoryPayload[];
   readonly onChanged: () => void;
   readonly onError: (cause: unknown) => void;
-  readonly onUndoable: (message: string, restore: () => Promise<unknown>) => void;
+  readonly onUndoable: (describe: Describe, restore: () => Promise<unknown>) => void;
 }
 
 /**
@@ -290,7 +298,8 @@ interface CategoryStripProps {
 function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryStripProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
-  const [refusal, setRefusal] = useState<string | undefined>(undefined);
+  // The counts of the last refused delete; worded at render.
+  const [refusal, setRefusal] = useState<CategoryUse | undefined>(undefined);
 
   function add(): void {
     if (name.trim() === '') {
@@ -319,25 +328,16 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
     deleteCategory(category.id)
       .then(() => {
         setRefusal(undefined);
-        onUndoable(describeCategoryDeleted(t, category.name), () => createCategory(category.name));
+        onUndoable(
+          (tr) => describeCategoryDeleted(tr, category.name),
+          () => createCategory(category.name),
+        );
         onChanged();
       })
       .catch((cause: unknown) => {
         // The counts are the answer to "why not", so they are shown rather than logged.
         if (cause instanceof ApiError && cause.code === 'CATEGORY_IN_USE') {
-          const { rules, transactions, budgets } = cause.details as {
-            rules?: unknown;
-            transactions?: unknown;
-            budgets?: unknown;
-          };
-          const count = (value: unknown) => (typeof value === 'number' ? value : 0);
-          setRefusal(
-            describeCategoryInUse(t, {
-              rules: count(rules),
-              transactions: count(transactions),
-              budgets: count(budgets),
-            }),
-          );
+          setRefusal(categoryUseOf(cause.details));
           return;
         }
         // The counts on screen belong to the last refused category, and the warning does
@@ -386,7 +386,9 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
             </Stack>
           )}
 
-          {refusal !== undefined && <Alert severity="warning">{refusal}</Alert>}
+          {refusal !== undefined && (
+            <Alert severity="warning">{describeCategoryInUse(t, refusal)}</Alert>
+          )}
 
           <Stack
             component="form"
@@ -421,7 +423,7 @@ interface RuleTableProps {
   readonly categories: readonly CategoryPayload[];
   readonly onChanged: () => void;
   readonly onError: (cause: unknown) => void;
-  readonly onUndoable: (message: string, restore: () => Promise<unknown>) => void;
+  readonly onUndoable: (describe: Describe, restore: () => Promise<unknown>) => void;
 }
 
 function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTableProps) {
@@ -496,8 +498,9 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
                           // so an undo puts it back in the same place in the order.
                           deleteRule(rule.id)
                             .then((deleted) => {
-                              onUndoable(describeRuleDeleted(t, displayValue(rule)), () =>
-                                restoreRule(deleted),
+                              onUndoable(
+                                (tr) => describeRuleDeleted(tr, displayValue(rule)),
+                                () => restoreRule(deleted),
                               );
                               onChanged();
                             })
@@ -579,24 +582,26 @@ interface RuleFormProps {
 function RuleForm({ draft, categories, onCancel, onSaved, onError }: RuleFormProps) {
   const { t } = useTranslation();
   const [current, setCurrent] = useState(draft);
-  const [marks, setMarks] = useState<Readonly<Record<string, string>>>({});
+  // Core's errors, not their sentences; worded per field at render.
+  const [errors, setErrors] = useState<readonly RuleInputError[]>([]);
+  const marks = describeRuleErrors(t, errors);
 
   function submit(): void {
     // The same parser the API runs, so the common mistake never leaves the browser.
     const parsed = parseRuleInput(toBody(current));
     if (!parsed.ok) {
-      setMarks(describeRuleErrors(t, parsed.errors));
+      setErrors(parsed.errors);
       return;
     }
-    setMarks({});
+    setErrors([]);
 
     const saved =
       current.id === undefined ? createRule(parsed.rule) : updateRule(current.id, parsed.rule);
 
     saved.then(onSaved).catch((cause: unknown) => {
-      const errors = ruleErrorsOf(cause);
-      if (errors.length > 0) {
-        setMarks(describeRuleErrors(t, errors));
+      const refused = ruleErrorsOf(cause);
+      if (refused.length > 0) {
+        setErrors(refused);
         return;
       }
       onError(cause);

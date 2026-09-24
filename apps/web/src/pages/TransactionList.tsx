@@ -101,8 +101,8 @@ export function TransactionList({
                   // a snapshot the next import replaces, not a settled entry.
                   <Box
                     component="span"
-                    aria-label={t('transactions.pendingHint')}
-                    title={t('transactions.pendingHint')}
+                    aria-label={t('common.pending')}
+                    title={t('common.pending')}
                     sx={{ ml: 1 }}
                   >
                     ⏳
