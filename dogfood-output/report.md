@@ -24,19 +24,21 @@
 
 Triaged 2026-09-24. Fixes are planned in [`docs/plans/05-dogfood-fixes.md`](../docs/plans/05-dogfood-fixes.md). When a fix lands, add a dated **Resolution** line under its issue below and update the Status here.
 
-| Issue                                                                     | Decision                                     | Status                    |
-| ------------------------------------------------------------------------- | -------------------------------------------- | ------------------------- |
-| ISSUE-001 pending row missing from summary                                | Could not reproduce                          | closed – not reproducible |
-| ISSUE-002 raw "Failed to fetch"                                           | Not important; moves to the translation plan | deferred                  |
-| ISSUE-003 chevron misaligned on locked rows                               | Fix (plan 05, phase 1)                       | fixed (2026-09-24)        |
-| ISSUE-004 case-variant category names                                     | Fix, low priority (plan 05, phase 2)         | fixed (2026-09-24)        |
-| ISSUE-005 English API errors                                              | Moves to the separate translation plan       | deferred                  |
-| ISSUE-006 budget field thousands separator                                | Fix (plan 05, phase 1)                       | fixed (2026-09-24)        |
-| ISSUE-007 budgets only for months with bookings                           | Not important                                | won't fix (for now)       |
-| ISSUE-008 headline counts unbudgeted spend                                | Not now                                      | won't fix (for now)       |
-| ISSUE-009 month switch blanks budgets page                                | Fix (plan 05, phase 4)                       | fixed (2026-09-24)        |
-| ISSUE-010 category delete without undo                                    | Fix: undo snackbar (plan 05, phase 3)        | fixed (2026-09-24)        |
-| ISSUE-013 (review claim) category delete strands soft-deleted locked rows | Checked in code: does not occur              | closed – not a bug        |
+| Issue                                                                     | Decision                                                  | Status                    |
+| ------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------- |
+| ISSUE-001 pending row missing from summary                                | Could not reproduce                                       | closed – not reproducible |
+| ISSUE-002 raw "Failed to fetch"                                           | Not important; moves to the translation plan              | deferred                  |
+| ISSUE-003 chevron misaligned on locked rows                               | Fix (plan 05, phase 1)                                    | fixed (2026-09-24)        |
+| ISSUE-004 case-variant category names                                     | Fix, low priority (plan 05, phase 2)                      | fixed (2026-09-24)        |
+| ISSUE-005 English API errors                                              | Moves to the separate translation plan                    | deferred                  |
+| ISSUE-006 budget field thousands separator                                | Fix (plan 05, phase 1)                                    | fixed (2026-09-24)        |
+| ISSUE-007 budgets only for months with bookings                           | Not important                                             | won't fix (for now)       |
+| ISSUE-008 headline counts unbudgeted spend                                | Not now                                                   | won't fix (for now)       |
+| ISSUE-009 month switch blanks budgets page                                | Fix (plan 05, phase 4)                                    | fixed (2026-09-24)        |
+| ISSUE-010 category delete without undo                                    | Fix: undo snackbar (plan 05, phase 3)                     | fixed (2026-09-24)        |
+| ISSUE-011 rule delete without undo                                        | Fix: same undo snackbar, exact restore (plan 05, phase 5) | fixed (2026-09-24)        |
+| ISSUE-012 in-use refusal alert flickers on repeat click                   | Fix (plan 05, phase 5)                                    | fixed (2026-09-24)        |
+| ISSUE-013 (review claim) category delete strands soft-deleted locked rows | Checked in code: does not occur                           | closed – not a bug        |
 
 ## Issues
 
@@ -257,6 +259,51 @@ The ✕ on a category chip deletes it immediately: no dialog, no snackbar, no un
    ![After delete](screenshots/cat-delete.png)
 
 **Resolution** (2026-09-24, plan 05): Fixed with an undo snackbar instead of a confirm dialog. Delete stays one click and immediate. A snackbar then shows `„<name>“ gelöscht · RÜCKGÄNGIG` for 6 s. Undo re-creates the category by name, and nothing is lost because the API already refuses to delete a category any rule, transaction or budget uses. A second delete replaces the snackbar, a click elsewhere does not dismiss it, and a refused (in-use) delete shows no snackbar. Files: `apps/web/src/pages/RulesPage.tsx`, `RulesPage.test.tsx`, `apps/web/src/i18n/rules.ts`, `rules.test.ts`.
+
+---
+
+### ISSUE-011: Deleting a rule takes one click, with no confirmation or undo
+
+| Field           | Value                       |
+| --------------- | --------------------------- |
+| **Severity**    | medium                      |
+| **Category**    | ux                          |
+| **URL**         | http://localhost:5173/rules |
+| **Repro Video** | N/A                         |
+
+**Description**
+
+Found by the user after the first round of fixes. The ✕ on a rule row deletes it immediately (`deleteRule(rule.id)`). A rule holds more than a category does (field, operator, search term, priority, category), so losing one by misclick costs more. There's also an ordering catch: rules with equal priority are ordered by `createdAt`. A naive re-create would move the rule behind its peers and could change which rule wins.
+
+**Repro Steps**
+
+1. On **Regeln**, click ✕ on any rule.
+2. **Observe:** the rule is gone at once, with no way back.
+
+**Resolution** (2026-09-24, plan 05): Fixed. Deleting a rule stays one click and shows `Regel „<Suchbegriff>“ gelöscht · RÜCKGÄNGIG`, in the same single snackbar as category deletes (the latest delete of either kind wins). The restore is exact: `DELETE /api/rules/:id` now answers 200 with the rule including `createdAt` (was 204), and the new `POST /api/rules/restore` re-inserts it with the same id and `createdAt`, so it keeps its place among equal priorities. It returns 409 if restored twice, 404 if the category was deleted meanwhile, and 400 for a malformed body. Files: `packages/core/src/api.ts` (`DeletedRulePayload`), `apps/api/src/rules/rule.service.ts`, `rule.controller.ts`, `apps/web/src/api/client.ts`, `apps/web/src/pages/RulesPage.tsx`, `apps/web/src/i18n/rules.ts`, plus their tests.
+
+---
+
+### ISSUE-012: Clicking ✕ again on an in-use category makes the warning flicker
+
+| Field           | Value                       |
+| --------------- | --------------------------- |
+| **Severity**    | low                         |
+| **Category**    | visual                      |
+| **URL**         | http://localhost:5173/rules |
+| **Repro Video** | N/A                         |
+
+**Description**
+
+Found by the user. `remove()` cleared the refusal alert _before_ sending the DELETE, and the 409 put it back. A DOM observer showed the alert removed and re-inserted 17 ms apart on every repeat click. Because the alert sits between the chips and the form, the layout jumped twice.
+
+**Repro Steps**
+
+1. On **Regeln**, click ✕ on a category in use (e.g. one with transactions): "Wird noch verwendet: …" appears.
+2. Click the same ✕ again.
+3. **Observe:** the warning disappears and reappears, and the form below jumps.
+
+**Resolution** (2026-09-24, plan 05): Fixed. The refusal is no longer cleared before the DELETE; it is replaced by the answer (cleared on success, re-set on 409). A repeat click on an in-use category now leaves the same warning node in place, so nothing is removed or re-inserted and nothing jumps. A test confirms it fails against the old code. File: `apps/web/src/pages/RulesPage.tsx`, `RulesPage.test.tsx`.
 
 ---
 

@@ -334,6 +334,33 @@ loadedBudgets === undefined`. The report uses `loadedBudgets ?? []`.
 - [ ] On `/budgets`, switch September 2025 → März 2014 → September 2025. The page never goes blank,
       and the return to September is instant.
 
+### Phase 5: Rule undo and refusal flicker (ISSUE-011, ISSUE-012) — follow-up PR
+
+Dependencies: Phase 3 (the undo snackbar)
+
+Both were found by the user after PR #13 opened, and they ship as a separate PR stacked on it.
+
+**Tasks**:
+
+- [x] `packages/core/src/api.ts`: `DeletedRulePayload` (`RulePayload` + `createdAt`), exported from the root.
+- [x] `RuleService.remove` returns the deleted rule with `createdAt`. `DELETE /api/rules/:id` answers 200 with it (was 204).
+- [x] `RuleService.restore` / `POST /api/rules/restore`: validates via `parseRuleInput`, plus `id` and `createdAt`. It re-inserts with the same id and `createdAt`, and returns 409 if the id exists, 404 if the category is gone, 400 on a bad body.
+- [x] `api/client.ts`: `deleteRule` returns `DeletedRulePayload`; new `restoreRule`.
+- [x] `RulesPage.tsx`: the undo snackbar is lifted to the page as one `Undoable` slot, shared by category and rule deletes. The rule ✕ offers `Regel „…“ gelöscht` with Rückgängig, which calls `restoreRule(deleted)`.
+- [x] `RulesPage.tsx` `CategoryStrip.remove`: stop clearing the refusal before the request. Clear it on success.
+- [x] Tests: `rule.service.test.ts` (return value, exact order after restore, 409, 404, 400), `RulesPage.test.tsx` (rule undo, shared snackbar, same warning node on repeat click, cleared on success), `rules.test.ts` (`describeRuleDeleted`).
+- [x] `dogfood-output/report.md`: ISSUE-011/012 added, set to fixed, with Resolution notes.
+
+**Automated Verification**:
+
+- [x] `pnpm check:all` passes (format, lint, deps, types, unit, e2e)
+- [x] The repeat-click test fails when the eager `setRefusal(undefined)` is put back
+
+**Manual Verification**:
+
+- [ ] On `/rules`, with two rules at equal priority, delete the first, click Rückgängig, and it's back first.
+- [ ] Click ✕ twice on a category in use. The warning stays put, with no flicker.
+
 ## Implementation Notes
 
 During implementation, document user feedback, problems, and decisions here.

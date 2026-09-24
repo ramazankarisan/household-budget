@@ -6,6 +6,7 @@ import {
   describeApplySummary,
   describeCategoryDeleted,
   describeCategoryInUse,
+  describeRuleDeleted,
   describeRuleError,
   describeRuleErrors,
   rulesText,
@@ -118,6 +119,13 @@ describe('describeCategoryDeleted', () => {
   it('names the category that went, in both languages', () => {
     expect(describeCategoryDeleted('Wohnen')).toBe('„Wohnen“ gelöscht');
     expect(describeCategoryDeleted('Wohnen', 'en')).toBe('"Wohnen" deleted');
+  });
+});
+
+describe('describeRuleDeleted', () => {
+  it('names the rule by its search term, in both languages', () => {
+    expect(describeRuleDeleted('müller')).toBe('Regel „müller“ gelöscht');
+    expect(describeRuleDeleted('müller', 'en')).toBe('Rule "müller" deleted');
   });
 });
 

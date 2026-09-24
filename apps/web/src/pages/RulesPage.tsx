@@ -43,12 +43,14 @@ import {
   deleteRule,
   listCategories,
   listRules,
+  restoreRule,
   updateRule,
 } from '../api/client';
 import {
   describeApplySummary,
   describeCategoryDeleted,
   describeCategoryInUse,
+  describeRuleDeleted,
   describeRuleErrors,
   rulesText,
 } from '../i18n/rules';
@@ -108,6 +110,18 @@ export function RulesPage() {
   const [rules, setRules] = useState<readonly RulePayload[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [apply, setApply] = useState<ApplyState>({ status: 'idle' });
+  /*
+   * The one undo on offer: the last category or rule deleted. One slot for both, so a
+   * second delete of either kind replaces the first rather than stacking two snackbars.
+   * `key` is new for every delete, which remounts the snackbar with its own message and a
+   * fresh six seconds instead of what was left of the previous one's.
+   */
+  const [undoable, setUndoable] = useState<Undoable | undefined>(undefined);
+  const undoSeq = useRef(0);
+  const offerUndo = useCallback((message: string, restore: () => Promise<unknown>) => {
+    undoSeq.current += 1;
+    setUndoable({ key: undoSeq.current, message, restore });
+  }, []);
 
   const fail = useCallback((cause: unknown) => {
     setError(cause instanceof Error ? cause.message : String(cause));
@@ -183,7 +197,12 @@ export function RulesPage() {
 
         {error !== undefined && <Alert severity="error">{error}</Alert>}
 
-        <CategoryStrip categories={categories} onChanged={changed} onError={fail} />
+        <CategoryStrip
+          categories={categories}
+          onChanged={changed}
+          onError={fail}
+          onUndoable={offerUndo}
+        />
 
         <Card variant="outlined">
           <CardContent>
@@ -208,7 +227,13 @@ export function RulesPage() {
                 </Button>
               </Stack>
 
-              <RuleTable rules={rules} categories={categories} onChanged={changed} onError={fail} />
+              <RuleTable
+                rules={rules}
+                categories={categories}
+                onChanged={changed}
+                onError={fail}
+                onUndoable={offerUndo}
+              />
 
               {apply.status === 'done' && <ApplyResult summary={apply.summary} />}
               {apply.status === 'error' && <Alert severity="error">{apply.message}</Alert>}
@@ -216,31 +241,61 @@ export function RulesPage() {
           </CardContent>
         </Card>
       </Stack>
+
+      {undoable !== undefined && (
+        <Snackbar
+          key={undoable.key}
+          open
+          autoHideDuration={6000}
+          message={undoable.message}
+          onClose={(_event, reason) => {
+            // A click anywhere else on the page is not a decision about the undo.
+            if (reason !== 'clickaway') {
+              setUndoable(undefined);
+            }
+          }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                const { restore } = undoable;
+                setUndoable(undefined);
+                // A refusal (name taken again, category gone) lands in the page's alert.
+                restore().then(changed).catch(fail);
+              }}
+            >
+              {text.undo}
+            </Button>
+          }
+        />
+      )}
     </Container>
   );
+}
+
+/** What the undo snackbar offers: its sentence, and the call that reverses the delete. */
+interface Undoable {
+  readonly key: number;
+  readonly message: string;
+  readonly restore: () => Promise<unknown>;
 }
 
 interface CategoryStripProps {
   readonly categories: readonly CategoryPayload[];
   readonly onChanged: () => void;
   readonly onError: (cause: unknown) => void;
+  readonly onUndoable: (message: string, restore: () => Promise<unknown>) => void;
 }
 
 /**
  * Categories are managed here rather than on a page of their own: a category exists to be
  * pointed at by a rule, and the two are always edited in the same sitting.
  */
-function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
+function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryStripProps) {
   const text = rulesText();
   const [name, setName] = useState('');
   const [refusal, setRefusal] = useState<string | undefined>(undefined);
-  /*
-   * The last category deleted, for the undo snackbar. `key` is new for every delete, so a
-   * second delete remounts the snackbar with its own message and a fresh timer rather
-   * than inheriting what is left of the first one's six seconds.
-   */
-  const [deleted, setDeleted] = useState<{ key: number; name: string } | undefined>(undefined);
-  const deleteSeq = useRef(0);
 
   function add(): void {
     if (name.trim() === '') {
@@ -263,11 +318,13 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
    * releases the lock — so the next apply re-derives its category if it is restored.
    */
   function remove(category: CategoryPayload): void {
-    setRefusal(undefined);
+    // The refusal is not cleared before the request: a repeat click on a category still
+    // in use would drop the warning and put it back 17 ms later, and the form below it
+    // jumped both times (dogfood ISSUE-012). It is replaced by the answer instead.
     deleteCategory(category.id)
       .then(() => {
-        deleteSeq.current += 1;
-        setDeleted({ key: deleteSeq.current, name: category.name });
+        setRefusal(undefined);
+        onUndoable(describeCategoryDeleted(category.name), () => createCategory(category.name));
         onChanged();
       })
       .catch((cause: unknown) => {
@@ -290,12 +347,6 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
         }
         onError(cause);
       });
-  }
-
-  function undo(deletedName: string): void {
-    setDeleted(undefined);
-    // A 409 here means the name was taken again meanwhile; the page's alert says so.
-    createCategory(deletedName).then(onChanged).catch(onError);
   }
 
   return (
@@ -363,32 +414,6 @@ function CategoryStrip({ categories, onChanged, onError }: CategoryStripProps) {
           </Stack>
         </Stack>
       </CardContent>
-
-      {deleted !== undefined && (
-        <Snackbar
-          key={deleted.key}
-          open
-          autoHideDuration={6000}
-          message={describeCategoryDeleted(deleted.name)}
-          onClose={(_event, reason) => {
-            // A click anywhere else on the page is not a decision about the undo.
-            if (reason !== 'clickaway') {
-              setDeleted(undefined);
-            }
-          }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
-                undo(deleted.name);
-              }}
-            >
-              {text.undo}
-            </Button>
-          }
-        />
-      )}
     </Card>
   );
 }
@@ -398,9 +423,10 @@ interface RuleTableProps {
   readonly categories: readonly CategoryPayload[];
   readonly onChanged: () => void;
   readonly onError: (cause: unknown) => void;
+  readonly onUndoable: (message: string, restore: () => Promise<unknown>) => void;
 }
 
-function RuleTable({ rules, categories, onChanged, onError }: RuleTableProps) {
+function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTableProps) {
   const text = rulesText();
   const [draft, setDraft] = useState<RuleDraft | undefined>(undefined);
   const nameOf = (categoryId: string) =>
@@ -468,7 +494,16 @@ function RuleTable({ rules, categories, onChanged, onError }: RuleTableProps) {
                         size="small"
                         aria-label={`${text.deleteRule}: ${displayValue(rule)}`}
                         onClick={() => {
-                          deleteRule(rule.id).then(onChanged).catch(onError);
+                          // The API answers with the rule as it stood, `createdAt` and all,
+                          // so an undo puts it back in the same place in the order.
+                          deleteRule(rule.id)
+                            .then((deleted) => {
+                              onUndoable(describeRuleDeleted(displayValue(rule)), () =>
+                                restoreRule(deleted),
+                              );
+                              onChanged();
+                            })
+                            .catch(onError);
                         }}
                       >
                         ✕

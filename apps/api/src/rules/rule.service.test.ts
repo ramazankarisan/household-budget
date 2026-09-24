@@ -195,6 +195,72 @@ describe('RuleService', () => {
   });
 });
 
+describe('RuleService.restore', () => {
+  // Dogfood ISSUE-011: undo for a deleted rule. Equal priorities are ordered by
+  // createdAt, so a restore that re-stamped the rule would move it behind its peers.
+  async function threeTiedRules() {
+    const wohnen = await categories.create('Wohnen');
+    const make = (value: string) =>
+      rules.create({ field: 'purpose', operator: 'contains', value, categoryId: wohnen.id });
+    const first = await make('erste');
+    const second = await make('zweite');
+    const third = await make('dritte');
+    return { wohnen, first, second, third };
+  }
+
+  it('hands back the deleted rule with its createdAt', async () => {
+    const { second } = await threeTiedRules();
+
+    const deleted = await rules.remove(second.id);
+
+    expect(deleted).toMatchObject({ ...second, createdAt: expect.any(String) });
+    expect(Number.isNaN(Date.parse(deleted.createdAt))).toBe(false);
+  });
+
+  it('puts a rule back with its own id, in its old place among equal priorities', async () => {
+    const { first, second, third } = await threeTiedRules();
+    const before = (await rules.list()).map((rule) => rule.id);
+
+    const deleted = await rules.remove(second.id);
+    const restored = await rules.restore(deleted);
+
+    expect(restored).toEqual(second);
+    expect((await rules.list()).map((rule) => rule.id)).toEqual(before);
+    expect(before).toEqual([first.id, second.id, third.id]);
+  });
+
+  it('refuses to restore the same rule twice', async () => {
+    const { second } = await threeTiedRules();
+    const deleted = await rules.remove(second.id);
+    await rules.restore(deleted);
+
+    await expect(rules.restore(deleted)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('refuses a restore whose category has gone in the meantime', async () => {
+    const { wohnen, first, second, third } = await threeTiedRules();
+    const deleted = [await rules.remove(first.id), await rules.remove(second.id)];
+    await rules.remove(third.id);
+    await categories.remove(wohnen.id);
+
+    await expect(rules.restore(deleted[1])).rejects.toBeInstanceOf(NotFoundException);
+    expect(await rules.list()).toEqual([]);
+  });
+
+  it('refuses a body without an id or a usable createdAt', async () => {
+    const { second } = await threeTiedRules();
+    const deleted = await rules.remove(second.id);
+
+    await expect(rules.restore({ ...deleted, id: '' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(rules.restore({ ...deleted, createdAt: 'gestern' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(rules.restore({ ...deleted, value: '' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+});
+
 /**
  * The applying half. These run against the real fixture rather than hand-made rows: the
  * `Müller GmbH` payee, the absent one on the rent row and the CRLF purpose are the cases

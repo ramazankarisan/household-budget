@@ -34,6 +34,17 @@ export interface RulePayload {
   readonly active: boolean;
 }
 
+/**
+ * A rule as it stood when it was deleted — what `DELETE /api/rules/:id` returns and
+ * `POST /api/rules/restore` takes back. Unlike {@link RulePayload} it keeps `createdAt`:
+ * a restored rule must break a priority tie exactly as before, and a re-create with a
+ * fresh timestamp would move it behind every peer of equal priority.
+ */
+export interface DeletedRulePayload extends RulePayload {
+  /** ISO 8601, as stored. */
+  readonly createdAt: string;
+}
+
 /** What one run of the rules engine changed. */
 export interface ApplySummary {
   /** Rows offered to the rules — every row not locked by hand, matched or not. */

@@ -3,6 +3,7 @@ import {
   type ApplySummary,
   type BudgetPayload,
   type CategoryPayload,
+  type DeletedRulePayload,
   type ImportSummary,
   type RuleInput,
   type RulePayload,
@@ -173,8 +174,16 @@ export function updateRule(ruleId: string, input: RuleInput): Promise<RulePayloa
   return request<RulePayload>(`/rules/${encodeURIComponent(ruleId)}`, json('PATCH', input));
 }
 
-export function deleteRule(ruleId: string): Promise<void> {
-  return remove(`/rules/${encodeURIComponent(ruleId)}`);
+/** Answers with the rule as it stood, which is what {@link restoreRule} takes back. */
+export function deleteRule(ruleId: string): Promise<DeletedRulePayload> {
+  return request<DeletedRulePayload>(`/rules/${encodeURIComponent(ruleId)}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Undo for {@link deleteRule}: same id, same `createdAt`, so the same place in the order. */
+export function restoreRule(rule: DeletedRulePayload): Promise<RulePayload> {
+  return request<RulePayload>('/rules/restore', json('POST', rule));
 }
 
 /** No body: rules are global, so applying them is a global act. */
