@@ -122,4 +122,31 @@ describe('SpendingChart', () => {
 
     expect(heightsOf(container, 'budget')).toHaveLength(1);
   });
+
+  it('draws no Budget bars while the limits load, and says so instead of implying none', () => {
+    // Review of PR #13: with every limit still `null`, the Budget series read as "nothing
+    // is budgeted" while the table said `…`.
+    const loading: MonthlyReport = {
+      ...SEPTEMBER,
+      categories: SEPTEMBER.categories.map((row) => ({ ...row, budgetCents: null })),
+      totalBudgetCents: null,
+    };
+    const { container } = render(
+      <SpendingChart report={loading} categories={CATEGORIES} limitsLoading />,
+    );
+
+    const figure = screen.getByRole('figure', { name: 'Ausgaben nach Kategorie' });
+    expect(figure).toHaveAttribute('aria-busy', 'true');
+    expect(figure).toHaveTextContent('Budgets werden geladen');
+    expect(container.querySelector('[data-series="budget"]')).toBeNull();
+    expect(heightsOf(container, 'booked')).toHaveLength(2);
+  });
+
+  it('is not busy once the limits are there', () => {
+    render(<SpendingChart report={SEPTEMBER} categories={CATEGORIES} />);
+
+    const figure = screen.getByRole('figure', { name: 'Ausgaben nach Kategorie' });
+    expect(figure).not.toHaveAttribute('aria-busy');
+    expect(figure).not.toHaveTextContent('Budgets werden geladen');
+  });
 });

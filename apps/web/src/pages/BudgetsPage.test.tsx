@@ -354,6 +354,11 @@ describe('BudgetsPage', () => {
     expect(screen.getByText('1.143,41 € ausgegeben', { normalizer: plain })).toBeInTheDocument();
     expect(within(rowOf('Wohnen')).getAllByLabelText('Budgets werden geladen')).toHaveLength(2);
     expect(screen.queryByRole('textbox', { name: 'Budget Wohnen' })).toBeNull();
+    // The chart waits for the limits too, rather than drawing a month with none.
+    expect(screen.getByRole('figure', { name: 'Ausgaben nach Kategorie' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
 
     budgetLoads.get('2014-03')?.([
       { categoryId: 'cat-wohnen', month: '2014-03', amountCents: 50000 },

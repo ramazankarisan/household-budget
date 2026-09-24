@@ -355,6 +355,10 @@ During implementation, document user feedback, problems, and decisions here.
   The `pnpm check` / `check:all` format step still fails only on the two untracked files from
   other work named above.
 
+- Review of PR #13 (`/code-review medium`) found one low issue: while limits loaded, the chart
+  drew no Budget bars, which implied "no limits". Fixed in a follow-up commit: `SpendingChart`
+  takes `limitsLoading`, leaves the Budget series out, dims itself, and says why in its caption.
+
 ## References
 
 - Findings and change log: [`dogfood-output/report.md`](../../dogfood-output/report.md)

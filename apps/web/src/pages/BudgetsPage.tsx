@@ -366,7 +366,7 @@ export function BudgetsPage() {
             />
 
             {/* The same report object: the chart reads what the table reads, nothing else. */}
-            <SpendingChart report={report} categories={categories} />
+            <SpendingChart report={report} categories={categories} limitsLoading={limitsLoading} />
           </Stack>
         )}
       </Stack>

@@ -232,6 +232,8 @@ Choosing another month in **Monat** unmounts the picker, table and chart and sho
 
 **Resolution** (2026-09-24, plan 05): Fixed. A month switch no longer blanks the page. The spinner shows only on the very first load of transactions. The new month's spending shows at once, from rows already in memory. The Budget and Rest cells show `…` ("Budgets werden geladen") and the headline reads `<booked> ausgegeben` until the limits arrive. Limits are cached per month for the page's lifetime, so returning to a month is instant and makes no second request, and budget writes update the cached month. Files: `apps/web/src/pages/BudgetsPage.tsx`, `BudgetTable.tsx`, `apps/web/src/i18n/budgets.ts`, plus their tests.
 
+**Follow-up** (2026-09-24, review of PR #13): the chart first drew no Budget bars while limits loaded, which read as "no limits set". It now leaves the Budget series out, dims itself, sets `aria-busy`, and adds "Budgets werden geladen" to its caption until the limits arrive. Files: `apps/web/src/pages/SpendingChart.tsx`, `SpendingChart.test.tsx`, `BudgetsPage.tsx`, `BudgetsPage.test.tsx`.
+
 ---
 
 ### ISSUE-010: Deleting a category takes one click, with no confirmation or undo
