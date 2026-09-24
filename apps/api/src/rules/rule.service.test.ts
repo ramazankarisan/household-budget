@@ -237,6 +237,19 @@ describe('RuleService.restore', () => {
     await expect(rules.restore(deleted)).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('answers two restores of the same rule at once with one rule and one 409', async () => {
+    // Two tabs, or a retried request: the second must be a conflict, not a 500.
+    const { second } = await threeTiedRules();
+    const deleted = await rules.remove(second.id);
+
+    const outcomes = await Promise.allSettled([rules.restore(deleted), rules.restore(deleted)]);
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    const refused = outcomes.find((outcome) => outcome.status === 'rejected');
+    expect(refused?.reason).toBeInstanceOf(ConflictException);
+    expect((await rules.list()).filter((rule) => rule.id === second.id)).toHaveLength(1);
+  });
+
   it('refuses a restore whose category has gone in the meantime', async () => {
     const { wohnen, first, second, third } = await threeTiedRules();
     const deleted = [await rules.remove(first.id), await rules.remove(second.id)];

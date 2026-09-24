@@ -387,6 +387,11 @@ During implementation, document user feedback, problems, and decisions here.
   drew no Budget bars, which implied "no limits". Fixed in a follow-up commit: `SpendingChart`
   takes `limitsLoading`, leaves the Budget series out, dims itself, and says why in its caption.
 
+- Review of PR #15 found two low issues, both fixed: a restore race answered 500 instead of 409 (the
+  insert is now the check), and a stale in-use warning could sit beside an unrelated error (now
+  cleared on any non-409 failure). The review of #13 also claimed soft-deleted rows get stranded.
+  Checked, and it doesn't happen (ISSUE-013).
+
 ## References
 
 - Findings and change log: [`dogfood-output/report.md`](../../dogfood-output/report.md)

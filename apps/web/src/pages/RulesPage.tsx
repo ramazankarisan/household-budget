@@ -345,6 +345,9 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
           );
           return;
         }
+        // The counts on screen belong to the last refused category, and the warning does
+        // not name it: left up next to this error, they would read as this one's.
+        setRefusal(undefined);
         onError(cause);
       });
   }

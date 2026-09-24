@@ -22,6 +22,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CategoryService } from './category.service.js';
 
+/** Prisma's code for a unique-constraint violation; here, a rule id restored twice. */
+const UNIQUE_CONSTRAINT = 'P2002';
+
 /**
  * What an apply is allowed to write with. `$transaction`'s client is the same shape as
  * `PrismaService` minus the methods that would nest a transaction inside one, which is
@@ -206,13 +209,21 @@ export class RuleService {
     }
     const input = this.parse(body);
     await this.categories.requireCategory(input.categoryId);
-    if ((await this.prisma.rule.findUnique({ where: { id } })) !== null) {
-      throw new ConflictException({ code: 'RULE_EXISTS' });
+    /*
+     * No look-before-insert: two restores of the same rule (two tabs, a retried request)
+     * could both pass a check and the second would fail on the primary key as a 500. The
+     * insert is the check, and its unique-constraint error is the 409.
+     */
+    try {
+      const restored = await this.prisma.rule.create({ data: { ...input, id, createdAt: stamp } });
+      this.logger.log(`restore rule=${restored.id} field=${restored.field}`);
+      return toPayload(restored);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+        throw new ConflictException({ code: 'RULE_EXISTS' });
+      }
+      throw error;
     }
-
-    const restored = await this.prisma.rule.create({ data: { ...input, id, createdAt: stamp } });
-    this.logger.log(`restore rule=${restored.id} field=${restored.field}`);
-    return toPayload(restored);
   }
 
   /** Throws rather than returning null: every caller here needs the rule to exist. */

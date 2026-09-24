@@ -416,6 +416,24 @@ describe('RulesPage, a category that cannot be deleted', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1);
   });
 
+  it('drops an earlier warning when a later delete fails for another reason', async () => {
+    // Review of #15: the counts do not name their category, so left up beside an
+    // unrelated error they would read as that category's.
+    removedCategory
+      .mockRejectedValueOnce(
+        new ApiError('CATEGORY_IN_USE', [], { rules: 0, transactions: 1, budgets: 1 }),
+      )
+      .mockRejectedValueOnce(new Error('Netzwerkfehler'));
+    render(page());
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText(/Wird noch verwendet/);
+
+    fireEvent.click(screen.getByRole('button', { name: /Kategorie löschen: Lebensmittel/ }));
+
+    expect(await screen.findByText('Netzwerkfehler')).toBeInTheDocument();
+    expect(screen.queryByText(/Wird noch verwendet/)).not.toBeInTheDocument();
+  });
+
   it('clears the warning once a delete goes through', async () => {
     removedCategory.mockRejectedValueOnce(
       new ApiError('CATEGORY_IN_USE', [], { rules: 0, transactions: 1, budgets: 1 }),

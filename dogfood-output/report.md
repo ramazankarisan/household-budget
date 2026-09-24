@@ -282,6 +282,8 @@ Found by the user after the first round of fixes. The ✕ on a rule row deletes 
 
 **Resolution** (2026-09-24, plan 05): Fixed. Deleting a rule stays one click and shows `Regel „<Suchbegriff>“ gelöscht · RÜCKGÄNGIG`, in the same single snackbar as category deletes (the latest delete of either kind wins). The restore is exact: `DELETE /api/rules/:id` now answers 200 with the rule including `createdAt` (was 204), and the new `POST /api/rules/restore` re-inserts it with the same id and `createdAt`, so it keeps its place among equal priorities. It returns 409 if restored twice, 404 if the category was deleted meanwhile, and 400 for a malformed body. Files: `packages/core/src/api.ts` (`DeletedRulePayload`), `apps/api/src/rules/rule.service.ts`, `rule.controller.ts`, `apps/web/src/api/client.ts`, `apps/web/src/pages/RulesPage.tsx`, `apps/web/src/i18n/rules.ts`, plus their tests.
 
+**Follow-up** (review of PR #15): two restores of the same rule at once (two tabs, a retried request) returned 500 on the primary key. The insert is now the check, and a unique-constraint error maps to `409 RULE_EXISTS`. Covered by a concurrent-restore test.
+
 ---
 
 ### ISSUE-012: Clicking ✕ again on an in-use category makes the warning flicker
@@ -304,6 +306,8 @@ Found by the user. `remove()` cleared the refusal alert _before_ sending the DEL
 3. **Observe:** the warning disappears and reappears, and the form below jumps.
 
 **Resolution** (2026-09-24, plan 05): Fixed. The refusal is no longer cleared before the DELETE; it is replaced by the answer (cleared on success, re-set on 409). A repeat click on an in-use category now leaves the same warning node in place, so nothing is removed or re-inserted and nothing jumps. A test confirms it fails against the old code. File: `apps/web/src/pages/RulesPage.tsx`, `RulesPage.test.tsx`.
+
+**Follow-up** (review of PR #15): the refusal was left up when a _later_ delete failed for another reason, and its counts don't name their category, so they read as the new one's. It's now cleared before any non-409 error is shown. The test fails without the fix.
 
 ---
 
