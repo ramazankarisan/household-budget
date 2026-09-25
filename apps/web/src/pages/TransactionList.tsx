@@ -10,9 +10,9 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import { useTranslation } from 'react-i18next';
 
 import { formatAmount, formatBookingDate } from '../format';
-import { transactionsText } from '../i18n/transactions';
 import { CategoryCell } from './CategoryCell';
 
 interface TransactionListProps {
@@ -44,17 +44,17 @@ export function TransactionList({
   emptyMessage,
   onResetFilters,
 }: TransactionListProps) {
-  const text = transactionsText();
+  const { t } = useTranslation();
 
   if (transactions.length === 0) {
     return (
       <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          {emptyMessage ?? text.noTransactions}
+          {emptyMessage ?? t('transactions.noTransactions')}
         </Typography>
         {onResetFilters !== undefined && (
           <Button size="small" onClick={onResetFilters}>
-            {text.resetFilters}
+            {t('transactions.resetFilters')}
           </Button>
         )}
       </Stack>
@@ -81,11 +81,11 @@ export function TransactionList({
         </colgroup>
         <TableHead>
           <TableRow>
-            <TableCell>{text.columns.date}</TableCell>
-            <TableCell>{text.columns.counterparty}</TableCell>
-            <TableCell>{text.columns.purpose}</TableCell>
-            <TableCell>{text.columns.category}</TableCell>
-            <TableCell align="right">{text.columns.amount}</TableCell>
+            <TableCell>{t('transactions.columns.date')}</TableCell>
+            <TableCell>{t('transactions.columns.counterparty')}</TableCell>
+            <TableCell>{t('transactions.columns.purpose')}</TableCell>
+            <TableCell>{t('transactions.columns.category')}</TableCell>
+            <TableCell align="right">{t('transactions.columns.amount')}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -99,7 +99,12 @@ export function TransactionList({
                 {transaction.status === 'pending' && (
                   // Pending rows are shown, never hidden, but they are labelled: they are
                   // a snapshot the next import replaces, not a settled entry.
-                  <Box component="span" aria-label="vorgemerkt" title="vorgemerkt" sx={{ ml: 1 }}>
+                  <Box
+                    component="span"
+                    aria-label={t('common.pending')}
+                    title={t('common.pending')}
+                    sx={{ ml: 1 }}
+                  >
                     ⏳
                   </Box>
                 )}

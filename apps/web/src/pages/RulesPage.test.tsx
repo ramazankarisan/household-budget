@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // The mocked module's own class, not a copy: the page narrows with `instanceof`, and a
 // second class with the same shape is a different class.
 import { ApiError } from '../api/client';
+import i18n from '../locales/i18n';
 import { RulesPage } from './RulesPage';
 
 const initialCategories: CategoryPayload[] = [
@@ -255,7 +256,9 @@ describe('RulesPage', () => {
     listFailure = new Error('API nicht erreichbar');
     render(page());
 
-    expect(await screen.findByText('API nicht erreichbar')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Anfrage fehlgeschlagen: API nicht erreichbar'),
+    ).toBeInTheDocument();
   });
 
   it('says why an apply did not run', async () => {
@@ -264,7 +267,9 @@ describe('RulesPage', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Regeln anwenden' }));
 
-    expect(await screen.findByText('Regeln konnten nicht angewendet werden')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Anfrage fehlgeschlagen: Regeln konnten nicht angewendet werden'),
+    ).toBeInTheDocument();
     // The button has to come back, or the page is stuck on one failed attempt.
     expect(screen.getByRole('button', { name: 'Regeln anwenden' })).toBeEnabled();
   });
@@ -430,7 +435,7 @@ describe('RulesPage, a category that cannot be deleted', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Kategorie löschen: Lebensmittel/ }));
 
-    expect(await screen.findByText('Netzwerkfehler')).toBeInTheDocument();
+    expect(await screen.findByText(/Netzwerkfehler/)).toBeInTheDocument();
     expect(screen.queryByText(/Wird noch verwendet/)).not.toBeInTheDocument();
   });
 
@@ -447,5 +452,64 @@ describe('RulesPage, a category that cannot be deleted', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Wird noch verwendet/)).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('RulesPage, in English', () => {
+  it('switches its words without a reload', async () => {
+    applied.mockResolvedValue({ evaluated: 412, assigned: 318, cleared: 4, locked: 11 });
+    render(page());
+    await screen.findByRole('button', { name: 'Regeln anwenden' });
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply rules' }));
+    expect(
+      await screen.findByText('412 checked · 318 assigned · 4 cleared · 11 set by hand'),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('RulesPage, a message already on screen when the language changes', () => {
+  it('rewords the refusal, the snackbar and the page alert rather than leaving them German', async () => {
+    removedCategory.mockImplementation((id) =>
+      id === 'cat-wohnen'
+        ? Promise.reject(
+            new ApiError('CATEGORY_IN_USE', [], { rules: 2, transactions: 47, budgets: 3 }),
+          )
+        : Promise.resolve(),
+    );
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    await screen.findByText('Wird noch verwendet: 2 Regeln, 47 Umsätze, 3 Budgets.');
+    fireEvent.click(screen.getByRole('button', { name: /Kategorie löschen: Lebensmittel/ }));
+    await screen.findByText('„Lebensmittel“ gelöscht');
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    expect(await screen.findByText('"Lebensmittel" deleted')).toBeInTheDocument();
+    expect(screen.queryByText('„Lebensmittel“ gelöscht')).not.toBeInTheDocument();
+  });
+
+  it('words a coded refusal the UI knows, in the current language', async () => {
+    removedCategory.mockRejectedValue(new ApiError('FORBIDDEN_ORIGIN'));
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: /Kategorie löschen: Wohnen/ }));
+    expect(
+      await screen.findByText('Anfrage abgelehnt: sie kam nicht von dieser Seite.'),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+    expect(
+      await screen.findByText('Request refused: it did not come from this page.'),
+    ).toBeInTheDocument();
   });
 });

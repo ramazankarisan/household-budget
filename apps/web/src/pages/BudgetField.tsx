@@ -1,10 +1,11 @@
-import { parseBudgetInput, parseGermanAmount } from '@household-budget/core';
+import { type BudgetInputError, parseBudgetInput, parseGermanAmount } from '@household-budget/core';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { budgetsText, describeBudgetError } from '../i18n/budgets';
+import { describeBudgetError } from '../locales/sentences';
 
 interface BudgetFieldProps {
   /** The limit as stored, or `null` when this month has none for the category. */
@@ -58,9 +59,13 @@ export function BudgetField({
   onSave,
   onClear,
 }: BudgetFieldProps) {
-  const text = budgetsText();
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(() => draftOf(budgetCents));
-  const [error, setError] = useState<string | undefined>(undefined);
+  // What was refused, not its sentence: worded at render, so it follows a language switch.
+  // `refusal` is `undefined` when core reported no error to name — the field is still marked.
+  const [error, setError] = useState<
+    { readonly refusal: BudgetInputError | undefined } | undefined
+  >(undefined);
   const input = useRef<HTMLInputElement>(null);
 
   /**
@@ -71,7 +76,7 @@ export function BudgetField({
   function evaluate():
     | { readonly kind: 'clear' }
     | { readonly kind: 'save'; readonly amountCents: number }
-    | { readonly kind: 'refused'; readonly message: string } {
+    | { readonly kind: 'refused'; readonly refusal: BudgetInputError | undefined } {
     const trimmed = draft.trim();
     if (trimmed === '') {
       return { kind: 'clear' };
@@ -86,10 +91,7 @@ export function BudgetField({
     }
     const refusal =
       parsed.errors.find((entry) => entry.field === 'amountCents') ?? parsed.errors[0];
-    return {
-      kind: 'refused',
-      message: refusal === undefined ? '' : describeBudgetError(refusal),
-    };
+    return { kind: 'refused', refusal };
   }
 
   function commit(): void {
@@ -97,7 +99,7 @@ export function BudgetField({
 
     switch (outcome.kind) {
       case 'refused':
-        setError(outcome.message);
+        setError({ refusal: outcome.refusal });
         return;
       case 'clear':
         setError(undefined);
@@ -119,10 +121,10 @@ export function BudgetField({
     <TextField
       size="small"
       value={draft}
-      placeholder={text.setBudget}
+      placeholder={t('budgets.setBudget')}
       disabled={disabled}
       error={error !== undefined}
-      helperText={error}
+      helperText={error?.refusal === undefined ? undefined : describeBudgetError(t, error.refusal)}
       inputRef={input}
       onChange={(event) => {
         setDraft(event.target.value);
@@ -135,7 +137,7 @@ export function BudgetField({
           event.preventDefault();
           const outcome = evaluate();
           if (outcome.kind === 'refused') {
-            setError(outcome.message);
+            setError({ refusal: outcome.refusal });
           } else {
             // The blur commits. Committing here as well would write the cell twice.
             input.current?.blur();
@@ -147,7 +149,7 @@ export function BudgetField({
       }}
       slotProps={{
         htmlInput: {
-          'aria-label': `${text.columns.budget} ${categoryName}`,
+          'aria-label': `${t('budgets.columns.budget')} ${categoryName}`,
           inputMode: 'decimal',
           style: { textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
         },
@@ -157,7 +159,7 @@ export function BudgetField({
               <InputAdornment position="end">
                 <IconButton
                   size="small"
-                  aria-label={`${text.clearBudget}: ${categoryName}`}
+                  aria-label={`${t('budgets.clearBudget')}: ${categoryName}`}
                   disabled={disabled}
                   // Keeps focus in the input: a blur would commit whatever is typed
                   // before the clear it is about to be replaced by.

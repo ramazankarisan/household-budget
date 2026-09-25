@@ -1,9 +1,10 @@
 import { type AccountPayload, type TransactionPayload } from '@household-budget/core';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listTransactions } from '../api/client';
+import i18n from '../locales/i18n';
 import { AccountPage } from './AccountPage';
 
 const ACCOUNTS: AccountPayload[] = [
@@ -182,7 +183,9 @@ describe('AccountPage, setting a category by hand', () => {
     });
     writes[0]?.reject(new Error('Kategorie nicht gefunden'));
 
-    expect(await screen.findByText('Kategorie nicht gefunden')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Anfrage fehlgeschlagen: Kategorie nicht gefunden'),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(categorySelect()).not.toHaveAttribute('aria-disabled', 'true');
     });
@@ -335,5 +338,19 @@ describe('AccountPage, filtering', () => {
     expect(screen.getByRole('combobox', { name: 'Kategorie filtern' })).toHaveTextContent(
       'Ohne Kategorie',
     );
+  });
+});
+
+describe('AccountPage, in English', () => {
+  it('switches its words without a reload', async () => {
+    await withRows([row('t-1', 'Müller GmbH')]);
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    expect(await screen.findByRole('combobox', { name: 'Month' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Import CSV' })).toBeInTheDocument();
   });
 });

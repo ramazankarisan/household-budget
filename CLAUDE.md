@@ -64,6 +64,9 @@ Each is deliberate; the link is the reason. Do not undo one without reading it.
 - `monthlyReport` (core) counts money out only, keeps booked and vorgemerkt apart, and gives
   every category a row; the uncategorized bucket is `null` and never has a limit.
   [research 04 §4](docs/research/04-monthly-budgets.md)
+- UI text lives in `apps/web/src/locales/{de,en}.ts` and nowhere else; `en` is typed against
+  `de`, so a missing translation fails typecheck. Amounts and dates are `de-DE` in both
+  languages. [plan 07](docs/plans/07-language-and-theme-switch.md)
 
 ## HOW
 

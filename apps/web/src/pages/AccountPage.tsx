@@ -4,6 +4,7 @@ import {
   type TransactionPayload,
 } from '@household-budget/core';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -14,6 +15,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
 import {
@@ -33,14 +35,15 @@ import {
   type TransactionFilterState,
   uncategorizedCount,
 } from '../filter';
-import { transactionsText } from '../i18n/transactions';
+import { describeFailure } from '../locales/sentences';
 import { AccountSelect } from './AccountSelect';
+import { AppHeader } from './AppHeader';
 import { ImportPanel } from './ImportPanel';
-import { Nav } from './Nav';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionList } from './TransactionList';
 
 export function AccountPage() {
+  const { t } = useTranslation();
   // Read once, on mount: another page may have sent the user here already narrowed. A
   // later change of filter is the user's, and must not be overridden by where they came
   // from.
@@ -56,10 +59,12 @@ export function AccountPage() {
       ? NO_FILTERS
       : { ...NO_FILTERS, month: entry.month, categoryId: entry.categoryId },
   );
-  const [error, setError] = useState<string | undefined>(undefined);
+  // The cause, not its sentence: worded at render by `describeFailure`, so an alert already
+  // on screen follows a language switch rather than staying in the old language.
+  const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
 
   const fail = useCallback((cause: unknown) => {
-    setError(cause instanceof Error ? cause.message : String(cause));
+    setError({ cause });
   }, []);
 
   useEffect(() => {
@@ -199,18 +204,12 @@ export function AccountPage() {
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Stack spacing={3}>
-        <Stack
-          direction="row"
-          spacing={2}
-          sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
-        >
-          <Stack direction="row" spacing={3} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <Typography variant="h4" component="h1">
-              Household Budget
-            </Typography>
-            <Nav />
-          </Stack>
-          {accounts !== undefined && accounts.length > 0 && (
+        <AppHeader />
+
+        {/* A row of its own under the shared header; the Box keeps the select at its own
+            width instead of stretching across the column. */}
+        {accounts !== undefined && accounts.length > 0 && (
+          <Box>
             <AccountSelect
               accounts={accounts}
               value={accountId}
@@ -226,10 +225,10 @@ export function AccountPage() {
                 setAccountId(nextAccountId);
               }}
             />
-          )}
-        </Stack>
+          </Box>
+        )}
 
-        {error !== undefined && <Alert severity="error">{error}</Alert>}
+        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
         {accounts === undefined && <CircularProgress size={24} />}
 
@@ -240,7 +239,7 @@ export function AccountPage() {
             <CardContent>
               <Stack spacing={3}>
                 <Typography variant="h6" component="h2">
-                  CSV importieren
+                  {t('common.import.title')}
                 </Typography>
                 <ImportPanel accountId={accountId} onImported={refreshTransactions} />
                 <Divider />
@@ -258,7 +257,7 @@ export function AccountPage() {
                   categories={categories}
                   onCategoryChange={changeCategory}
                   savingIds={savingIds}
-                  emptyMessage={filtering ? transactionsText().noMatches : undefined}
+                  emptyMessage={filtering ? t('transactions.noMatches') : undefined}
                   onResetFilters={
                     filtering
                       ? () => {
@@ -283,6 +282,7 @@ interface NewAccountFormProps {
 
 /** Shown only when there is no account yet: an import has to land somewhere. */
 function NewAccountForm({ onCreate, onError }: NewAccountFormProps) {
+  const { t } = useTranslation();
   const [iban, setIban] = useState('');
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -304,14 +304,13 @@ function NewAccountForm({ onCreate, onError }: NewAccountFormProps) {
           }}
         >
           <Typography variant="h6" component="h2">
-            Konto anlegen
+            {t('common.account.create')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Ein Import gehört immer zu einem Konto, das Sie vorher auswählen — nie zu einem, das aus
-            der Datei erraten wurde.
+            {t('common.account.createHint')}
           </Typography>
           <TextField
-            label="IBAN"
+            label={t('common.account.iban')}
             value={iban}
             required
             onChange={(event) => {
@@ -319,7 +318,7 @@ function NewAccountForm({ onCreate, onError }: NewAccountFormProps) {
             }}
           />
           <TextField
-            label="Bezeichnung"
+            label={t('common.account.name')}
             value={name}
             required
             onChange={(event) => {
@@ -327,7 +326,7 @@ function NewAccountForm({ onCreate, onError }: NewAccountFormProps) {
             }}
           />
           <Button type="submit" variant="contained" disabled={saving} sx={{ alignSelf: 'start' }}>
-            Anlegen
+            {t('common.account.submit')}
           </Button>
         </Stack>
       </CardContent>

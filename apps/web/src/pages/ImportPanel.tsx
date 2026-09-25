@@ -7,9 +7,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { ApiError, uploadImport } from '../api/client';
-import { describeFileError, describeRowError } from '../i18n/importErrors';
+import { uploadImport } from '../api/client';
+import { describeImportFailure, describeRowError } from '../locales/sentences';
 
 interface ImportPanelProps {
   readonly accountId: string;
@@ -20,17 +21,11 @@ type PanelState =
   | { readonly status: 'idle' }
   | { readonly status: 'uploading' }
   | { readonly status: 'done'; readonly summary: ImportSummary }
-  | { readonly status: 'error'; readonly message: string };
-
-/** A rejected file states a code; the wording for it lives in `src/i18n`. */
-function describeFailure(error: unknown): string {
-  if (error instanceof ApiError) {
-    return describeFileError(error.code, error.columns);
-  }
-  return error instanceof Error ? error.message : String(error);
-}
+  // The cause, not its sentence: worded at render, so it follows a language switch.
+  | { readonly status: 'error'; readonly cause: unknown };
 
 export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
+  const { t } = useTranslation();
   const [state, setState] = useState<PanelState>({ status: 'idle' });
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +45,7 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
         onImported();
       })
       .catch((error: unknown) => {
-        setState({ status: 'error', message: describeFailure(error) });
+        setState({ status: 'error', cause: error });
       });
   }
 
@@ -84,19 +79,17 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
         {uploading ? (
           <Stack direction="row" spacing={2} sx={{ justifyContent: 'center' }}>
             <CircularProgress size={20} />
-            <Typography>Import läuft…</Typography>
+            <Typography>{t('common.import.uploading')}</Typography>
           </Stack>
         ) : (
-          <Typography color="text.secondary">
-            Sparkasse-Export hierher ziehen oder klicken zum Auswählen
-          </Typography>
+          <Typography color="text.secondary">{t('common.import.dropHint')}</Typography>
         )}
         <input
           id={inputId}
           ref={inputRef}
           type="file"
           accept=".csv,text/csv,application/vnd.ms-excel"
-          aria-label="CSV-Datei auswählen"
+          aria-label={t('common.import.chooseFile')}
           hidden
           disabled={uploading}
           onChange={(event) => {
@@ -109,8 +102,8 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
 
       {state.status === 'error' && (
         <Alert severity="error">
-          <AlertTitle>Import fehlgeschlagen</AlertTitle>
-          {state.message}
+          <AlertTitle>{t('common.import.failed')}</AlertTitle>
+          {describeImportFailure(t, state.cause)}
         </Alert>
       )}
 
@@ -120,6 +113,7 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
 }
 
 export function ImportResult({ summary }: { readonly summary: ImportSummary }) {
+  const { t } = useTranslation();
   // `failed` is capped by the API; `failedCount` is how many rows really failed.
   const failed = summary.failed;
   const notListed = summary.failedCount - failed.length;
@@ -134,8 +128,12 @@ export function ImportResult({ summary }: { readonly summary: ImportSummary }) {
           sx={{ flexWrap: 'wrap', alignItems: 'center' }}
         >
           <Typography variant="body2">
-            {summary.imported} importiert · {summary.skipped} Duplikate übersprungen ·{' '}
-            {summary.restored} wiederhergestellt · {summary.failedCount} fehlerhaft
+            {t('common.import.summary', {
+              imported: summary.imported,
+              skipped: summary.skipped,
+              restored: summary.restored,
+              failed: summary.failedCount,
+            })}
           </Typography>
           {/* A surprise utf-8 here means the bank changed its export format. */}
           <Chip label={summary.encoding} size="small" variant="outlined" />
@@ -143,24 +141,24 @@ export function ImportResult({ summary }: { readonly summary: ImportSummary }) {
       </Alert>
 
       {summary.duplicateOfBatchId !== undefined && (
-        <Alert severity="info">Diese Datei wurde bereits einmal hochgeladen.</Alert>
+        <Alert severity="info">{t('common.import.alreadyUploaded')}</Alert>
       )}
 
       {failed.length > 0 && (
         // Listed, not hidden behind a toggle: a row that did not import is the one
         // thing the user has to see.
         <Alert severity="warning" variant="outlined">
-          <AlertTitle>Nicht importierte Zeilen</AlertTitle>
+          <AlertTitle>{t('common.import.notImported')}</AlertTitle>
           <Stack component="ul" spacing={0.5} sx={{ pl: 2, m: 0 }}>
             {failed.map((error) => (
               <Typography component="li" variant="body2" key={`${error.code}-${error.line}`}>
-                {describeRowError(error)}
+                {describeRowError(t, error)}
               </Typography>
             ))}
           </Stack>
           {notListed > 0 && (
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              … und {notListed} weitere
+              {t('common.import.notListed', { notListed })}
             </Typography>
           )}
         </Alert>

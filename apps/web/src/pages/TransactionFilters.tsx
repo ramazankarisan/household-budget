@@ -6,10 +6,12 @@ import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import { useTranslation } from 'react-i18next';
 
 import { type TransactionFilterState, UNCATEGORIZED } from '../filter';
 import { formatMonth } from '../format';
-import { describeUncategorized, transactionsText } from '../i18n/transactions';
+import { toLocale } from '../locales/messages';
+import { describeUncategorized } from '../locales/sentences';
 
 interface TransactionFiltersProps {
   readonly filters: TransactionFilterState;
@@ -35,7 +37,8 @@ export function TransactionFilters({
   uncategorized,
   onChange,
 }: TransactionFiltersProps) {
-  const text = transactionsText();
+  const { t, i18n } = useTranslation();
+  const locale = toLocale(i18n.resolvedLanguage);
 
   return (
     <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
@@ -52,17 +55,17 @@ export function TransactionFilters({
       <TextField
         select
         size="small"
-        slotProps={{ select: { 'aria-label': text.month, displayEmpty: true } }}
+        slotProps={{ select: { 'aria-label': t('transactions.month'), displayEmpty: true } }}
         value={filters.month}
         onChange={(event) => {
           onChange({ ...filters, month: event.target.value });
         }}
         sx={{ minWidth: 180 }}
       >
-        <MenuItem value="">{text.allMonths}</MenuItem>
+        <MenuItem value="">{t('transactions.allMonths')}</MenuItem>
         {months.map((month) => (
           <MenuItem key={month} value={month}>
-            {formatMonth(month)}
+            {formatMonth(month, locale)}
           </MenuItem>
         ))}
       </TextField>
@@ -70,15 +73,17 @@ export function TransactionFilters({
       <TextField
         select
         size="small"
-        slotProps={{ select: { 'aria-label': text.filterCategory, displayEmpty: true } }}
+        slotProps={{
+          select: { 'aria-label': t('transactions.filterCategory'), displayEmpty: true },
+        }}
         value={filters.categoryId}
         onChange={(event) => {
           onChange({ ...filters, categoryId: event.target.value });
         }}
         sx={{ minWidth: 200 }}
       >
-        <MenuItem value="">{text.allCategories}</MenuItem>
-        <MenuItem value={UNCATEGORIZED}>{text.uncategorized}</MenuItem>
+        <MenuItem value="">{t('transactions.allCategories')}</MenuItem>
+        <MenuItem value={UNCATEGORIZED}>{t('common.uncategorized')}</MenuItem>
         {categories.map((category) => (
           <MenuItem key={category.id} value={category.id}>
             {category.name}
@@ -96,14 +101,14 @@ export function TransactionFilters({
           onChange({ ...filters, search: event.target.value });
         }}
         slotProps={{
-          htmlInput: { 'aria-label': text.search },
+          htmlInput: { 'aria-label': t('transactions.search') },
           input: {
             endAdornment:
               filters.search === '' ? undefined : (
                 <InputAdornment position="end">
                   <IconButton
                     size="small"
-                    aria-label={text.clearSearch}
+                    aria-label={t('transactions.clearSearch')}
                     onClick={() => {
                       onChange({ ...filters, search: '' });
                     }}
@@ -114,7 +119,7 @@ export function TransactionFilters({
               ),
           },
         }}
-        placeholder={text.search}
+        placeholder={t('transactions.search')}
         sx={{ minWidth: 220 }}
       />
 
@@ -124,12 +129,12 @@ export function TransactionFilters({
       {uncategorized > 0 ? (
         <Chip
           color="warning"
-          label={describeUncategorized(uncategorized)}
+          label={describeUncategorized(t, uncategorized)}
           // The count and what clicking does, in that order. `aria-label` replaces the
           // visible label in the accessible name rather than adding to it, so naming this
           // only after its action would leave a screen reader with everything about the
           // chip except the one number it exists to report.
-          aria-label={`${describeUncategorized(uncategorized)} · ${text.showUncategorized}`}
+          aria-label={`${describeUncategorized(t, uncategorized)} · ${t('transactions.showUncategorized')}`}
           onClick={() => {
             onChange({ ...filters, categoryId: UNCATEGORIZED });
           }}
@@ -137,7 +142,7 @@ export function TransactionFilters({
       ) : (
         // Inert below zero: there is nothing left to open, and a control that does
         // nothing is worse than none.
-        <Chip variant="outlined" label={describeUncategorized(0)} />
+        <Chip variant="outlined" label={describeUncategorized(t, 0)} />
       )}
     </Stack>
   );

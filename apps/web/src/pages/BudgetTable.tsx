@@ -12,10 +12,10 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import { useTranslation } from 'react-i18next';
 
 import { formatAmount } from '../format';
-import { budgetsText, describeRemaining } from '../i18n/budgets';
-import { transactionsText } from '../i18n/transactions';
+import { describeRemaining } from '../locales/sentences';
 import { BudgetField } from './BudgetField';
 
 interface BudgetTableProps {
@@ -62,7 +62,7 @@ export function BudgetTable({
   onShowUncategorized,
   limitsLoading = false,
 }: BudgetTableProps) {
-  const text = budgetsText();
+  const { t } = useTranslation();
   const names = new Map(categories.map((category) => [category.id, category.name]));
 
   return (
@@ -70,11 +70,11 @@ export function BudgetTable({
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>{text.columns.category}</TableCell>
-            <TableCell align="right">{text.columns.booked}</TableCell>
-            <TableCell align="right">{text.columns.pending}</TableCell>
-            <TableCell align="right">{text.columns.budget}</TableCell>
-            <TableCell align="right">{text.columns.remaining}</TableCell>
+            <TableCell>{t('budgets.columns.category')}</TableCell>
+            <TableCell align="right">{t('budgets.columns.booked')}</TableCell>
+            <TableCell align="right">{t('budgets.columns.pending')}</TableCell>
+            <TableCell align="right">{t('budgets.columns.budget')}</TableCell>
+            <TableCell align="right">{t('budgets.columns.remaining')}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -108,7 +108,7 @@ export function BudgetTable({
 
 /** A dash for nothing vorgemerkt; otherwise the amount with the list's ⏳ marker. */
 function PendingCell({ cents }: { readonly cents: number }) {
-  const text = budgetsText();
+  const { t } = useTranslation();
 
   return (
     <TableCell align="right" sx={AMOUNT}>
@@ -119,8 +119,8 @@ function PendingCell({ cents }: { readonly cents: number }) {
           {formatAmount(cents)}
           <Box
             component="span"
-            aria-label={text.pendingHint}
-            title={text.pendingHint}
+            aria-label={t('common.pending')}
+            title={t('common.pending')}
             sx={{ ml: 1 }}
           >
             ⏳
@@ -145,11 +145,15 @@ interface CategoryRowProps {
 
 /** `…` in a cell whose number depends on limits not loaded yet. */
 function LoadingCell() {
-  const text = budgetsText();
+  const { t } = useTranslation();
 
   return (
     <TableCell align="right" sx={{ ...AMOUNT, color: 'text.secondary' }}>
-      <Box component="span" aria-label={text.loadingLimits} title={text.loadingLimits}>
+      <Box
+        component="span"
+        aria-label={t('budgets.loadingLimits')}
+        title={t('budgets.loadingLimits')}
+      >
         …
       </Box>
     </TableCell>
@@ -167,7 +171,8 @@ function CategoryRow({
   onSave,
   onClear,
 }: CategoryRowProps) {
-  const remaining = describeRemaining(entry.remainingCents);
+  const { t } = useTranslation();
+  const remaining = describeRemaining(t, entry.remainingCents);
 
   if (limitsLoading) {
     return (
@@ -243,18 +248,18 @@ interface UncategorizedRowProps {
  * the rows have a category — so instead of a field it has the way to go and give them one.
  */
 function UncategorizedRow({ entry, onShowUncategorized }: UncategorizedRowProps) {
-  const text = budgetsText();
+  const { t } = useTranslation();
 
   return (
     <TableRow hover>
       <TableCell>
         <Button
           size="small"
-          title={text.showUncategorized}
+          title={t('budgets.showUncategorized')}
           onClick={onShowUncategorized}
           sx={{ ml: -1, textTransform: 'none' }}
         >
-          {transactionsText().uncategorized}
+          {t('common.uncategorized')}
         </Button>
       </TableCell>
       <TableCell align="right" sx={AMOUNT}>

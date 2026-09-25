@@ -3,8 +3,7 @@ import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-
-import { rulesText } from '../i18n/rules';
+import { useTranslation } from 'react-i18next';
 
 interface CategoryCellProps {
   readonly transaction: TransactionPayload;
@@ -30,7 +29,7 @@ interface CategoryCellProps {
  * A rule still categorizes both; that assignment is re-derived on every apply.
  */
 export function CategoryCell({ transaction, categories, onChange, disabled }: CategoryCellProps) {
-  const text = rulesText();
+  const { t } = useTranslation();
   const locked = transaction.categoryLockedAt !== null;
   const current = categories.find((category) => category.id === transaction.categoryId);
   const pending = transaction.status === 'pending';
@@ -41,11 +40,11 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
         <Typography
           variant="body2"
-          title={pending ? text.pendingHint : (current?.name ?? text.uncategorized)}
+          title={pending ? t('rules.pendingHint') : (current?.name ?? t('common.uncategorized'))}
           color={current === undefined ? 'text.disabled' : 'text.primary'}
           sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
-          {current?.name ?? text.uncategorized}
+          {current?.name ?? t('common.uncategorized')}
         </Typography>
       </Box>
     );
@@ -55,7 +54,7 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
     // minWidth 0 on the flex child: without it the select refuses to shrink below its
     // longest option and widens the fixed column it is supposed to fit inside.
     <Box
-      title={current?.name ?? text.uncategorized}
+      title={current?.name ?? t('common.uncategorized')}
       sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}
     >
       <TextField
@@ -68,7 +67,7 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
         slotProps={{
           // displayEmpty: without it MUI renders an empty cell for an uncategorized row,
           // which reads as "nothing here" rather than "nothing chosen yet".
-          select: { 'aria-label': text.category, displayEmpty: true },
+          select: { 'aria-label': t('rules.category'), displayEmpty: true },
           input: { disableUnderline: true },
         }}
         // Empty string, not null: MUI reads `null` as uncontrolled and warns. A category
@@ -101,7 +100,7 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
               categories arrive — "Kategorie entfernen" would be shown as though that were
               the row's current category.
             */}
-            {current === undefined ? text.uncategorized : text.clearCategory}
+            {current === undefined ? t('common.uncategorized') : t('rules.clearCategory')}
           </Box>
         </MenuItem>
         {categories.map((category) => (
@@ -119,8 +118,8 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
         component="span"
         data-testid="lock-slot"
         aria-hidden={locked ? undefined : true}
-        aria-label={locked ? text.lockedHint : undefined}
-        title={locked ? text.lockedHint : undefined}
+        aria-label={locked ? t('rules.lockedHint') : undefined}
+        title={locked ? t('rules.lockedHint') : undefined}
         sx={{ width: '1rem', flexShrink: 0, fontSize: '0.75rem', lineHeight: 1 }}
       >
         {locked ? '🔒' : null}

@@ -3,11 +3,12 @@ import {
   type BudgetPayload,
   type TransactionPayload,
 } from '@household-budget/core';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listBudgets, listTransactions } from '../api/client';
+import i18n from '../locales/i18n';
 import { BudgetsPage } from './BudgetsPage';
 
 const ACCOUNTS: AccountPayload[] = [
@@ -413,5 +414,25 @@ describe('BudgetsPage', () => {
 
     expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
     expect(listBudgets).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('BudgetsPage, in English', () => {
+  it('switches its words and month names without a reload, keeping amounts German', async () => {
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    expect(await screen.findByRole('columnheader', { name: 'Remaining' })).toBeInTheDocument();
+    expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € over');
+    expect(plain(screen.getByText(/of 700,00 €/).textContent)).toBe(
+      '2.385,74 € of 700,00 € · 1.685,74 € over · 19,00 € pending',
+    );
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Month' }));
+    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    expect(options).toEqual(['September 2025', 'March 2014']);
   });
 });
