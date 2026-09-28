@@ -87,7 +87,7 @@ const GIRO_ROWS = [
   row({ bookingDate: '2014-03-24', amountCents: -114341 }),
 ];
 
-/** Where a link to the list lands, and with which search. */
+/** Where a link to Sortieren lands, and with which search. */
 function ListProbe() {
   const location = useLocation();
   return <output aria-label="list search">{location.search}</output>;
@@ -98,7 +98,7 @@ const app = (entry = '/') => (
     <HouseholdProvider>
       <Routes>
         <Route path="/" element={<OverviewPage />} />
-        <Route path="/transactions" element={<ListProbe />} />
+        <Route path="/inbox" element={<ListProbe />} />
       </Routes>
     </HouseholdProvider>
   </MemoryRouter>
@@ -339,7 +339,7 @@ describe('OverviewPage', () => {
     expect(screen.getByRole('textbox', { name: 'Budget Lebensmittel' })).toHaveValue('45');
   });
 
-  it('leads „Ohne Kategorie“ to the account holding this month’s rows', async () => {
+  it('leads „Ohne Kategorie“ to Sortieren, on this month', async () => {
     await withGiro();
 
     const uncategorized = rowOf('Ohne Kategorie');
@@ -347,30 +347,7 @@ describe('OverviewPage', () => {
     fireEvent.click(within(uncategorized).getByRole('link', { name: 'Anzeigen' }));
 
     const search = await screen.findByRole('status', { name: 'list search' });
-    expect(search).toHaveTextContent('?m=2025-09&c=uncategorized&a=acc-1');
-  });
-
-  it('skips an account with nothing uncategorized that month', async () => {
-    // Giro's uncategorized spending is all in March 2014; September's is on Tagesgeld.
-    render(app());
-    await answerAccounts(
-      [
-        row({ amountCents: -87507, categoryId: 'cat-wohnen' }),
-        row({ bookingDate: '2014-03-24', amountCents: -114341 }),
-      ],
-      [row({ amountCents: -4217 })],
-    );
-    await waitFor(() => {
-      expect(budgetLoads.has('2025-09')).toBe(true);
-    });
-    budgetLoads.get('2025-09')?.([]);
-
-    await waitFor(() => {
-      expect(rowOf('Ohne Kategorie')).toBeDefined();
-    });
-    fireEvent.click(within(rowOf('Ohne Kategorie')).getByRole('link', { name: 'Anzeigen' }));
-
-    expect(await screen.findByRole('status', { name: 'list search' })).toHaveTextContent('a=acc-2');
+    expect(search).toHaveTextContent('?m=2025-09');
   });
 
   it('counts what is left to sort, the same way everywhere', async () => {

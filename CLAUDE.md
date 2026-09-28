@@ -27,7 +27,8 @@ responses and the UI that renders them.
 Status: import → categorize → report works end to end. Every page sits in one app shell
 ([DESIGN.md](DESIGN.md)); the month is `?m=` in the URL. `/` (Überblick) answers the month —
 spending against limits per category, what is still unsorted, a six-month trend;
-`/transactions` is the list, narrowed by category and free text. All pages read one
+`/transactions` is the list, narrowed by category and free text; `/inbox` (Sortieren) sorts
+the uncategorized rows one at a time and proposes the rule that would have. All pages read one
 household copy of the data (`apps/web/src/household/`).
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it

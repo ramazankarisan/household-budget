@@ -69,6 +69,31 @@ describe('RuleService', () => {
     });
   });
 
+  it('appends a rule created without a priority after every rule there is', async () => {
+    const wohnen = await categories.create('Wohnen');
+    const base = { field: 'counterpartyName', operator: 'contains', categoryId: wohnen.id };
+    await rules.create({ ...base, value: 'a', priority: 10 });
+    await rules.create({ ...base, value: 'b', priority: 30 });
+
+    const appended = await rules.create({ ...base, value: 'c' });
+
+    expect(appended.priority).toBe(40);
+    expect((await rules.list()).map((rule) => rule.value)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('gives the very first rule the default priority', async () => {
+    const wohnen = await categories.create('Wohnen');
+
+    const first = await rules.create({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'a',
+      categoryId: wohnen.id,
+    });
+
+    expect(first.priority).toBe(100);
+  });
+
   it('rejects an empty keyword with the code the form marks a field by', async () => {
     const wohnen = await categories.create('Wohnen');
 

@@ -72,7 +72,7 @@ test.describe.serial('monthly budgets', () => {
     await expect(page.getByRole('img', { name: /^Wohnen: .*von 700,00\s€/u })).toBeVisible();
   });
 
-  test('„Ohne Kategorie“ opens exactly the rows it summed', async ({ page }) => {
+  test('„Ohne Kategorie“ leads to Sortieren, on the same month', async ({ page }) => {
     await page.getByRole('link', { name: 'Überblick' }).click();
 
     await page
@@ -82,12 +82,12 @@ test.describe.serial('monthly budgets', () => {
       .getByRole('link', { name: 'Anzeigen' })
       .click();
 
-    await expect(page).toHaveURL(/\/transactions\?m=2025-09&c=uncategorized&a=/u);
+    await expect(page).toHaveURL(/\/inbox\?m=2025-09$/u);
+    await expect(page.getByRole('heading', { level: 1, name: 'Sortieren' })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Monat wählen/u })).toHaveText('September 2025');
-    await expect(page.getByRole('cell', { name: 'Hausverwaltung Süd GmbH' })).toBeVisible();
-    // Another month, and a categorized row of this one: neither is in the bucket.
-    await expect(page.getByRole('cell', { name: 'Versicherung Nord AG' })).toHaveCount(0);
-    await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toHaveCount(0);
+    // March 2014's stray row is another month: never the one on screen here.
+    await expect(page.getByRole('article')).toBeVisible();
+    await expect(page.getByRole('article', { name: 'Versicherung Nord AG' })).toHaveCount(0);
   });
 });
 

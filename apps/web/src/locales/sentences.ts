@@ -190,6 +190,31 @@ export function describeBudgetBar(
   });
 }
 
+/**
+ * What a proposed rule would reach: `trifft 5 · 4 ohne Kategorie · 1 von Hand gesetzt,
+ * bleiben`. The last two parts only when they are not zero — a clause about nothing is noise.
+ */
+export function describeRulePreview(
+  t: TFunction,
+  preview: {
+    readonly matches: number;
+    readonly uncategorized: number;
+    readonly locked: number;
+    readonly claimedEarlier: number;
+  },
+): string {
+  const parts = [
+    t('inbox.preview', { matches: preview.matches, uncategorized: preview.uncategorized }),
+  ];
+  if (preview.locked > 0) {
+    parts.push(t('inbox.previewLocked', { count: preview.locked }));
+  }
+  if (preview.claimedEarlier > 0) {
+    parts.push(t('inbox.previewClaimed', { count: preview.claimedEarlier }));
+  }
+  return parts.join(' · ');
+}
+
 export interface MonthTotalOptions {
   /**
    * The month's limits have not arrived yet. The spending is known — the rows are already

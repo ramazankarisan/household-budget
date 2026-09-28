@@ -176,7 +176,8 @@ export function listRules(signal?: AbortSignal): Promise<RulePayload[]> {
   return request<RulePayload[]>('/rules', signal === undefined ? {} : { signal });
 }
 
-export function createRule(input: RuleInput): Promise<RulePayload> {
+/** Without a `priority` the API appends the rule after every rule there is. */
+export function createRule(input: RuleInput | Omit<RuleInput, 'priority'>): Promise<RulePayload> {
   return request<RulePayload>('/rules', json('POST', input));
 }
 

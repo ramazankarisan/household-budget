@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 
 import { HouseholdProvider } from './household/HouseholdProvider';
 import { AccountPage } from './pages/AccountPage';
+import { InboxPage } from './pages/InboxPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { RulesPage } from './pages/RulesPage';
 import { AccountsList } from './shell/AccountsList';
@@ -25,6 +26,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/transactions" element={<AccountPage />} />
+            <Route path="/inbox" element={<InboxPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/budgets" element={<BudgetsRedirect />} />
           </Routes>

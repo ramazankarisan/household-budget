@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { clearBudget, listBudgets, setBudget } from '../api/client';
-import { monthOf, monthsOf, UNCATEGORIZED, uncategorizedRows } from '../filter';
+import { monthOf, monthsOf, uncategorizedRows } from '../filter';
 import { useHousehold } from '../household/context';
 import { describeFailure } from '../locales/sentences';
 import { TopBar } from '../shell/TopBar';
@@ -16,7 +16,6 @@ import { MONTH_PARAM, useMonth } from '../shell/useMonth';
 import { monthTotals, trailingMonths } from '../trend';
 import { DelayedSkeleton } from '../ui/DelayedSkeleton';
 import { EmptyState } from '../ui/EmptyState';
-import { ACCOUNT_PARAM, CATEGORY_PARAM } from './AccountPage';
 import { BudgetRows } from './overview/BudgetRows';
 import { Hero } from './overview/Hero';
 import { SortCallout, StatTiles, TopSpends } from './overview/SideCards';
@@ -63,7 +62,7 @@ const TOP_SPENDS = 4;
  */
 export function OverviewPage() {
   const { t } = useTranslation();
-  const { accounts, rowsByAccount, transactions, categories, error: loadError } = useHousehold();
+  const { transactions, categories, error: loadError } = useHousehold();
 
   /*
    * The limits per month, kept for as long as the page is. A month switch shows the
@@ -215,20 +214,8 @@ export function OverviewPage() {
   const unsortedTotal = uncategorizedRows(transactions ?? []).length;
   const unsortedMonth = uncategorizedRows(transactions ?? [], { month }).length;
 
-  /**
-   * Where „Ohne Kategorie“ leads. The list is one account at a time, so it opens on the
-   * first account holding this month's uncategorized rows — with one account, that one.
-   * The bucket can span several; the list's account picker is the way to the rest.
-   */
-  const holder =
-    accounts?.find(
-      (account) => uncategorizedRows(rowsByAccount.get(account.id) ?? [], { month }).length > 0,
-    ) ?? accounts?.[0];
-  const uncategorizedHref = `/transactions?${new URLSearchParams({
-    [MONTH_PARAM]: month,
-    [CATEGORY_PARAM]: UNCATEGORIZED,
-    ...(holder === undefined ? {} : { [ACCOUNT_PARAM]: holder.id }),
-  }).toString()}`;
+  // „Ohne Kategorie“ leads to the inbox, on this month: sorting them is what it is for.
+  const inboxHref = `/inbox?${new URLSearchParams({ [MONTH_PARAM]: month }).toString()}`;
 
   const empty = transactions?.length === 0;
 
@@ -288,7 +275,7 @@ export function OverviewPage() {
               onClear={(categoryId) => {
                 write(categoryId, () => clearBudget(month, categoryId).then(() => null));
               }}
-              uncategorizedHref={uncategorizedHref}
+              uncategorizedHref={inboxHref}
             />
           </Stack>
           <Stack spacing={2.5} sx={{ minWidth: 0 }}>
@@ -296,7 +283,7 @@ export function OverviewPage() {
               total={unsortedTotal}
               inMonth={unsortedMonth}
               month={month}
-              href={uncategorizedHref}
+              href={inboxHref}
             />
             <StatTiles
               incomeCents={incomeCents}

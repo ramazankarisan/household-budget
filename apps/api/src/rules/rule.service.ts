@@ -1,6 +1,7 @@
 import {
   ApplySummary,
   compareRules,
+  DEFAULT_RULE_PRIORITY,
   DeletedRulePayload,
   MatchableTransaction,
   matchingRule,
@@ -94,6 +95,18 @@ export function toCoreRule(row: RuleRow): CoreRule {
   };
 }
 
+/** The gap between two neighbouring rules, left so a rule can be put between them. */
+export const PRIORITY_STEP = 10;
+
+/** Whether the body names a priority at all — `undefined` is the same as leaving it out. */
+function hasPriority(body: unknown): boolean {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    (body as Record<string, unknown>)['priority'] !== undefined
+  );
+}
+
 /** `createdAt` exists to break a priority tie; the UI has no use for it. */
 function stripCreatedAt(rule: CoreRule): RulePayload {
   const { createdAt: _createdAt, ...payload } = rule;
@@ -132,13 +145,29 @@ export class RuleService {
     return rows.map(toCoreRule).sort(compareRules).map(stripCreatedAt);
   }
 
+  /**
+   * A body without a `priority` is appended: it goes after every rule there is. The UI no
+   * longer asks for a number — position is priority (plan 08, decision 8) — and the
+   * parser's default of 100 would put a new rule in the middle of a list renumbered
+   * 10, 20, 30 …, where it would win rows the user never saw it take.
+   */
   async create(body: unknown): Promise<RulePayload> {
     const input = this.parse(body);
     await this.categories.requireCategory(input.categoryId);
 
-    const created = await this.prisma.rule.create({ data: input });
-    this.logger.log(`create rule=${created.id} field=${created.field}`);
+    const priority = hasPriority(body) ? input.priority : await this.appendedPriority();
+    const created = await this.prisma.rule.create({ data: { ...input, priority } });
+    this.logger.log(
+      `create rule=${created.id} field=${created.field} priority=${String(created.priority)}`,
+    );
     return toPayload(created);
+  }
+
+  /** One step after the last rule, or the default for the first one. */
+  private async appendedPriority(): Promise<number> {
+    const last = await this.prisma.rule.aggregate({ _max: { priority: true } });
+    const max = last._max.priority;
+    return max === null ? DEFAULT_RULE_PRIORITY : max + PRIORITY_STEP;
   }
 
   async update(ruleId: string, body: unknown): Promise<RulePayload> {

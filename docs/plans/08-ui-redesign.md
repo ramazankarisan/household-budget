@@ -590,52 +590,52 @@ Dependencies: Phase 2.
 
 **Tasks**:
 
-- [ ] `inbox.ts` (decision 11) — `inboxRows(transactions, month)` = `uncategorizedRows`, newest
+- [x] `inbox.ts` (decision 11) — `inboxRows(transactions, month)` = `uncategorizedRows`, newest
       first (`'all'` → every month); `categoryHint(row, transactions)`;
       `proposeRule(row, categoryId)` → `RuleInput` without `priority`;
       `previewRule(input, transactions, rules)` →
       `{ matches, uncategorized, locked, claimedEarlier }` (`claimedEarlier` via
       `matchingRule(orderRules(rules), row)`).
-- [ ] `ui/CategoryMenu.tsx` — `Popover` with a search field, arrow keys, `Enter`, number keys for
+- [x] `ui/CategoryMenu.tsx` — `Popover` with a search field, arrow keys, `Enter`, number keys for
       the first nine, „Kategorie entfernen“ when set, „Neue Kategorie „…““ which creates and
       assigns. Built here, reused in phase 5.
-- [ ] `pages/InboxPage.tsx` — `usePageChrome({ title, months, monthDefault: 'all' })`; progress
+- [x] `pages/InboxPage.tsx` — `usePageChrome({ title, months, monthDefault: 'all' })`; progress
       („n von total“ for the session); `InboxCard` (date, account, counterparty, purpose in mono
       with the proposed term highlighted, amount in Newsreader); buttons for the first nine
       categories (`1`–`9`, hint marked „Vorschlag“), „Weitere…“ (`M`) opening `CategoryMenu`,
       „Neu“ (`N`), „Überspringen“ (`S`), `J`/`K`, `Z` undo last assign
       (`setTransactionCategory(id, null)` via `useCategorize`); queue on the right ≥ 1024 px,
       below otherwise; finished → `EmptyState` „Alles sortiert“ + link to Überblick.
-- [ ] `pages/inbox/RuleProposal.tsx` — after an assign: a sentence editor prefilled by
+- [x] `pages/inbox/RuleProposal.tsx` — after an assign: a sentence editor prefilled by
       `proposeRule`; live `previewRule` counts + three sample rows; „Regel anlegen und anwenden“
       (`R`) → `createRule` → `applyRules` → `reload()`; „Nur diesen Umsatz“ (`Enter`) / `Esc`
       dismiss; failures through `describeFailure`.
-- [ ] API: `RuleService.create` without `priority` → `max(priority) + 10`, or
+- [x] API: `RuleService.create` without `priority` → `max(priority) + 10`, or
       `DEFAULT_RULE_PRIORITY` when there are no rules (decision 8); the log line gains
       `priority=`.
-- [ ] Routes + nav: `/inbox`; nav Sortieren with the badge (moved from Umsätze); the Überblick
+- [x] Routes + nav: `/inbox`; nav Sortieren with the badge (moved from Umsätze); the Überblick
       callout and „Ohne Kategorie“ row now link to `/inbox?m=…`.
-- [ ] Locales: `common.nav.inbox`, `common.pages.inbox`, `inbox.*` (progress, suggestion, more,
+- [x] Locales: `common.nav.inbox`, `common.pages.inbox`, `inbox.*` (progress, suggestion, more,
       new, skip, undo, done, allDone, proposalTitle, proposalHint, createAndApply, onlyThis,
       matches, uncategorizedOf, lockedStay, claimedEarlier); `sentences.ts`
       `describeRulePreview`.
-- [ ] Tests: `inbox.test.ts` (pending excluded; hint tie → none; `MÜLLER GmbH` → `müller`;
+- [x] Tests: `inbox.test.ts` (pending excluded; hint tie → none; `MÜLLER GmbH` → `müller`;
       `PayPal Europe …` → `paypal`; `claimedEarlier` respects order); `ui/CategoryMenu.test.tsx`;
       `pages/InboxPage.test.tsx` (`2` assigns the second category; keys ignored while the value
       input has focus; `M` opens the menu; `Z` restores; `R` calls createRule then applyRules;
       last row → finished state); `rule.service.test.ts` (create without priority appends after
       priorities 10/20/30; an explicit priority is still honoured).
-- [ ] E2E: `inbox.spec.ts` — open Sortieren from the badge, assign with a number key, accept the
+- [x] E2E: `inbox.spec.ts` — open Sortieren from the badge, assign with a number key, accept the
       proposal, the badge drops by the proposal's uncategorized matches + 1; 390×844 layout.
-- [ ] Docs: `README.md` Sortieren paragraph; `CLAUDE.md` status; dated note in
+- [x] Docs: `README.md` Sortieren paragraph; `CLAUDE.md` status; dated note in
       `docs/plans/02-categorization-rules.md` (a rule created without priority is appended).
 
 **Automated Verification**:
 
-- [ ] `pnpm --filter @household-budget/web exec vitest run src/inbox.test.ts src/ui/CategoryMenu.test.tsx src/pages/InboxPage.test.tsx` passes
-- [ ] `pnpm --filter @household-budget/api exec vitest run src/rules/rule.service.test.ts` passes
-- [ ] `pnpm check` passes
-- [ ] `pnpm check:all` passes (including `inbox.spec.ts`)
+- [x] `pnpm --filter @household-budget/web exec vitest run src/inbox.test.ts src/ui/CategoryMenu.test.tsx src/pages/InboxPage.test.tsx` passes
+- [x] `pnpm --filter @household-budget/api exec vitest run src/rules/rule.service.test.ts` passes
+- [x] `pnpm check` passes
+- [x] `pnpm check:all` passes (including `inbox.spec.ts`)
 
 **Manual Verification**:
 
@@ -795,6 +795,13 @@ During implementation, document user feedback, problems, and decisions here.
 - Phase 2, Überblick puts the side column beside the rows only from 1360 px
   (`TWO_COLUMNS`): at 1280 px with the sidebar, the rows' fixed columns left the bar no
   width at all — Playwright found it hidden.
+- Phase 3, `Enter` is not bound to „Nur diesen Umsatz“: a focused button already answers
+  Enter, and a window-level binding would act twice. `Esc` dismisses the proposal and the
+  button shows it. `R` and `Esc` are bound by the proposal itself while it is on screen.
+- Phase 3, `RuleSentence` / `RuleSentenceEditor` were built here (the proposal needs the
+  editor) rather than in phase 4, which reuses them.
+- Phase 3, the Überblick „Ohne Kategorie“ row and card now lead to `/inbox?m=…`; the
+  account hand-off (`?a=`) is no longer needed there, since the inbox spans all accounts.
 - Phase 2, jsdom has no `ResizeObserver`; `src/test/setup.ts` stubs it so the self-sizing
   trend chart can mount in page tests.
 
