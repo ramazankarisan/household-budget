@@ -15,8 +15,9 @@ apps/api        NestJS 12 REST API. SQLite via Prisma 7 (driver adapter, no Rust
                 non-loopback Host/Origin (`src/security/loopback.ts`).
 apps/web        React 19 + Vite 8 + MUI 9 + react-router. Dev server on :5173,
                 proxies /api to :3000.
-fixtures/       Synthetic bank CSVs, byte-exact: CRLF, and Windows-1252 for the
-                primary one. .gitattributes and .editorconfig keep them that way.
+fixtures/       Synthetic bank CSVs, byte-exact as each bank ships them: Sparkasse CRLF
+                (Windows-1252 for the primary one), Deutsche Bank LF + UTF-8.
+                .gitattributes and .editorconfig keep them that way.
 ```
 
 Both apps depend on `@household-budget/core` as `workspace:*` and import its **built**
