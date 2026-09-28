@@ -9,10 +9,10 @@ import camt18BomCsv from '../../../../fixtures/sparkasse-camt-18-utf8-bom.csv?ra
 import camt18Csv from '../../../../fixtures/sparkasse-camt-18-utf8.csv?raw';
 
 import { CsvFileError, truncateErrorValue } from './errors.js';
-import { parseSparkasseCsv, type ParseSparkasseCsvContext } from './parse.js';
+import { parseSparkasseCsv, type ParseBankCsvContext } from './parse.js';
 import type { Transaction } from './transaction.js';
 
-const context: ParseSparkasseCsvContext = {
+const context: ParseBankCsvContext = {
   fileName: 'Umsaetze_DE89.csv',
   encoding: 'utf-8',
   referenceYear: 2026,

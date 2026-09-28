@@ -30,9 +30,12 @@ export type BookingStatus = 'booked' | 'pending';
 /** Encoding a bank file was actually decoded with. Worth logging: format changes show up here. */
 export type BankFileEncoding = 'utf-8' | 'windows-1252';
 
+/** The registered bank formats. Declared here so `Transaction` needs no import from `dialects/`. */
+export type BankDialectId = 'sparkasse-camt';
+
 export interface TransactionSource {
-  /** Only Sparkasse CSV-CAMT is in scope today; the union exists so adding one is additive. */
-  readonly dialect: 'sparkasse-camt';
+  /** Which registered dialect parsed the row. */
+  readonly dialect: BankDialectId;
   readonly fileName: string;
   /** 1-based line in the source file. Embedded newlines are counted. */
   readonly lineNumber: number;

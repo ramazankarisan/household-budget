@@ -9,20 +9,8 @@
  * 18-column one (ending at `Kategorie`) exist, and one parser has to satisfy both.
  */
 
-/** Columns without which a row cannot become a `Transaction`. `Kategorie` is not one. */
-export const REQUIRED_COLUMNS = [
-  'Auftragskonto',
-  'Buchungstag',
-  'Betrag',
-  'Waehrung',
-  'Info',
-] as const;
-
-/** Two tokens are enough to recognise a Sparkasse header and cheap to scan for. */
-const HEADER_MARKERS = ['Auftragskonto', 'Betrag'] as const;
-
 /** Far past any documented preamble (the longest is ING's 13 lines). */
-const HEADER_SCAN_LINES = 30;
+export const HEADER_SCAN_LINES = 30;
 
 /**
  * Quoting varies between institutions and within a single header line, so strip it
@@ -38,17 +26,26 @@ export function normalizeHeaderToken(token: string): string {
   return unquoted.replace(/\s+/gu, ' ').trim();
 }
 
+/** Whether one raw line carries every marker token as a column name. */
+export function isHeaderLine(line: string, markers: readonly string[], delimiter: string): boolean {
+  const tokens = line.split(delimiter).map(normalizeHeaderToken);
+  return markers.every((marker) => tokens.includes(marker));
+}
+
 /**
  * @returns the 1-based line the header sits on, or `undefined` if none of the first
- * {@link HEADER_SCAN_LINES} lines looks like one.
+ * {@link HEADER_SCAN_LINES} lines carries every marker.
  */
-export function findHeaderLine(text: string): number | undefined {
+export function findHeaderLine(
+  text: string,
+  markers: readonly string[],
+  delimiter: string,
+): number | undefined {
   const lines = text.split('\n');
   const limit = Math.min(lines.length, HEADER_SCAN_LINES);
 
   for (let index = 0; index < limit; index += 1) {
-    const tokens = (lines[index] ?? '').split(';').map(normalizeHeaderToken);
-    if (HEADER_MARKERS.every((marker) => tokens.includes(marker))) {
+    if (isHeaderLine(lines[index] ?? '', markers, delimiter)) {
       return index + 1;
     }
   }
@@ -63,7 +60,10 @@ export interface ColumnMap {
 }
 
 /** Builds the name → index map a row mapper reads through. */
-export function mapColumns(headerTokens: readonly string[]): ColumnMap {
+export function mapColumns(
+  headerTokens: readonly string[],
+  requiredColumns: readonly string[],
+): ColumnMap {
   const byName = new Map<string, number>();
 
   headerTokens.forEach((token, index) => {
@@ -77,6 +77,6 @@ export function mapColumns(headerTokens: readonly string[]): ColumnMap {
 
   return {
     byName,
-    missing: REQUIRED_COLUMNS.filter((name) => !byName.has(name)),
+    missing: requiredColumns.filter((name) => !byName.has(name)),
   };
 }
