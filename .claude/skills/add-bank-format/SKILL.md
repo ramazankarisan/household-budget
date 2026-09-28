@@ -12,27 +12,13 @@ per-bank facts), **tests**, and the **wiring** through api, web and e2e.
 The order is not decorative. The fixture is what every later step is written against, and
 writing the parser first means writing it against a guess.
 
-## 0. Check whether the registry seam exists
+## 0. The registry already exists
 
-```bash
-rg "dialect" packages/core/src/csv --type ts -l
-ls packages/core/src/csv/dialects 2>/dev/null
-```
-
-If `packages/core/src/csv/dialects/` exists, a registry is already there — skip to step 1
-and add a descriptor to it.
-
-If it does not, the repo is still single-dialect: `header.ts` hard-codes Sparkasse's
-`HEADER_MARKERS` and a global `REQUIRED_COLUMNS`, `parse.ts` hard-codes a `COLUMN` map, a
-`STATUS_BY_INFO` map and the literal `dialect: 'sparkasse-camt'`, and
-`TransactionSource.dialect` is a one-member union. Those are all per-bank facts living in
-module scope, which works for one bank and silently mis-parses for two.
-
-**Extract the seam first, as its own commit, with the Sparkasse tests unchanged and still
-green.** A seam introduced while a second bank is half-written cannot be reviewed: a
-failing test could be the refactor or the new bank. `references/registry-seam.md` has the
-target shape and the extraction order. Come back here when `pnpm check` is green on a
-commit that adds no new bank.
+`packages/core/src/csv/dialects/` holds one descriptor per bank (`sparkasse-camt.ts`,
+`deutsche-bank.ts`) and registers them in `index.ts` — a new bank is one more descriptor. The
+extraction that created it (`8ea89bc`) is recorded in `references/registry-seam.md`.
+Deutsche Bank (`docs/research/07-deutsche-bank-csv.md`, `docs/plans/10-deutsche-bank-csv.md`)
+is the worked example of a second bank: read its descriptor and plan before starting.
 
 ## 1. Pin the format down before writing code
 
@@ -58,18 +44,18 @@ and the decisions taken. The repo rule is that research is committed so it is no
 
 Nail down these, because each one is a branch in the parser:
 
-| Question                                                         | Why it decides code                                                                                                                                   |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Delimiter, quoting                                               | `csv-parse` options in the dialect descriptor                                                                                                         |
-| Preamble lines before the header                                 | Header scan limit — never a skip count                                                                                                                |
-| Exact header tokens (with quoting and spacing)                   | `headerMarkers` and `columns` bindings                                                                                                                |
-| Which columns are required for a `Transaction`                   | `requiredColumns`; a missing one is a 4xx, not a row error                                                                                            |
-| Decimal separator, thousands separator, trailing-zero truncation | Reuse `parseGermanAmount` or add a sibling                                                                                                            |
-| Date format and year width                                       | Reuse `parseGermanDate` or add a sibling                                                                                                              |
-| Sign convention (signed amount vs separate debit/credit columns) | Row mapping; money out must end up negative                                                                                                           |
-| Where the **own** account's IBAN comes from                      | Sparkasse repeats it per row in `Auftragskonto`; ING states it once in the preamble; N26 never names it — see below, this one reshapes the descriptor |
-| Booking status column, and its values                            | `statusByValue`, or `'booked'` for every row if the export has no pending concept                                                                     |
-| File encoding as downloaded                                      | Fixture encoding, and whether `decode.ts` needs a third candidate                                                                                     |
+| Question                                                         | Why it decides code                                                                                                                                               |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Delimiter, quoting                                               | `csv-parse` options in the dialect descriptor                                                                                                                     |
+| Preamble lines before the header                                 | Header scan limit — never a skip count                                                                                                                            |
+| Exact header tokens (with quoting and spacing)                   | `headerMarkers` and `columns` bindings                                                                                                                            |
+| Which columns are required for a `Transaction`                   | `requiredColumns`; a missing one is a 4xx, not a row error                                                                                                        |
+| Decimal separator, thousands separator, trailing-zero truncation | Reuse `parseGermanAmount` or add a sibling                                                                                                                        |
+| Date format and year width                                       | Reuse `parseGermanDate` or add a sibling                                                                                                                          |
+| Sign convention (signed amount vs separate debit/credit columns) | Row mapping; money out must end up negative                                                                                                                       |
+| Where the **own** account's IBAN comes from                      | `accountIban`: Sparkasse repeats it per row (`from: 'column'`); Deutsche Bank states it once in the preamble (`from: 'preamble'`); N26 never names it — see below |
+| Booking status column, and its values                            | `status: { column, byValue }`, or leave `status` out if the export has no pending concept (every row is then booked)                                              |
+| File encoding as downloaded                                      | Fixture encoding, and whether `decode.ts` needs a third candidate                                                                                                 |
 
 ## 2. Build the fixture
 
@@ -92,6 +78,7 @@ for the wrong reason:
 ```bash
 python3 .claude/skills/add-bank-format/scripts/make_fixture.py spec.json
 python3 .claude/skills/add-bank-format/scripts/check_fixture_bytes.py fixtures/<bank>.csv --encoding cp1252
+# an LF / UTF-8 export, like Deutsche Bank's: --encoding utf-8 --lf [--bom]
 ```
 
 `scripts/fixture-spec.example.json` is a filled-in spec with comments in its `_notes` key.
@@ -137,15 +124,15 @@ Where things go:
   columns, column bindings, status map, delimiter, value parsers.
 - `packages/core/src/csv/dialects/index.ts` — register it. A dialect the registry does not
   list cannot be detected.
-- `packages/core/src/csv/transaction.ts` — widen the `TransactionSource.dialect` union.
+- `packages/core/src/csv/transaction.ts` — add the new id to the `BankDialectId` union.
 - `packages/core/src/csv/fields.ts` — only if the bank's number or date format genuinely
   differs. Reuse first: most German banks share `1.234,56` and `dd.mm.yyyy`.
 
 **The own-account IBAN is the field most likely to break the descriptor's shape.**
-`Transaction.accountIban` is required today because Sparkasse repeats it on every row. A
-bank that states it once in a preamble needs the dialect to say where to read it from; a
-bank that never names it needs the API to fall back to the IBAN of the account the user
-already chose. Either way that value is provenance and a cross-check, never what decides
+`Transaction.accountIban` is required. The descriptor's `accountIban` already covers a
+per-row column (Sparkasse) and a preamble label (Deutsche Bank); a bank that never names it
+needs a third variant, with the API falling back to the IBAN of the account the user already
+chose. Either way that value is provenance and a cross-check, never what decides
 which account the rows land in — that is the user's choice before the upload, and inferring
 it from a file is how rows end up in the wrong account.
 
@@ -172,7 +159,9 @@ Rules that are not style preferences — each is a defect class this repo alread
 
 ## 4. Tests
 
-Mirror `packages/core/src/csv/parse.test.ts` — it is the reference for what a dialect owes:
+Mirror `packages/core/src/csv/parse.test.ts` (Sparkasse) and
+`packages/core/src/csv/dialects/deutsche-bank.test.ts` — they are the reference for what a
+dialect owes:
 
 - all variants parse with zero row errors, and the expected transaction count
 - the shapes produce identical transactions (compare with shape-specific fields omitted)
@@ -206,7 +195,7 @@ the web i18n tables, so a new member fails the build until it is worded in both 
 ## 6. Verify
 
 ```bash
-pnpm check      # format, lint, deps, typecheck, unit tests
+pnpm check      # format, lint, deps, unused, typecheck, unit tests
 pnpm check:all  # the above plus Playwright — this touches HTTP and UI, so it is required
 ```
 
@@ -225,14 +214,15 @@ python3 .claude/skills/add-bank-format/scripts/check_fixture_bytes.py fixtures/<
 ## 7. Record what was learned
 
 Add the implementation notes to `docs/plans/NN-<bank>-csv.md` — specifically the things that
-surprised you, since that is what the next bank's author reads. Update the status paragraph
-in `CLAUDE.md` so it names the formats that actually import. Keep `CLAUDE.md` short: link to
+surprised you, since that is what the next bank's author reads. Update the
+`POST /api/imports` paragraph in `CLAUDE.md` and the README's introduction and fixtures line
+so they name the formats that actually import. Keep `CLAUDE.md` short: link to
 the docs rather than inlining them.
 
 ## Reference files
 
-- `references/registry-seam.md` — the one-time extraction from single-dialect to registry:
-  target shape, extraction order, and what must stay unchanged.
+- `references/registry-seam.md` — record of the one-time extraction from single-dialect to
+  registry (`8ea89bc`): the shape it produced and what it had to keep unchanged.
 - `references/german-banks.md` — per-bank format facts already researched: preambles,
   separators, status columns, encodings.
 - `references/wiring.md` — the api / web / e2e checklist, with the files each step touches.
