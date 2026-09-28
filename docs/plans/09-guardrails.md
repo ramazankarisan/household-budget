@@ -27,7 +27,6 @@ check` stays fast enough to run after every change.
 | a11y in the browser (axe)       |      |     |  ✓  | `pnpm check:all` (`wcag.spec.ts`)   |
 | Commit messages (commitlint)    |  —   |  —  |  —  | `commit-msg` hook                   |
 | `pnpm audit --audit-level high` |  —   |  —  |  —  | CI                                  |
-| Dependabot                      |  —   |  —  |  —  | GitHub, weekly                      |
 
 Property and mutation tests are core-only on purpose: core is where a silent off-by-one costs
 money, its functions are pure, and its suite runs in milliseconds. The apps' logic is mostly
@@ -73,11 +72,11 @@ wiring that example tests and Playwright already cover.
    through the Prisma CLI and both unreachable here: `mysql2` (no MySQL connection is ever
    opened) and `deepmerge-ts` (it only merges our own `prisma.config.ts`). Any new high
    advisory still fails CI. Drop the ignores once Prisma ships the patched versions.
-10. **Dependabot skips the deliberate pins** README lists: TypeScript minor/major and Prisma
-    major. pnpm's minimum-release-age quarantine may hold a days-old Dependabot bump until it
-    ages or gets a `minimumReleaseAgeExclude` entry.
 
 ## Not done
+
+- Dependabot or Renovate: dependency updates stay manual, by choice. `pnpm audit` in CI
+  still fails on a new high advisory.
 
 - Mutation testing in CI: 2.5 minutes of CPU on every push, for a signal that changes only
   when core's tests do. Run `pnpm mutation` when changing the parser or the budget math.
