@@ -5,7 +5,8 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs"],
+      // .claude/hooks/*.mjs are run by Claude Code, from .claude/settings.json.
+      "entry": ["scripts/*.mjs", ".claude/hooks/*.mjs"],
       // reset-e2e-db.mjs calls the api workspace's prisma, which the root does not list.
       "ignoreBinaries": ["prisma"],
     },
