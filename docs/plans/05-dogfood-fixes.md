@@ -4,13 +4,14 @@ git_commit: 0e37f0da23872b5dd69539b31f06d169cb4f8f7e
 branch: test/e2e-monthly-totals
 topic: 'Dogfood fixes: lock-cell alignment, budget field grouping, case-insensitive category names, undo for category delete, budgets month switch without blanking'
 tags: [plan, dogfood, apps-web, apps-api, categories, budgets]
-status: ready
+status: implemented
 ---
 
 # PLAN: Dogfood fixes (2026-09-23 session)
 
 This plan fixes five findings from the exploratory test session recorded in
-[`dogfood-output/report.md`](../../dogfood-output/report.md). Issue numbers below are the report's.
+[`dogfood-output/report.md`](../../dogfood-output/report.md), and Phase 5 two more the user found
+afterwards (ISSUE-011, ISSUE-012). Issue numbers below are the report's.
 That report is also the change log for this work. Each phase ends by writing a **Resolution** note
 under its issue there, so the report stays the one place that tracks each finding from start to finish.
 This plan does **not** edit plans 01–04.
@@ -387,7 +388,7 @@ During implementation, document user feedback, problems, and decisions here.
   drew no Budget bars, which implied "no limits". Fixed in a follow-up commit: `SpendingChart`
   takes `limitsLoading`, leaves the Budget series out, dims itself, and says why in its caption.
 
-- Review of PR #15 found two low issues, both fixed: a restore race answered 500 instead of 409 (the
+- Review of PR #15 (closed and reopened from the same branch as #16, which merged) found two low issues, both fixed: a restore race answered 500 instead of 409 (the
   insert is now the check), and a stale in-use warning could sit beside an unrelated error (now
   cleared on any non-409 failure). The review of #13 also claimed soft-deleted rows get stranded.
   Checked, and it doesn't happen (ISSUE-013).

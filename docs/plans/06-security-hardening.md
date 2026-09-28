@@ -4,7 +4,7 @@ git_commit: 0e37f0da23872b5dd69539b31f06d169cb4f8f7e
 branch: test/e2e-monthly-totals
 topic: 'Security hardening: loopback-only API, bounded uploads, bounded row errors, safe logging, repo hygiene'
 tags: [plan, security, apps-api, apps-web, packages-core, import, gitignore]
-status: ready
+status: implemented
 ---
 
 # PLAN: Security hardening

@@ -20,12 +20,16 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
 
 ## Acceptance Criteria
 
+> **As built (2026-09-28):** items marked _Changed_ below departed from this plan. The
+> Implementation Notes at the end give the reason; the original wording is kept, struck through.
+
 - [x] Every page renders inside `AppShell`: ≥ 1024 px a 232 px sidebar (Überblick, Umsätze,
-      Sortieren with a count badge, Regeln, Importe; accounts; DE|EN; theme) and a top bar with
+      ~~Sortieren with a count badge~~ _Changed: the badge sits on Umsätze; Sortieren was
+      removed_, Regeln, Importe; accounts; DE|EN; theme) and a top bar with
       the month stepper and `Importieren`; 720–1023 px a 64 px icon rail; < 720 px a bottom nav
       with four items plus „Mehr“ (Importe, accounts, DE|EN, theme).
 - [x] The month lives in the URL as `?m=YYYY-MM`. `/` without `?m` shows the newest month with
-      data; `/transactions` and `/inbox` without `?m` show all months, and offer „Alle Monate“ in
+      data; `/transactions` ~~and `/inbox`~~ without `?m` show all months, and offer „Alle Monate“ in
       the stepper menu. `‹ ›`, `[` and `]` step it; nav links carry `?m`.
 - [x] `/` is Überblick:
   - hero: booked spend of the month against the summed limits and what is left of them
@@ -34,18 +38,22 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
   - one row per category with a `BudgetBar`: tone `ok` < 85 %, `near` 85–100 %, `over` > 100 %
     of the limit, measured on booked + vorgemerkt — exactly `monthlyReport`'s `isOver` /
     `remainingCents`; „über“ in the text and the accessible name when over;
-  - an „Ohne Kategorie“ row and callout; a 6-month trend with the summed limit as a reference
-    line; „Budgets bearbeiten“ switches the rows into `BudgetField`s.
+  - an „Ohne Kategorie“ row and callout; a 6-month trend with ~~the summed limit~~ _(Changed:
+    the shown month's summed limits)_ as a reference line; „Budgets bearbeiten“ switches the rows into `BudgetField`s.
 - [x] `/budgets` redirects to `/`, keeping `?m`.
 - [x] `/transactions` is a day-grouped ledger over all accounts by default, filterable by
       account, category and search; the category pill opens a searchable `CategoryMenu`.
 - [x] „Ohne Kategorie“ means one thing everywhere: booked rows, money in or out, with no
-      category. The sidebar badge, the list chip (for all accounts) and the inbox (all months)
-      show the same number; the list chip follows the chosen account; the Überblick callout
-      shows the month's count and the total.
-- [x] `/inbox` shows those rows one at a time; `1`–`9` assign, `M` opens the full category menu,
+      category. ~~The sidebar badge, the list chip (for all accounts) and the inbox (all months)
+      show the same number; the list chip follows the chosen account;~~ _Changed: the nav badge
+      counts every month; the list chip counts the chosen accounts and the chosen month (never
+      the search or category filter), so the two agree only under „Alle Monate“;_ the Überblick
+      callout shows the month's count and the total.
+- [x] ~~`/inbox` shows those rows one at a time; `1`–`9` assign, `M` opens the full category menu,
       `S` skip, `J`/`K` move, `N` new category, `R` rule, `Z` undo, `Esc` close; after an assign
-      it proposes a rule with a live count and can create-and-apply it.
+      it proposes a rule with a live count and can create-and-apply it.~~ _Changed: built in
+      phase 3, then removed after review (`af89fe5`); `/inbox` redirects to
+      `/transactions?c=uncategorized`, month kept._
 - [x] `/rules` shows rules as sentences, each with how many rows it currently wins; order
       changes by ↑/↓ buttons, `Alt+↑`/`Alt+↓` and drag, saved through one atomic
       `PUT /api/rules/order`; a new rule is appended at the end; the composer previews matches
@@ -99,6 +107,8 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
    - Why: today `uncategorizedCount` (`filter.ts:100`) counts pending and all months, the
      report's null bucket counts money out of one month, and the inbox can only sort booked rows
      (`TRANSACTION_PENDING`). Three numbers for one word.
+   - _Changed (2026-09-28): the chip now also follows the chosen month, and the inbox is gone —
+     see Implementation Notes._
    - Impact: the badge = the inbox (all months) = the chip with all accounts. The Überblick
      callout shows `uncategorizedRows(month)` and the total; the „Ohne Kategorie“ budget row
      keeps the report's money-out amount, labelled as such. Vorgemerkt rows without a category
@@ -172,7 +182,8 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
       `'media'` (`@mui/material/styles/createThemeWithVars.js:126`), which ignores the stored
       `mui-mode` and breaks `ThemeToggle`. DESIGN.md §10 already says so.
 
-15. **Page chrome is declared by the page:** `usePageChrome({ title, subtitle?, months?,
+15. _Not built — pages render `<TopBar/>` themselves; a context written from a page's render
+    looped. See Implementation Notes._ ~~**Page chrome is declared by the page:**~~ `usePageChrome({ title, subtitle?, months?,
 monthDefault: 'newest' | 'all', actions? })` sets what `TopBar` renders, through a context
     provided by `AppShell`.
     - Why: `AppShell` owns the top bar; only the page knows its title, its months and its

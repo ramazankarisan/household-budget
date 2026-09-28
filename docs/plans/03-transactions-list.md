@@ -351,7 +351,8 @@ export function uncategorizedCount(transactions: readonly TransactionPayload[]):
       `{ filters, months, categories, uncategorized, onChange }`. Two `TextField select`s and the
       count `Chip`, inside a `Stack direction="row"` with `flexWrap: 'wrap'`. The chip is
       `color="warning"` and `onClick`-able above zero, plain and inert at zero, and carries
-      `showUncategorized` as its `aria-label`. **The category filter's accessible name is
+      `showUncategorized` as its `aria-label` _(changed in `adab39b`: the label now carries the
+      count as well, which it had hidden from screen readers)_. **The category filter's accessible name is
       `filterCategory` (`'Kategorie filtern'`), not `'Kategorie'`** — `CategoryCell` already puts a
       combobox named `'Kategorie'` on every row (`CategoryCell.tsx:71`), and
       `AccountPage.test.tsx:77,81,85` query it page-scoped, so a second control by that name turns
@@ -426,7 +427,8 @@ over strings before they are anything on screen.
       `includes`-matches the stored `de89370400440532013000`, and normalizing the needle with
       `normalizeIban` instead would strip the spaces out of `miete oktober` and break the purpose
       search. An empty needle matches everything; the IBAN compare is skipped when
-      `normalizeIban(search)` is empty. Combine with month and category as AND.
+      `normalizeIban(search)` is empty _(changed in `adab39b`: it runs only when the search
+      begins like an IBAN — two letters, a digit — because `de` matched every German IBAN)_. Combine with month and category as AND.
 - [x] Add the search `TextField` to `TransactionFilters` — `size="small"`, an `aria-label` from
       `transactionsText().search`, and a clear affordance. No debounce (decision 5).
 - [x] Extend `filter.test.ts` with the fixture's own strings as literals: `'Müller GmbH'`,
@@ -473,6 +475,10 @@ over strings before they are anything on screen.
       columns — the failure mode `fba54a2` and `19e7c81` were about.
 
 ## Later changes
+
+- 2026-09-23, `adab39b` (review of PR #10): `formatMonth` checks the `YYYY-MM` shape before
+  parsing (`'2025-'` rendered as „Dezember 2024“); the IBAN needle applies only to input that
+  begins like an IBAN; the count chip's `aria-label` includes the count.
 
 - 2026-09-28, [plan 08](08-ui-redesign.md): the month left the toolbar for the app's month stepper
   (`?m=` in the URL, „Alle Monate“ by default on the list). The budgets page's router-state

@@ -4,7 +4,7 @@ git_commit: e45bcda60d01559a6bbe2baffb532462a7208cc9
 branch: feat/csv-import
 topic: 'Categorization rules: matching, priority, manual override, CRUD and re-apply'
 tags: [plan, categorization, rules, packages-core, apps-api, apps-web, prisma]
-status: draft
+status: implemented
 ---
 
 # PLAN: Categorization rules
@@ -483,6 +483,8 @@ in the style of `import.service.test.ts`.
       `new BadRequestException({ code: 'RULE_INVALID', errors })` when it fails. Both verify the
       target category exists.
   - `list` returns rules already ordered by `orderRules`, so the UI and the engine agree.
+    _Changed in `c9961e0`: `list` sorts with `compareRules` instead — the same order, but it
+    keeps switched-off rules on screen, which `orderRules` drops._
 - [x] Add the controllers — `@Controller('categories')` and `@Controller('rules')` — following
       `account.controller.ts`: thin, `@HttpCode(204)` on delete, no pipes.
 - [x] Add `rules.module.ts`, export `RuleService` (Phase 4's import wiring needs it), and register
@@ -631,6 +633,9 @@ Dependencies: Phase 4.
 - 2026-09-28, [plan 08](08-ui-redesign.md): a rule created without a `priority` is appended —
   `max(priority) + 10`, or 100 for the first rule — instead of taking the parser's default of
   100, so a new rule never lands in the middle of the order unseen.
+- 2026-09-28, [plan 08](08-ui-redesign.md): priority is no longer typed. The rules page shows the
+  order, and `PUT /api/rules/order` renumbers every rule 10, 20, 30 … in one transaction when
+  it changes (drag, ↑/↓, `Alt+↑`/`Alt+↓`). A restored rule keeps the priority it had.
 
 ## References
 
@@ -649,6 +654,3 @@ Dependencies: Phase 4.
 - `apps/web/src/pages/ImportPanel.tsx:19-23` — the discriminated-union panel state
 - `.dependency-cruiser.cjs:13-31,49` — why the matcher cannot import Prisma, type-only included
 - `CLAUDE.md` — RULES: core framework-free, never commit real bank data, `pnpm check` before done
-- 2026-09-28, [plan 08](08-ui-redesign.md): priority is no longer typed. The rules page shows the
-  order, and `PUT /api/rules/order` renumbers every rule 10, 20, 30 … in one transaction when
-  it changes (drag, ↑/↓, `Alt+↑`/`Alt+↓`). A restored rule keeps the priority it had.
