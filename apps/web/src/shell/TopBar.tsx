@@ -1,8 +1,12 @@
+import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { useImport } from './importContext';
 import { MonthStepper } from './MonthStepper';
 import { type MonthState } from './useMonth';
 import { useShortcuts } from './useShortcuts';
@@ -29,6 +33,8 @@ interface TopBarProps {
  * every page's header is the same component and the same place.
  */
 export function TopBar({ title, subtitle, month, actions }: TopBarProps) {
+  const { t } = useTranslation();
+  const { openImport } = useImport();
   useShortcuts(
     {
       '[': () => month?.state.step(-1),
@@ -64,6 +70,15 @@ export function TopBar({ title, subtitle, month, actions }: TopBarProps) {
         />
       )}
       {actions}
+      <Button
+        variant="contained"
+        startIcon={<UploadFileRounded />}
+        onClick={() => {
+          openImport();
+        }}
+      >
+        {t('common.import.open')}
+      </Button>
     </Stack>
   );
 }

@@ -22,6 +22,8 @@ import {
  * this.
  */
 export interface TransactionFilterState {
+  /** `''` = every account, else an account id. */
+  readonly accountId: string;
   /** `''` = every category, `UNCATEGORIZED` = rows with none, else a category id. */
   readonly categoryId: string;
   readonly search: string;
@@ -33,14 +35,14 @@ export interface TransactionFilterState {
  */
 export const UNCATEGORIZED = 'uncategorized';
 
-export const NO_FILTERS: TransactionFilterState = { categoryId: '', search: '' };
+export const NO_FILTERS: TransactionFilterState = { accountId: '', categoryId: '', search: '' };
 
 /**
  * True while anything is narrowing the list — what tells the two empty states apart. The
  * month is not a filter: every month the stepper offers has rows.
  */
 export function hasFilters(filters: TransactionFilterState): boolean {
-  return filters.categoryId !== '' || filters.search !== '';
+  return filters.accountId !== '' || filters.categoryId !== '' || filters.search !== '';
 }
 
 /**

@@ -4,7 +4,7 @@ git_commit: a4e09e91e5e2322eceee3e383b300a3a11522216
 branch: main
 topic: 'UI redesign "Kassenbuch": app shell, Überblick, Sortieren inbox, rules as sentences, day-grouped ledger and import history'
 tags: [plan, apps-web, apps-api, packages-core, design, ux, mui, routing, e2e]
-status: ready
+status: implemented
 ---
 
 # PLAN: UI redesign „Kassenbuch“
@@ -20,14 +20,14 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
 
 ## Acceptance Criteria
 
-- [ ] Every page renders inside `AppShell`: ≥ 1024 px a 232 px sidebar (Überblick, Umsätze,
+- [x] Every page renders inside `AppShell`: ≥ 1024 px a 232 px sidebar (Überblick, Umsätze,
       Sortieren with a count badge, Regeln, Importe; accounts; DE|EN; theme) and a top bar with
       the month stepper and `Importieren`; 720–1023 px a 64 px icon rail; < 720 px a bottom nav
       with four items plus „Mehr“ (Importe, accounts, DE|EN, theme).
-- [ ] The month lives in the URL as `?m=YYYY-MM`. `/` without `?m` shows the newest month with
+- [x] The month lives in the URL as `?m=YYYY-MM`. `/` without `?m` shows the newest month with
       data; `/transactions` and `/inbox` without `?m` show all months, and offer „Alle Monate“ in
       the stepper menu. `‹ ›`, `[` and `]` step it; nav links carry `?m`.
-- [ ] `/` is Überblick:
+- [x] `/` is Überblick:
   - hero: booked spend of the month against the summed limits and what is left of them
     (booked only, exactly as `describeMonthTotal` does today); vorgemerkt shown beside it, never
     added in; pace marker „Tag d von n“ in the current calendar month only;
@@ -36,30 +36,30 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
     `remainingCents`; „über“ in the text and the accessible name when over;
   - an „Ohne Kategorie“ row and callout; a 6-month trend with the summed limit as a reference
     line; „Budgets bearbeiten“ switches the rows into `BudgetField`s.
-- [ ] `/budgets` redirects to `/`, keeping `?m`.
-- [ ] `/transactions` is a day-grouped ledger over all accounts by default, filterable by
+- [x] `/budgets` redirects to `/`, keeping `?m`.
+- [x] `/transactions` is a day-grouped ledger over all accounts by default, filterable by
       account, category and search; the category pill opens a searchable `CategoryMenu`.
-- [ ] „Ohne Kategorie“ means one thing everywhere: booked rows, money in or out, with no
+- [x] „Ohne Kategorie“ means one thing everywhere: booked rows, money in or out, with no
       category. The sidebar badge, the list chip (for all accounts) and the inbox (all months)
       show the same number; the list chip follows the chosen account; the Überblick callout
       shows the month's count and the total.
-- [ ] `/inbox` shows those rows one at a time; `1`–`9` assign, `M` opens the full category menu,
+- [x] `/inbox` shows those rows one at a time; `1`–`9` assign, `M` opens the full category menu,
       `S` skip, `J`/`K` move, `N` new category, `R` rule, `Z` undo, `Esc` close; after an assign
       it proposes a rule with a live count and can create-and-apply it.
-- [ ] `/rules` shows rules as sentences, each with how many rows it currently wins; order
+- [x] `/rules` shows rules as sentences, each with how many rows it currently wins; order
       changes by ↑/↓ buttons, `Alt+↑`/`Alt+↓` and drag, saved through one atomic
       `PUT /api/rules/order`; a new rule is appended at the end; the composer previews matches
       live; the categories panel sets each category's colour.
-- [ ] Every category has a stored `colorIndex` 0–7, shown only next to its name.
-- [ ] Import runs in a dialog reachable from every page and by dropping a file anywhere on the
+- [x] Every category has a stored `colorIndex` 0–7, shown only next to its name.
+- [x] Import runs in a dialog reachable from every page and by dropping a file anywhere on the
       window; `/imports` lists past imports from `GET /api/imports`.
-- [ ] Loading follows DESIGN.md §7: nothing for 300 ms, then a skeleton in the content's shape;
+- [x] Loading follows DESIGN.md §7: nothing for 300 ms, then a skeleton in the content's shape;
       spinners only inside buttons.
-- [ ] No emoji in the UI, no uppercase buttons, no hex/rgb or px font sizes in `pages/`, `ui/`,
+- [x] No emoji in the UI, no uppercase buttons, no hex/rgb or px font sizes in `pages/`, `ui/`,
       `shell/`.
-- [ ] Everything works in light + dark, DE + EN, at 390, 1024 and 1440 px, without horizontal
-      page scroll.
-- [ ] `pnpm check:all` passes at the end of every phase.
+- [-] Everything works in light + dark, DE + EN, at 390, 1024 and 1440 px, without horizontal
+  page scroll.
+- [x] `pnpm check:all` passes at the end of every phase.
 
 ## Technical Key Decisions and Tradeoffs
 
@@ -704,61 +704,61 @@ touched).
 
 **Tasks**:
 
-- [ ] Core `ImportBatchPayload`. API `ImportService.listBatches()` (newest first, all accounts,
+- [x] Core `ImportBatchPayload`. API `ImportService.listBatches()` (newest first, all accounts,
       `take: 200`), `ImportController` `@Get()`. Client `listImports(signal)`.
-- [ ] `filter.ts` — `accountId` joins `TransactionFilterState` (`''` = all); `hasFilters`
+- [x] `filter.ts` — `accountId` joins `TransactionFilterState` (`''` = all); `hasFilters`
       includes it; `?a=` becomes the account filter's initial value.
-- [ ] `pages/TransactionsPage.tsx` (replaces `AccountPage.tsx`) — all accounts from the provider;
+- [x] `pages/TransactionsPage.tsx` (replaces `AccountPage.tsx`) — all accounts from the provider;
       filters account/category/search; `usePageChrome({ title, months, monthDefault: 'all' })`;
       chip = `uncategorizedRows({ accountId })`, links to `/inbox`.
-- [ ] `pages/transactions/Ledger.tsx` — groups by `bookingDate` newest first; sticky `h3` day
+- [x] `pages/transactions/Ledger.tsx` — groups by `bookingDate` newest first; sticky `h3` day
       header (`Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' })`)
       with the day's money-out total; row: initial avatar, counterparty + vorgemerkt badge + lock
       icon, purpose + account name (caption, ellipsis, full text in `title`), `CategoryPill`
       button opening `CategoryMenu` (read-only with `rules.pendingHint` for pending rows),
       `AmountText`; `role="list"`/`listitem`; < 720 px: pill under the text, amount top-right.
-- [ ] `pages/ImportDialog.tsx` — MUI `Dialog`; account select (hidden with one); `ImportPanel`
+- [x] `pages/ImportDialog.tsx` — MUI `Dialog`; account select (hidden with one); `ImportPanel`
       inside; no account → `NewAccountForm` (from `AccountPage.tsx:284-335`) first;
       `onImported` → `reload()`; can open with a preselected `File`.
-- [ ] `ImportPanel.tsx` — optional `initialFile`, uploaded on mount.
-- [ ] `ui/DropOverlay.tsx` — window `dragenter`/`dragover`/`dragleave`/`drop` in `AppShell`,
+- [x] `ImportPanel.tsx` — optional `initialFile`, uploaded on mount.
+- [x] `ui/DropOverlay.tsx` — window `dragenter`/`dragover`/`dragleave`/`drop` in `AppShell`,
       only when `dataTransfer.types` includes `Files`; a drop opens `ImportDialog` with the file.
-- [ ] `TopBar` „Importieren“ opens the dialog; Überblick's and the ledger's empty states open it.
-- [ ] `pages/ImportsPage.tsx` — `listImports()`; one row per batch: date/time, account, file
+- [x] `TopBar` „Importieren“ opens the dialog; Überblick's and the ledger's empty states open it.
+- [x] `pages/ImportsPage.tsx` — `listImports()`; one row per batch: date/time, account, file
       name, encoding chip, „n neu · n übersprungen · n wiederhergestellt · n fehlerhaft“;
       `EmptyState`. Route `/imports`, nav Importe (in „Mehr“ below 720 px).
-- [ ] Sidebar accounts section: „Konto anlegen“ opens the dialog's account step.
-- [ ] Delete `AccountPage.tsx`, `AccountSelect.tsx`, `TransactionList.tsx`, `CategoryCell.tsx`,
+- [x] Sidebar accounts section: „Konto anlegen“ opens the dialog's account step.
+- [x] Delete `AccountPage.tsx`, `AccountSelect.tsx`, `TransactionList.tsx`, `CategoryCell.tsx`,
       `TransactionFilters.tsx` and their tests.
-- [ ] Locales: `common.nav.imports`, `common.pages.imports`,
+- [x] Locales: `common.nav.imports`, `common.pages.imports`,
       `transactions.{allAccounts,dayTotal}`, `imports.*` (title, empty, row, encoding),
       `common.import.{dialogTitle,account,dropHere}`.
-- [ ] Tests (api): `import.service.test.ts` — `listBatches` newest first across accounts.
-- [ ] Tests (web): `pages/TransactionsPage.test.tsx` ports `AccountPage.test.tsx`,
+- [x] Tests (api): `import.service.test.ts` — `listBatches` newest first across accounts.
+- [x] Tests (web): `pages/TransactionsPage.test.tsx` ports `AccountPage.test.tsx`,
       `TransactionList.test.tsx`, `TransactionFilters.test.tsx` (search `müller` finds
       `MÜLLER GmbH`, reset, chip ignores filters but follows the account, category change
       sequencing) against list items; the account filter narrows rows and chip;
       `transactions/Ledger.test.tsx` (grouping, day totals, pending badge, lock);
       `ImportDialog.test.tsx` (one account → no select; none → account form first; preselected
       file uploads); `ImportsPage.test.tsx`.
-- [ ] E2E: imports in the `import`, `monthly-*`, `preferences`, `rules`, `inbox`, `overview`
+- [x] E2E: imports in the `import`, `monthly-*`, `preferences`, `rules`, `inbox`, `overview`
       specs → click „Importieren“, then the same `CSV-Datei auswählen` input; list assertions
       `role="cell"`/`row` → list items by text (`import.spec.ts:38-58`,
       `transactions.spec.ts:38-92`, `preferences.spec.ts:96-98`, `monthly-*`); new
       `imports.spec.ts` (history row after an import; a synthetic `drop` event opens the dialog);
       390×844 ledger check.
-- [ ] Docs: `CLAUDE.md` status and invariant (account-scope wording from decision 5 now covers
+- [x] Docs: `CLAUDE.md` status and invariant (account-scope wording from decision 5 now covers
       "all accounts"); `README.md` walkthrough ("drop a Sparkasse CSV export anywhere …");
       `docs/research/06-ui-design.md` status note "built, plan 08"; this plan's status
       `implemented`.
 
 **Automated Verification**:
 
-- [ ] `pnpm --filter @household-budget/api exec vitest run src/import` passes
-- [ ] `pnpm --filter @household-budget/web exec vitest run src/pages src/ui` passes
-- [ ] `rg -n "AccountPage|BudgetsPage|BudgetTable|SpendingChart|TransactionList|AppHeader|CategoryCell|TransactionFilters" apps/web/src apps/web/e2e` finds nothing
-- [ ] `pnpm check` passes
-- [ ] `pnpm check:all` passes (including `imports.spec.ts`)
+- [x] `pnpm --filter @household-budget/api exec vitest run src/import` passes
+- [x] `pnpm --filter @household-budget/web exec vitest run src/pages src/ui` passes
+- [x] `rg -n "AccountPage|BudgetsPage|BudgetTable|SpendingChart|TransactionList|AppHeader|CategoryCell|TransactionFilters" apps/web/src apps/web/e2e` finds nothing
+- [x] `pnpm check` passes
+- [x] `pnpm check:all` passes (including `imports.spec.ts`)
 
 **Manual Verification**:
 
@@ -807,6 +807,13 @@ During implementation, document user feedback, problems, and decisions here.
   sentence editor. The colour of an existing category is changed from its dot; a new one
   preselects the colour the server would assign next.
 - Phase 4, `ruleErrorsOf` lives in `pages/rules/ruleErrors.ts` (Fast Refresh).
+- Phase 5, the list's chip still narrows the list to „Ohne Kategorie“ rather than linking to
+  `/inbox`: narrowing in place is what the chip always did, and Sortieren is one nav click
+  (with its badge) away. The Überblick card and row are what lead to the inbox.
+- Phase 5, the e2e specs share `e2e/support.ts` (seeding through the import dialog, ledger
+  rows by text, the category pill) instead of each carrying its own copy.
+- Phase 5, `TopBar` always offers „Importieren“; the dialog and the drop overlay live in
+  `AppShell`, reached through `shell/importContext.ts`.
 - Phase 2, jsdom has no `ResizeObserver`; `src/test/setup.ts` stubs it so the self-sizing
   trend chart can mount in page tests.
 

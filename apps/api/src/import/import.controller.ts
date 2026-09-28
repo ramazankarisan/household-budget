@@ -1,8 +1,9 @@
-import { ImportSummary } from '@household-budget/core';
+import { ImportBatchPayload, ImportSummary } from '@household-budget/core';
 import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -58,6 +59,12 @@ const ACCEPTED_TYPES = new Set([
 @Controller('imports')
 export class ImportController {
   constructor(private readonly imports: ImportService) {}
+
+  /** GET /api/imports — every upload, newest first. */
+  @Get()
+  list(): Promise<ImportBatchPayload[]> {
+    return this.imports.listBatches();
+  }
 
   /** POST /api/imports — multipart: `file` plus an `accountId` field. */
   @Post()

@@ -27,9 +27,11 @@ responses and the UI that renders them.
 Status: import → categorize → report works end to end. Every page sits in one app shell
 ([DESIGN.md](DESIGN.md)); the month is `?m=` in the URL. `/` (Überblick) answers the month —
 spending against limits per category, what is still unsorted, a six-month trend;
-`/transactions` is the list, narrowed by category and free text; `/inbox` (Sortieren) sorts
-the uncategorized rows one at a time and proposes the rule that would have. All pages read one
-household copy of the data (`apps/web/src/household/`).
+`/transactions` is the ledger of every account, narrowed by account, category and free text;
+`/inbox` (Sortieren) sorts the uncategorized rows one at a time and proposes the rule that would
+have; `/rules` shows rules as sentences in the order they are tried; `/imports` lists every
+upload. Import happens in a dialog from any page, or by dropping a file on the window. All
+pages read one household copy of the data (`apps/web/src/household/`).
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
 (UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
@@ -65,7 +67,8 @@ Each is deliberate; the link is the reason. Do not undo one without reading it.
   no endpoint; URL search params (`?m`, `?c`, `?a`) hold view state only.
   [research 03 §9](docs/research/03-transactions-list.md), [plan 08](docs/plans/08-ui-redesign.md)
 - „Ohne Kategorie“ is counted by one function, `uncategorizedRows` — booked rows, in or
-  out, with no category — over the chosen account scope, never the filtered view.
+  out, with no category — over the chosen accounts (all of them unless one is picked), never
+  the filtered view.
   Vorgemerkt rows are not counted: they cannot be categorized until they book.
 - Budgets are one limit per category per month, household-wide, measured against every
   account — Überblick has no account picker; `/budgets` redirects to it.

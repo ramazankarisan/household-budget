@@ -22,7 +22,7 @@ const initialCategories: CategoryPayload[] = [
 /** What the mocked API currently holds: deletes and re-creates change it, as the real one would. */
 let categories: CategoryPayload[] = [...initialCategories];
 
-/** Mirrors `transaction()` in TransactionList.test.tsx. */
+/** A stored rule, with whatever a case needs to differ. */
 function rule(overrides: Partial<RulePayload> = {}): RulePayload {
   return {
     id: 'r-1',

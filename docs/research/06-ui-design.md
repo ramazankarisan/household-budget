@@ -9,6 +9,9 @@ status: complete
 
 # Research: UI design of apps/web — today, and a redesign
 
+> Built by [plan 08](../plans/08-ui-redesign.md) (2026-09-28). The findings below describe the
+> UI before it; the proposal is what the plan implemented, with the changes its notes record.
+
 ## Research question
 
 Evaluate the current design of the web app and describe what a new design would be, thinking

@@ -4,6 +4,7 @@ import {
   type BudgetPayload,
   type CategoryPayload,
   type DeletedRulePayload,
+  type ImportBatchPayload,
   type ImportSummary,
   type RuleInput,
   type RulePayload,
@@ -121,6 +122,11 @@ export function listTransactions(
     `/accounts/${encodeURIComponent(accountId)}/transactions`,
     signal === undefined ? {} : { signal },
   );
+}
+
+/** Every upload, newest first, across every account. */
+export function listImports(signal?: AbortSignal): Promise<ImportBatchPayload[]> {
+  return request<ImportBatchPayload[]>('/imports', signal === undefined ? {} : { signal });
 }
 
 /** Multipart, because the API decodes the bytes — the browser must not guess an encoding. */

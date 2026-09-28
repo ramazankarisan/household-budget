@@ -1,42 +1,6 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, type Page, test } from '@playwright/test';
 
-const FIXTURE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../fixtures/sparkasse-camt-18.csv',
-);
-
-/**
- * An account with the fixture's rows and a category to sort into. The other specs share
- * this database; each step only runs when what it makes is missing.
- */
-async function seed(page: Page): Promise<void> {
-  await page.goto('/transactions');
-  const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
-  await expect(
-    createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
-  ).toBeVisible();
-  if (await createAccount.isVisible()) {
-    await page.getByLabel('IBAN').fill('DE89370400440532013000');
-    await page.getByLabel('Bezeichnung').fill('Giro');
-    await page.getByRole('button', { name: 'Anlegen' }).click();
-  }
-  if ((await page.getByRole('cell', { name: 'Müller GmbH' }).count()) === 0) {
-    await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
-    await expect(page.getByText(/importiert/u)).toBeVisible();
-  }
-
-  await page.getByRole('link', { name: 'Regeln' }).click();
-  await expect(page.getByRole('heading', { name: 'Kategorien' })).toBeVisible();
-  const wohnen = page.getByText('Wohnen', { exact: true });
-  if (!(await wohnen.first().isVisible())) {
-    await page.getByLabel('Name').fill('Wohnen');
-    await page.getByRole('button', { name: 'Kategorie anlegen' }).click();
-  }
-  await expect(wohnen.first()).toBeVisible();
-}
+import { withFixture, withWohnen } from './support';
 
 /** The number the Sortieren badge shows, read off its link's name: `Sortieren (4)`. */
 async function badge(page: Page): Promise<number> {
@@ -46,7 +10,8 @@ async function badge(page: Page): Promise<number> {
 }
 
 test('sorts a row with a number key, and takes it back with Z', async ({ page }) => {
-  await seed(page);
+  await withFixture(page);
+  await withWohnen(page);
   await page
     .getByRole('navigation')
     .getByRole('link', { name: /^Sortieren/u })
@@ -77,7 +42,8 @@ test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('fits without scrolling sideways', async ({ page }) => {
-    await seed(page);
+    await withFixture(page);
+    await withWohnen(page);
     await page.goto('/inbox');
 
     await expect(page.getByRole('heading', { level: 1, name: 'Sortieren' })).toBeVisible();

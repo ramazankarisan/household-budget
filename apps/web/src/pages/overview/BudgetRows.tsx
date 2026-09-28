@@ -127,6 +127,7 @@ export function BudgetRows({
           startIcon={editing ? undefined : <EditRounded fontSize="small" />}
           onClick={onToggleEditing}
           disabled={limitsLoading}
+          sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           {editing ? t('overview.done') : t('overview.edit')}
         </Button>

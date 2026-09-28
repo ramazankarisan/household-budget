@@ -32,8 +32,8 @@ describe('locales', () => {
   });
 
   it('names the category filter something the row selects are not called', () => {
-    // `CategoryCell` puts a combobox named "Kategorie" on every row. A second control by
-    // that name is a strict-mode locator failure in the e2e specs.
+    // The rule editor names its category select "Kategorie". A filter by that name would be
+    // a second control of the same name — a strict-mode locator failure in the e2e specs.
     for (const tree of [de, en]) {
       expect(tree.transactions.filterCategory).not.toBe(tree.rules.category);
       expect(tree.transactions.filterCategory).not.toBe(tree.transactions.columns.category);

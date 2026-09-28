@@ -6,6 +6,10 @@ export const ALL_MONTHS = 'all';
 
 export const MONTH_PARAM = 'm';
 
+/** The list's view state another page may link into: `?a=` account, `?c=` category. */
+export const ACCOUNT_PARAM = 'a';
+export const CATEGORY_PARAM = 'c';
+
 interface UseMonthOptions {
   /**
    * What the page shows without a valid `?m`: the newest month with data (Überblick), or

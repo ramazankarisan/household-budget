@@ -108,6 +108,24 @@ export interface TransactionPayload {
   readonly categoryLockedAt: string | null;
 }
 
+/**
+ * One upload as the history lists it — what `GET /api/imports` returns, newest first.
+ * The file's hash stays in the database: it is for recognising a repeat, not for reading.
+ */
+export interface ImportBatchPayload {
+  readonly id: string;
+  readonly accountId: string;
+  readonly fileName: string;
+  readonly encoding: BankFileEncoding;
+  /** ISO 8601. */
+  readonly importedAt: string;
+  readonly rowsParsed: number;
+  readonly rowsImported: number;
+  readonly rowsSkipped: number;
+  readonly rowsRestored: number;
+  readonly rowsFailed: number;
+}
+
 export interface ImportSummary {
   readonly batchId: string;
   /** Rows the parser understood, booked and pending together. */

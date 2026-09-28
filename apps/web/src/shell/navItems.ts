@@ -2,6 +2,7 @@ import InboxRounded from '@mui/icons-material/InboxRounded';
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded';
 import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded';
 import TuneRounded from '@mui/icons-material/TuneRounded';
+import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import { type SvgIconComponent } from '@mui/icons-material';
 
 import { uncategorizedRows } from '../filter';
@@ -10,7 +11,11 @@ import { useHousehold } from '../household/context';
 export interface NavItem {
   readonly to: string;
   readonly labelKey:
-    'common.nav.overview' | 'common.nav.transactions' | 'common.nav.inbox' | 'common.nav.rules';
+    | 'common.nav.overview'
+    | 'common.nav.transactions'
+    | 'common.nav.inbox'
+    | 'common.nav.rules'
+    | 'common.nav.imports';
   readonly Icon: SvgIconComponent;
   /** A number of things to do there; hidden at zero. */
   readonly badge?: number | undefined;
@@ -29,5 +34,6 @@ export function useNavItems(): readonly NavItem[] {
     { to: '/transactions', labelKey: 'common.nav.transactions', Icon: ReceiptLongRounded },
     { to: '/inbox', labelKey: 'common.nav.inbox', Icon: InboxRounded, badge: unsorted },
     { to: '/rules', labelKey: 'common.nav.rules', Icon: TuneRounded },
+    { to: '/imports', labelKey: 'common.nav.imports', Icon: UploadFileRounded },
   ];
 }

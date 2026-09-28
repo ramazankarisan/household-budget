@@ -105,7 +105,7 @@ export function TrendChart({ totals, limitCents, width, height = 190 }: TrendCha
               <ChartsReferenceLine
                 y={limitCents}
                 label={t('overview.limitLine', { amount: formatAmount(limitCents) })}
-                labelAlign="end"
+                labelAlign="start"
                 lineStyle={{ strokeDasharray: '4 4', stroke: theme.palette.text.primary }}
                 labelStyle={{
                   fontSize: theme.typography.caption.fontSize,

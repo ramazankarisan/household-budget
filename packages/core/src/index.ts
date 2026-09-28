@@ -10,6 +10,7 @@ export type {
   BudgetPayload,
   CategoryPayload,
   DeletedRulePayload,
+  ImportBatchPayload,
   ImportSummary,
   RuleOrderInput,
   RulePayload,

@@ -1,15 +1,6 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, type Page, test } from '@playwright/test';
 
-const FIXTURE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../fixtures/sparkasse-camt-18.csv',
-);
-
-/** `875,07 €` separates the amount from the € with U+00A0, not a space. */
-const plain = (text: string): string => text.replaceAll('\u00a0', ' ');
+import { categoryPill, ledgerRow, pickCategory, plain, withFixture, withWohnen } from './support';
 
 /**
  * The report end to end: rows imported and categorized through the real API, summed by
@@ -93,38 +84,12 @@ test.describe.serial('monthly budgets', () => {
 
 /** The account, the fixture, `Wohnen`, the `müller` rule applied, and one REWE row by hand. */
 async function seed(page: Page): Promise<void> {
-  await page.goto('/transactions');
+  await withFixture(page);
 
-  const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
-  await expect(
-    createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
-  ).toBeVisible();
-
-  if (await createAccount.isVisible()) {
-    await page.getByLabel('IBAN').fill('DE89370400440532013000');
-    await page.getByLabel('Bezeichnung').fill('Giro');
-    await page.getByRole('button', { name: 'Anlegen' }).click();
-  }
-
-  if ((await page.getByRole('cell', { name: 'Müller GmbH' }).count()) === 0) {
-    await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
-    await expect(page.getByText(/importiert/)).toBeVisible();
-  }
-  await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toBeVisible();
-
-  // Read off the row's text rather than its select: until a category exists, the cell is
-  // read-only text and there is no combobox to ask.
-  const muellerRow = page.getByRole('row').filter({ hasText: 'Müller GmbH' });
-  if ((await muellerRow.filter({ hasText: 'Wohnen' }).count()) === 0) {
-    await page.getByRole('link', { name: 'Regeln' }).click();
-    await expect(page.getByRole('heading', { name: 'Kategorien' })).toBeVisible();
-
-    const wohnen = page.getByText('Wohnen', { exact: true });
-    if (!(await wohnen.first().isVisible())) {
-      await page.getByLabel('Name').fill('Wohnen');
-      await page.getByRole('button', { name: 'Kategorie anlegen' }).click();
-    }
-    await expect(wohnen.first()).toBeVisible();
+  // Read off the row's pill rather than a menu: it names the category it shows.
+  const muellerRow = ledgerRow(page, 'Müller GmbH');
+  if ((await categoryPill(muellerRow).innerText()).trim() !== 'Wohnen') {
+    await withWohnen(page);
 
     const keyword = page
       .getByRole('list', { name: 'Regeln' })
@@ -141,14 +106,13 @@ async function seed(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Regeln anwenden' }).click();
     await expect(page.getByText(/zugeordnet/)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Umsätze' }).click();
-    await expect(muellerRow.getByRole('combobox')).toHaveText('Wohnen');
+    await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
+    await expect(categoryPill(muellerRow)).toHaveText('Wohnen');
   }
 
-  const reweRow = page.getByRole('row').filter({ hasText: 'REWE SAGT DANKE; FILIALE 42' }).first();
-  if ((await reweRow.filter({ hasText: 'Wohnen' }).count()) === 0) {
-    await reweRow.getByRole('combobox').click();
-    await page.getByRole('option', { name: 'Wohnen' }).click();
+  const reweRow = ledgerRow(page, 'REWE SAGT DANKE; FILIALE 42').first();
+  if ((await categoryPill(reweRow).innerText()).trim() !== 'Wohnen') {
+    await pickCategory(page, reweRow, 'Wohnen');
   }
   await expect(reweRow.getByLabel('von Hand gesetzt — Regeln ändern das nicht')).toBeVisible();
 }

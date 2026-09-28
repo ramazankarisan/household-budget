@@ -14,6 +14,7 @@ export const en: Messages<typeof de> = {
       transactions: 'Transactions',
       inbox: 'Sort',
       rules: 'Rules',
+      imports: 'Imports',
       budgets: 'Budgets',
       more: 'More',
     },
@@ -22,10 +23,13 @@ export const en: Messages<typeof de> = {
       transactions: 'Transactions',
       inbox: 'Sort',
       rules: 'Rules',
+      imports: 'Imports',
       budgets: 'Budgets',
     },
     accounts: {
       title: 'Accounts',
+      add: 'Create account',
+      none: 'No account yet. Create one, then import its CSV export.',
     },
     month: {
       previous: 'Previous month',
@@ -53,6 +57,11 @@ export const en: Messages<typeof de> = {
     },
     import: {
       title: 'Import CSV',
+      open: 'Import',
+      dialogTitle: 'Import CSV',
+      account: 'Account',
+      dropHere: 'Drop the file to import it',
+      close: 'Close',
       uploading: 'Importing…',
       dropHint: 'Drag a Sparkasse export here or click to choose',
       chooseFile: 'Choose CSV file',
@@ -65,6 +74,11 @@ export const en: Messages<typeof de> = {
     },
   },
   transactions: {
+    allAccounts: 'All accounts',
+    filterAccount: 'Filter by account',
+    dayTotal: 'Spent {{amount}}',
+    categoryOf: 'Category: {{name}}',
+    income: 'Income',
     month: 'Month',
     allMonths: 'All months',
     filterCategory: 'Filter by category',
@@ -140,6 +154,11 @@ export const en: Messages<typeof de> = {
     ruleDeleted: 'Rule "{{label}}" deleted',
     applySummary:
       '{{evaluated}} checked · {{assigned}} assigned · {{cleared}} cleared · {{locked}} set by hand',
+  },
+  imports: {
+    empty: 'Nothing imported yet.',
+    counts: '{{imported}} new · {{skipped}} skipped · {{restored}} restored · {{failed}} failed',
+    listLabel: 'Past imports',
   },
   inbox: {
     subtitle: '{{count}} uncategorized transactions',

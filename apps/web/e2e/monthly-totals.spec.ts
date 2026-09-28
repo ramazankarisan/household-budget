@@ -1,12 +1,6 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, type Page, test } from '@playwright/test';
 
-const FIXTURE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../fixtures/sparkasse-camt-18.csv',
-);
+import { withFixture } from './support';
 
 /**
  * The first amount in `text`, `1.510,67 €` → 151067. The cents stay integers, the way the
@@ -38,7 +32,7 @@ function centsOf(text: string): number {
  */
 test.describe.serial('monthly totals', () => {
   test.beforeEach(async ({ page }) => {
-    await importFixture(page);
+    await withFixture(page);
     await page.getByRole('link', { name: 'Überblick' }).click();
     await expect(page.getByRole('heading', { name: 'Budgets nach Kategorie' })).toBeVisible();
   });
@@ -66,33 +60,6 @@ test.describe.serial('monthly totals', () => {
     await expect(page.getByText(/ von /u)).toHaveText(/^1\.143,41\s€ von /u);
   });
 });
-
-/**
- * The account and the upload, each only when it is not already there — the other specs
- * share this database. A repeated upload is not a no-op: it replaces every pending row
- * with a fresh one, dropping any category set on it by hand, and restores booked rows the
- * user deleted. So the file goes up once, never on every test.
- */
-async function importFixture(page: Page): Promise<void> {
-  await page.goto('/transactions');
-
-  const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
-  await expect(
-    createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
-  ).toBeVisible();
-
-  if (await createAccount.isVisible()) {
-    await page.getByLabel('IBAN').fill('DE89370400440532013000');
-    await page.getByLabel('Bezeichnung').fill('Giro');
-    await page.getByRole('button', { name: 'Anlegen' }).click();
-  }
-
-  if ((await page.getByRole('cell', { name: 'Müller GmbH' }).count()) === 0) {
-    await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
-    await expect(page.getByText(/importiert/)).toBeVisible();
-  }
-  await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toBeVisible();
-}
 
 async function chooseMonth(page: Page, name: string): Promise<void> {
   const stepper = page.getByRole('button', { name: /^Monat wählen/u });

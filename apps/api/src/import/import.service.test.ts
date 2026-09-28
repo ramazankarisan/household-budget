@@ -70,6 +70,26 @@ const liveRows = (accountId: string) =>
     orderBy: { lineNumber: 'asc' },
   });
 
+describe('ImportService.listBatches', () => {
+  it('lists every upload, newest first, across accounts — a no-op one included', async () => {
+    const giro = await account();
+    const tagesgeld = await account('DE02120300000000202051');
+    await importFile(giro, 'sparkasse-camt-18.csv');
+    await importFile(tagesgeld, 'sparkasse-camt-17.csv');
+    await importFile(giro, 'sparkasse-camt-18.csv');
+
+    const listed = await imports.listBatches();
+
+    expect(listed.map((batch) => [batch.accountId, batch.fileName])).toEqual([
+      [giro, 'sparkasse-camt-18.csv'],
+      [tagesgeld, 'sparkasse-camt-17.csv'],
+      [giro, 'sparkasse-camt-18.csv'],
+    ]);
+    expect(listed[0]).toMatchObject({ rowsImported: 0, encoding: 'windows-1252' });
+    expect(Number.isNaN(Date.parse(listed[0]?.importedAt ?? ''))).toBe(false);
+  });
+});
+
 describe('ImportService', () => {
   it('imports the Windows-1252 fixture with umlauts intact', async () => {
     // The cp1252 assertion core's own tests cannot make: core has no TextDecoder.

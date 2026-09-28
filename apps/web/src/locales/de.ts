@@ -45,6 +45,7 @@ export const de = {
       transactions: 'Umsätze',
       inbox: 'Sortieren',
       rules: 'Regeln',
+      imports: 'Importe',
       budgets: 'Budgets',
       more: 'Mehr',
     },
@@ -53,10 +54,13 @@ export const de = {
       transactions: 'Umsätze',
       inbox: 'Sortieren',
       rules: 'Regeln',
+      imports: 'Importe',
       budgets: 'Budgets',
     },
     accounts: {
       title: 'Konten',
+      add: 'Konto anlegen',
+      none: 'Noch kein Konto. Legen Sie eines an, dann importieren Sie seinen CSV-Export.',
     },
     month: {
       previous: 'Vorheriger Monat',
@@ -84,6 +88,11 @@ export const de = {
     },
     import: {
       title: 'CSV importieren',
+      open: 'Importieren',
+      dialogTitle: 'CSV importieren',
+      account: 'Konto',
+      dropHere: 'Datei loslassen zum Importieren',
+      close: 'Schließen',
       uploading: 'Import läuft…',
       dropHint: 'Sparkasse-Export hierher ziehen oder klicken zum Auswählen',
       chooseFile: 'CSV-Datei auswählen',
@@ -96,6 +105,11 @@ export const de = {
     },
   },
   transactions: {
+    allAccounts: 'Alle Konten',
+    filterAccount: 'Konto filtern',
+    dayTotal: 'Ausgaben {{amount}}',
+    categoryOf: 'Kategorie: {{name}}',
+    income: 'Einnahme',
     month: 'Monat',
     allMonths: 'Alle Monate',
     /** The filter select's accessible name — deliberately not `columns.category`. */
@@ -173,6 +187,12 @@ export const de = {
     ruleDeleted: 'Regel „{{label}}“ gelöscht',
     applySummary:
       '{{evaluated}} geprüft · {{assigned}} zugeordnet · {{cleared}} gelöscht · {{locked}} manuell',
+  },
+  imports: {
+    empty: 'Noch nichts importiert.',
+    counts:
+      '{{imported}} neu · {{skipped}} übersprungen · {{restored}} wiederhergestellt · {{failed}} fehlerhaft',
+    listLabel: 'Bisherige Importe',
   },
   inbox: {
     subtitle: '{{count}} Umsätze ohne Kategorie',

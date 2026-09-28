@@ -1,15 +1,19 @@
 import AccountBalanceWalletRounded from '@mui/icons-material/AccountBalanceWalletRounded';
+import AddRounded from '@mui/icons-material/AddRounded';
+import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 
 import { useHousehold } from '../household/context';
+import { useImport } from './importContext';
 
 /** The accounts the household has, by name and the last four digits of the IBAN. */
 export function AccountsList() {
   const { t } = useTranslation();
   const { accounts } = useHousehold();
-  if (accounts === undefined || accounts.length === 0) {
+  const { openImport } = useImport();
+  if (accounts === undefined) {
     return null;
   }
 
@@ -36,6 +40,16 @@ export function AccountsList() {
           </Typography>
         </Stack>
       ))}
+      <Button
+        size="small"
+        startIcon={<AddRounded />}
+        onClick={() => {
+          openImport({ newAccount: true });
+        }}
+        sx={{ alignSelf: 'flex-start', ml: -0.75 }}
+      >
+        {t('common.accounts.add')}
+      </Button>
     </Stack>
   );
 }

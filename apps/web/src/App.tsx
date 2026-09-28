@@ -1,10 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 
 import { HouseholdProvider } from './household/HouseholdProvider';
-import { AccountPage } from './pages/AccountPage';
+import { ImportsPage } from './pages/ImportsPage';
 import { InboxPage } from './pages/InboxPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { RulesPage } from './pages/RulesPage';
+import { TransactionsPage } from './pages/TransactionsPage';
 import { AccountsList } from './shell/AccountsList';
 import { AppShell } from './shell/AppShell';
 
@@ -25,9 +26,10 @@ export function App() {
         <AppShell sidebarExtra={<AccountsList />}>
           <Routes>
             <Route path="/" element={<OverviewPage />} />
-            <Route path="/transactions" element={<AccountPage />} />
+            <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/rules" element={<RulesPage />} />
+            <Route path="/imports" element={<ImportsPage />} />
             <Route path="/budgets" element={<BudgetsRedirect />} />
           </Routes>
         </AppShell>

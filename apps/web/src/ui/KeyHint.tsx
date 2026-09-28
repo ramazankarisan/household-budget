@@ -21,6 +21,8 @@ export function KeyHint({ keys }: { readonly keys: string }) {
         color: 'text.secondary',
         typography: 'caption',
         lineHeight: 1,
+        // Inside a button's icon slot MUI sizes the first child as an icon; a hint is text.
+        '&&': { fontSize: '0.6875rem' },
       }}
     >
       {keys}
