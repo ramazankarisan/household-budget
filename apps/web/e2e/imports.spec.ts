@@ -50,22 +50,25 @@ test('a file dropped on any page opens the import with it', async ({ page }) => 
   await expect(history.getByRole('listitem')).toHaveCount(before + 1);
 });
 
-test('an upload can be removed, and „Rückgängig“ brings its rows back', async ({ page }) => {
+test('the newest upload can be removed, and „Rückgängig“ brings it back', async ({ page }) => {
   await withFixture(page);
   await page.getByRole('navigation').getByRole('link', { name: 'Importe' }).click();
-  // The oldest upload is the one that brought the fixture's rows; later ones were no-ops.
-  const oldest = page.getByRole('list', { name: 'Bisherige Importe' }).getByRole('listitem').last();
-  await expect(oldest).toContainText(/[1-9]\d* neu/u);
+  const uploads = page.getByRole('list', { name: 'Bisherige Importe' }).getByRole('listitem');
+  const newest = uploads.first();
+  const remove = /^Import „sparkasse-camt-18\.csv“ entfernen$/u;
+  // Newest first: an older upload may own rows a later file skipped, so only the top one offers it.
+  await expect(uploads.last().getByRole('button', { name: remove })).toHaveCount(0);
 
-  await oldest.getByRole('button', { name: 'Import „sparkasse-camt-18.csv“ entfernen' }).click();
+  await newest.getByRole('button', { name: remove }).click();
 
   await expect(page.getByText('Import „sparkasse-camt-18.csv“ entfernt')).toBeVisible();
-  await expect(oldest).toContainText('Entfernt');
-  await expect(oldest.getByRole('button', { name: /entfernen$/u })).toHaveCount(0);
+  await expect(newest).toContainText('Entfernt');
+  await expect(newest.getByRole('button', { name: remove })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Rückgängig' }).click();
 
-  await expect(oldest).not.toContainText('Entfernt');
+  await expect(newest).not.toContainText('Entfernt');
+  await expect(newest.getByRole('button', { name: remove })).toBeVisible();
   await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
   await expect(ledgerRow(page, 'Müller GmbH')).toBeVisible();
 });

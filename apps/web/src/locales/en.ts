@@ -264,6 +264,10 @@ export const en: Messages<typeof de> = {
       FORBIDDEN_ORIGIN: 'Request refused: it did not come from this page.',
       CATEGORY_COLOR_INVALID: 'That colour does not exist.',
       RULE_ORDER_STALE: 'The rules changed in the meantime — the list has been reloaded.',
+      IMPORT_NOT_LATEST:
+        'Only an account’s newest import can be removed — remove the newer ones first.',
+      IMPORT_RESTORE_BLOCKED:
+        'This import can no longer be brought back — another one was removed after it.',
       RULE_ORDER_INVALID: 'That order is not valid.',
     },
     unknownApi: 'request refused ({{code}})',

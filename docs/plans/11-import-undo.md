@@ -32,7 +32,22 @@ empty frame.
    account's next export brings it anew.
 5. **A removed upload stays listed**, dimmed, marked „Entfernt“, without a remove button, and
    no longer counts as "already uploaded" for the same file.
-6. **Unknown address → `/`**, with `replace`, like the `/budgets` and `/inbox` redirects —
+6. **Newest first, like a stack** (after review). A row an overlapping later export skipped
+   as already stored still belongs to the older upload, so removing the older one took rows the
+   later file holds. Only an account's newest standing upload can be removed
+   (`409 IMPORT_NOT_LATEST`), and only its most recently removed one restored
+   (`409 IMPORT_RESTORE_BLOCKED`) — with B removed and then A under it, B alone would come
+   back without the rows it skipped. The page shows the button on the newest one only. The
+   alternative, recording per upload which rows it contained, needs a new table; not worth it
+   for a way out of a wrong import.
+7. **A re-import brings a removed upload back** (after review). Re-uploading a removed file
+   restores its rows in place, still owned by the removed upload; that upload is marked standing
+   again, since it holds live rows and must stay removable.
+8. **One removal wins** (after review). The check and the `undoneAt` write are one conditional
+   update inside the transaction, and the button is disabled while its request runs. Before,
+   two removals in flight both passed the check, the second stamped a later `undoneAt` over
+   the first, and `restore` found no row with that time.
+9. **Unknown address → `/`**, with `replace`, like the `/budgets` and `/inbox` redirects —
    no separate not-found page for a four-page app.
 
 ## Tests

@@ -35,6 +35,8 @@ const WHEN = new Intl.DateTimeFormat('de-DE', {
  * An upload can be removed — the way out of a file imported into the wrong account. Like
  * every destructive action it happens at once and offers „Rückgängig“ for six seconds; a
  * removed upload stays listed, dimmed and marked, so the history still answers what came in.
+ * Only each account's newest standing upload offers it: the API removes newest first, since
+ * an older upload owns rows a later overlapping file skipped (plan 11).
  */
 export function ImportsPage() {
   const { t } = useTranslation();
@@ -47,6 +49,9 @@ export function ImportsPage() {
     { readonly key: number; readonly batch: ImportBatchPayload } | undefined
   >(undefined);
   const undoSeq = useRef(0);
+  // The upload a request is in flight for: its button stays disabled until the answer, so
+  // a double click sends one removal.
+  const [busy, setBusy] = useState<string | undefined>(undefined);
 
   // Keyed on the household's rows: an import reloads them, and then this list too.
   useEffect(() => {
@@ -69,9 +74,12 @@ export function ImportsPage() {
 
   const accountName = (id: string) => accounts?.find((account) => account.id === id)?.name ?? '';
 
+  const removable = newestStanding(batches ?? []);
+
   // Every page shows the rows, so the household reloads — and this list with it.
   function remove(batch: ImportBatchPayload): void {
     setError(undefined);
+    setBusy(batch.id);
     undoImport(batch.id)
       .then(() => {
         undoSeq.current += 1;
@@ -80,6 +88,9 @@ export function ImportsPage() {
       })
       .catch((cause: unknown) => {
         setError({ cause });
+      })
+      .finally(() => {
+        setBusy(undefined);
       });
   }
 
@@ -147,10 +158,11 @@ export function ImportsPage() {
                   />
                   {/* A surprise encoding here means the bank changed its export format. */}
                   <Chip size="small" variant="outlined" label={batch.encoding} />
-                  {batch.undoneAt === null && (
+                  {removable.has(batch.id) && (
                     <Button
                       size="small"
                       aria-label={t('imports.removeLabel', { file: batch.fileName })}
+                      disabled={busy !== undefined}
                       onClick={() => {
                         remove(batch);
                       }}
@@ -193,4 +205,18 @@ export function ImportsPage() {
       )}
     </>
   );
+}
+
+/** Each account's newest upload that still stands — the only one the API will remove. */
+function newestStanding(batches: readonly ImportBatchPayload[]): ReadonlySet<string> {
+  const seen = new Set<string>();
+  const newest = new Set<string>();
+  // Newest first, as listed: the first standing upload of an account is its newest.
+  for (const batch of batches) {
+    if (batch.undoneAt === null && !seen.has(batch.accountId)) {
+      seen.add(batch.accountId);
+      newest.add(batch.id);
+    }
+  }
+  return newest;
 }

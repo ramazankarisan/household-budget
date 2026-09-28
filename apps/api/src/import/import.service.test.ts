@@ -571,6 +571,70 @@ describe('ImportService.undo and restore', () => {
     expect(await liveRows(accountId)).toHaveLength(first.imported + first.pendingReplaced);
   });
 
+  it('lets an upload stand again, and be removed again, once a re-import brings its rows back', async () => {
+    const accountId = await account();
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    await imports.undo(first.batchId);
+    const again = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const listed = await imports.listBatches();
+    expect(listed.find((batch) => batch.id === first.batchId)?.undoneAt).toBeNull();
+
+    // Newest first: the re-import goes, then the upload that owns the booked rows.
+    await imports.undo(again.batchId);
+    await imports.undo(first.batchId);
+    expect(await liveRows(accountId)).toHaveLength(0);
+  });
+
+  it('keeps the undo working when the same upload is removed twice at once', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+
+    const [one, two] = await Promise.all([imports.undo(batchId), imports.undo(batchId)]);
+    await imports.restore(batchId);
+
+    expect(one.undoneAt).toBe(two.undoneAt);
+    expect((await liveRows(accountId)).map((row) => row.id)).toEqual(before.map((row) => row.id));
+  });
+
+  it('removes only the newest standing upload, so a later overlapping file keeps its rows', async () => {
+    const accountId = await account();
+    const older = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const newer = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+    const before = await liveRows(accountId);
+
+    await expect(imports.undo(older.batchId)).rejects.toMatchObject({
+      response: { code: 'IMPORT_NOT_LATEST' },
+    });
+    expect(await liveRows(accountId)).toHaveLength(before.length);
+
+    await imports.undo(newer.batchId);
+    await expect(imports.undo(older.batchId)).resolves.toMatchObject({
+      undoneAt: expect.any(String) as unknown,
+    });
+  });
+
+  it('restores only the most recently removed upload of the account', async () => {
+    const accountId = await account();
+    const older = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const newer = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+    const before = await liveRows(accountId);
+    await imports.undo(newer.batchId);
+    await imports.undo(older.batchId);
+
+    // The newer file skipped rows the older upload holds; alone, it would come back without them.
+    await expect(imports.restore(newer.batchId)).rejects.toMatchObject({
+      response: { code: 'IMPORT_RESTORE_BLOCKED' },
+    });
+
+    await imports.restore(older.batchId);
+    await imports.restore(newer.batchId);
+    expect((await liveRows(accountId)).map((row) => row.id).sort()).toEqual(
+      before.map((row) => row.id).sort(),
+    );
+  });
+
   it('changes nothing when an upload is removed twice or restored while it stands', async () => {
     const accountId = await account();
     const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');

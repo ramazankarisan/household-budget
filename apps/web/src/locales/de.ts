@@ -33,6 +33,8 @@ type ApiRefusalCode =
   | 'FORBIDDEN_ORIGIN'
   | 'CATEGORY_COLOR_INVALID'
   | 'RULE_ORDER_STALE'
+  | 'IMPORT_NOT_LATEST'
+  | 'IMPORT_RESTORE_BLOCKED'
   | 'RULE_ORDER_INVALID';
 
 export const de = {
@@ -312,6 +314,10 @@ export const de = {
       FORBIDDEN_ORIGIN: 'Anfrage abgelehnt: sie kam nicht von dieser Seite.',
       CATEGORY_COLOR_INVALID: 'Diese Farbe gibt es nicht.',
       RULE_ORDER_STALE: 'Die Regeln haben sich inzwischen geändert — die Liste ist neu geladen.',
+      IMPORT_NOT_LATEST:
+        'Nur der neueste Import eines Kontos lässt sich entfernen — bitte die neueren zuerst entfernen.',
+      IMPORT_RESTORE_BLOCKED:
+        'Dieser Import lässt sich nicht mehr zurückholen — danach wurde ein weiterer entfernt.',
       RULE_ORDER_INVALID: 'Diese Reihenfolge ist ungültig.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */

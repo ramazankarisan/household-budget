@@ -463,4 +463,54 @@ describe('ImportsPage', () => {
     expect(list).toHaveTextContent('Entfernt');
     expect(within(list).queryByRole('button', { name: /entfernen$/u })).not.toBeInTheDocument();
   });
+
+  it('offers removal on each account s newest standing upload only', async () => {
+    const newer = { ...BATCHES[0], id: 'b-3', fileName: 'oktober.csv' } as ImportBatchPayload;
+    const other = { ...newer, id: 'b-4', accountId: 'acc-2', fileName: 'tagesgeld.csv' };
+    batches = [newer, other, ...BATCHES];
+    render(
+      <MemoryRouter>
+        <HouseholdProvider>
+          <ImportsPage />
+        </HouseholdProvider>
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('button', { name: 'Import „oktober.csv“ entfernen' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import „tagesgeld.csv“ entfernen' })).toBeEnabled();
+    expect(
+      screen.queryByRole('button', { name: 'Import „september.csv“ entfernen' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('sends one removal for a double click', async () => {
+    let answer: (batch: ImportBatchPayload) => void = () => undefined;
+    vi.mocked(undoImport).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    vi.mocked(undoImport).mockClear();
+    render(
+      <MemoryRouter>
+        <HouseholdProvider>
+          <ImportsPage />
+        </HouseholdProvider>
+      </MemoryRouter>,
+    );
+
+    const button = await screen.findByRole('button', { name: 'Import „september.csv“ entfernen' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(undoImport).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    await act(async () => {
+      answer({ ...BATCHES[0], undoneAt: '2025-09-21T10:00:00.000Z' } as ImportBatchPayload);
+      await Promise.resolve();
+    });
+  });
 });
