@@ -1,3 +1,7 @@
+import { resolve } from 'node:path';
+
+const FIXTURES_DIR = resolve(import.meta.dirname, '..', '..', 'fixtures');
+
 /**
  * Mutation testing for core: Stryker changes the source one small edit at a time (`<` to
  * `<=`, `+` to `-`, a condition to `true`) and reruns the tests. A mutant the tests still
@@ -17,7 +21,14 @@ export default {
    * per-test coverage), honest. Revisit when the plugin supports Vitest 5.
    */
   testRunner: 'command',
-  commandRunner: { command: 'pnpm exec vitest run --bail=1 --reporter=dot' },
+  /*
+   * FIXTURES_DIR because the sandbox is a copy of this package two folders deeper than the
+   * package itself, so a test's `../../../../fixtures/…` would miss the repo's fixtures/.
+   * vitest.config.ts resolves every fixtures import through it.
+   */
+  commandRunner: {
+    command: `FIXTURES_DIR=${FIXTURES_DIR} pnpm exec vitest run --bail=1 --reporter=dot`,
+  },
   mutate: [
     'src/**/*.ts',
     '!src/**/*.test.ts',
@@ -29,7 +40,7 @@ export default {
   reporters: ['clear-text', 'progress', 'html'],
   htmlReporter: { fileName: 'reports/mutation/index.html' },
   // Break is a ratchet like the coverage thresholds: just under the score it was set at.
-  thresholds: { high: 90, low: 80, break: 78 },
+  thresholds: { high: 90, low: 80, break: 81 },
   tempDirName: '.stryker-tmp',
   // Each worker is a whole Vitest process; the default (one per core) runs out of memory.
   concurrency: 4,

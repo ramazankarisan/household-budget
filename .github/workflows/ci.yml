@@ -22,19 +22,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # gitleaks scans the commits a PR adds, so it needs history.
           fetch-depth: 0
 
+      # The pre-commit data guard, over every tracked file: no bank export, .env or database
+      # may be in the repository, however it got past the hook.
+      - run: node scripts/check-staged-data.mjs --all
+
       # Same scanner as the pre-commit hook, over every commit in the push or PR.
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Version from package.json's packageManager field.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -55,8 +59,9 @@ jobs:
       # CI runs Playwright with the dot reporter, so there is no HTML report: the traces,
       # screenshots and error context of a failed spec are in test-results/.
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-results
           path: apps/web/test-results/
+          if-no-files-found: ignore
           retention-days: 7

@@ -113,7 +113,7 @@ thresholds, printing one line per step and nothing else unless something fails. 
 `pnpm check:all` plus gitleaks and `pnpm audit` on every PR. What each guardrail covers, and
 why coverage thresholds only go up: [plan 09](docs/plans/09-guardrails.md).
 `pnpm check:all` adds Playwright, which boots the API and the web server, so it is slower —
-that is what the pre-push hook runs.
+that is what CI runs.
 
 Single package, single file, single test:
 
@@ -142,18 +142,21 @@ Two things worth knowing about what `check` is checking:
 
 - `pnpm typecheck` is the real strictness gate — lint is deliberately not type-aware, except
   for a floating-promise overlay scoped to `src/` and the Playwright specs.
-- `pnpm lint:deps` is dependency-cruiser enforcing the `packages/core` rule below, plus: apps
-  import core's built package only, api and web never import each other, web never imports
-  Node, NestJS, Prisma or `core/csv`, and no cycles. It catches type-only imports too.
+- `pnpm lint:deps` is dependency-cruiser enforcing the `packages/core` rule below (type-only
+  imports included), plus: apps import core's built package only, api and web never import
+  each other, no cycles, and web never imports Node, NestJS, Prisma or `core/csv` at runtime
+  nor reaches `csv-parse` through any chain. Type-only imports into web are allowed — erased
+  before the browser sees them.
 
 ### Git hooks
 
 lefthook, installed by `pnpm install` via the root `prepare` script.
 
-- **pre-commit** (seconds): staged-data guard → gitleaks → prettier → eslint → typecheck →
-  core unit tests. Stops at the first failure.
+- **pre-commit** (seconds, staged files): staged-data guard → gitleaks → prettier → eslint.
+  Stops at the first failure.
 - **commit-msg**: commitlint, Conventional Commits.
-- **pre-push**: `pnpm check:all`, Playwright included.
+- **pre-push**: `check.mjs --push` — deps, unused, typecheck, unit with coverage. Format and
+  lint already ran per commit; Playwright runs in CI, which runs everything.
 
 gitleaks is a Go binary, not an npm package — `brew install gitleaks`. The hook fails rather
 than skips when it is missing, so the gate cannot quietly pass.

@@ -3,7 +3,9 @@
  * The single "is this repo healthy" command.
  *
  *   pnpm check       fast set — no servers, no browser. Run this after every change.
- *   pnpm check:all   everything, including Playwright. Run by the pre-push hook.
+ *   pnpm check:all   everything, including Playwright. What CI runs.
+ *   --push           the fast set without format and lint, which pre-commit already ran on
+ *                    every file being pushed. What the pre-push hook runs.
  *
  * Each step's output is buffered and thrown away on success, so a green run is one line per
  * step and nothing else. On failure the buffered output is printed in full for that step and
@@ -14,11 +16,12 @@
 import { spawnSync } from 'node:child_process';
 
 const runAll = process.argv.includes('--all');
+const forPush = process.argv.includes('--push');
 
 /** Ordered cheapest-to-most-expensive, so the common failure surfaces soonest. */
 const STEPS = [
-  { label: 'format', script: 'format:check' },
-  { label: 'lint', script: 'lint' },
+  { label: 'format', script: 'format:check', perCommit: true },
+  { label: 'lint', script: 'lint', perCommit: true },
   { label: 'deps', script: 'lint:deps' },
   { label: 'unused', script: 'lint:unused' },
   { label: 'types', script: 'typecheck' },
@@ -35,7 +38,9 @@ const RESET = '\u001b[0m';
 const plain = !process.stdout.isTTY || process.env['NO_COLOR'];
 const paint = (color, text) => (plain ? text : `${color}${text}${RESET}`);
 
-const steps = STEPS.filter((step) => step.only !== 'all' || runAll);
+const steps = STEPS.filter(
+  (step) => (step.only !== 'all' || runAll) && !(forPush && step.perCommit),
+);
 let failed = null;
 
 for (const step of steps) {
@@ -69,6 +74,6 @@ if (failed) {
   process.exit(1);
 }
 
-if (!runAll) {
+if (!runAll && !forPush) {
   console.log(paint(DIM, 'ok — run `pnpm check:all` to include Playwright'));
 }

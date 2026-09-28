@@ -29,6 +29,9 @@ export default tseslint.config(
       '**/test-results/**',
       '**/playwright-report/**',
       '**/blob-report/**',
+      // Stryker's sandbox copies: an interrupted `pnpm mutation` leaves instrumented source.
+      '**/.stryker-tmp/**',
+      '**/reports/mutation/**',
     ],
   },
 
@@ -96,13 +99,6 @@ export default tseslint.config(
   {
     files: ['apps/web/src/**/*.tsx'],
     ...jsxA11y.flatConfigs.recommended,
-    rules: {
-      ...jsxA11y.flatConfigs.recommended.rules,
-      // The rule is about stealing focus on page load. Every autoFocus here is on a MUI
-      // field inside a popover or form the user just opened, where moving focus into it
-      // is the accessible behaviour. A raw DOM element still gets flagged.
-      'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
-    },
   },
 
   // Test files get the Vitest globals (`globals: true` in both vitest configs).

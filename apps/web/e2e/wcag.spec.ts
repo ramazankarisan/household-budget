@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { importFixture } from './support';
+import { withFixture } from './support';
 
 /**
  * Accessibility, as the browser actually rendered it. eslint-plugin-jsx-a11y reads JSX and
@@ -23,8 +23,9 @@ const PAGES = [
 test.beforeAll(async ({ browser }) => {
   // Pages with rows on them, not empty states: a ledger row is where a missing label hides.
   const page = await browser.newPage();
-  await page.goto('/transactions');
-  await importFixture(page);
+  // withFixture, not importFixture: a repeated upload is not a no-op, and a retry here
+  // must not change the rows the specs after it read.
+  await withFixture(page);
   await page.close();
 });
 

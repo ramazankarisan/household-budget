@@ -45,7 +45,7 @@ async function listReady(page: Page): Promise<'no-account' | 'empty' | 'rows'> {
  * Uploads the fixture through the import dialog, creating the Giro account first when there
  * is none, and closes the dialog once the result is on screen. Returns that result's text.
  */
-export async function importFixture(page: Page): Promise<string> {
+async function importFixture(page: Page): Promise<string> {
   const state = await listReady(page);
   if (state === 'no-account') {
     await page.getByRole('main').getByRole('button', { name: 'Konto anlegen' }).click();

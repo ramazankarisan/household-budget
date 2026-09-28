@@ -75,6 +75,16 @@ module.exports = {
       },
     },
     {
+      name: 'web-never-reaches-csv-parse',
+      severity: 'error',
+      comment:
+        'The rule above sees direct imports only. The way csv-parse would actually reach the ' +
+        "browser is indirect: core's root entry re-exporting something from csv/. Reachability " +
+        "follows the whole chain, through core's built dist/.",
+      from: { path: '^apps/web/src', pathNot: '\\.test\\.tsx?$|^apps/web/src/test/' },
+      to: { path: '(^|/)csv-parse(/|$)', reachable: true },
+    },
+    {
       name: 'web-has-no-node-builtins',
       severity: 'error',
       comment:

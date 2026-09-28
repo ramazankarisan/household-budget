@@ -153,6 +153,7 @@ export function RuleSentenceEditor({
       <TextField
         size="small"
         value={rule.value}
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- set only by the inline edit form the user just opened on a rule; never on page load.
         autoFocus={autoFocusValue}
         error={marks['value'] !== undefined}
         helperText={marks['value']}

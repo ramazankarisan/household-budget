@@ -30,7 +30,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.test.ts', 'src/test/**', 'src/generated/**', 'src/main.ts'],
-      reporter: ['text-summary', 'html'],
+      reporter: ['text-summary'],
       thresholds: { statements: 85, branches: 80, functions: 73, lines: 85 },
     },
   },
