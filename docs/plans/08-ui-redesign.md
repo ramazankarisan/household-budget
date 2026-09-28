@@ -47,7 +47,7 @@ https://claude.ai/artifact/XdDJmDHfwciPa8H2ap22Rm.
       category. ~~The sidebar badge, the list chip (for all accounts) and the inbox (all months)
       show the same number; the list chip follows the chosen account;~~ _Changed: the nav badge
       counts every month; the list chip counts the chosen accounts and the chosen month (never
-      the search or category filter), so the two agree only under „Alle Monate“;_ the Überblick
+      the search or category filter), so the two agree only under „Alle Monate“ with all accounts;_ the Überblick
       callout shows the month's count and the total.
 - [x] ~~`/inbox` shows those rows one at a time; `1`–`9` assign, `M` opens the full category menu,
       `S` skip, `J`/`K` move, `N` new category, `R` rule, `Z` undo, `Esc` close; after an assign

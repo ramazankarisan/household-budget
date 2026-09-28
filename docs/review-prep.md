@@ -537,8 +537,8 @@ pnpm dev                     # http://localhost:5173, your own apps/api/data/bud
    your data), check the live preview count, apply. → plan 02.
 5. **Hand-set wins:** set one row's category by hand, press „Regeln anwenden“ — it keeps its
    category and shows the lock. → plan 02.
-6. **List:** search a lower-case payee that the bank wrote in capitals; filter by „Ohne
-   Kategorie“; the chip count matches the rows shown. → plan 03.
+6. **List:** search a lower-case payee that the bank wrote in capitals — it matches. Clear the
+   search, then filter by „Ohne Kategorie“; the chip count matches the rows shown. → plan 03.
 7. **Budgets:** set a limit on one category for the month, check the bar and „über“ past it. →
    plan 04.
 8. **Theme + language + width:** switch dark/light and DE/EN; narrow the window to phone width —
