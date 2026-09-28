@@ -15,8 +15,11 @@ import {
   type RuleInputErrorCode,
 } from '@household-budget/core';
 
-/** Raised by the API before the parser sees the file, so not part of core's codes. */
-type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE';
+/**
+ * Raised by the API rather than by core: the upload check before the parser sees the file,
+ * and the check that the parsed rows belong to the chosen account.
+ */
+type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE' | 'ACCOUNT_IBAN_MISMATCH';
 
 /** The structural codes csv-parse raises that have wording of their own; the set is open. */
 type CsvErrorCode =
@@ -30,6 +33,8 @@ type ApiRefusalCode =
   | 'FORBIDDEN_ORIGIN'
   | 'CATEGORY_COLOR_INVALID'
   | 'RULE_ORDER_STALE'
+  | 'IMPORT_NOT_LATEST'
+  | 'IMPORT_RESTORE_BLOCKED'
   | 'RULE_ORDER_INVALID';
 
 export const de = {
@@ -198,6 +203,12 @@ export const de = {
     counts:
       '{{imported}} neu · {{skipped}} übersprungen · {{restored}} wiederhergestellt · {{failed}} fehlerhaft',
     listLabel: 'Bisherige Importe',
+    /** Removes the upload's rows; the upload stays listed, marked `removedMark`. */
+    remove: 'Entfernen',
+    removeLabel: 'Import „{{file}}“ entfernen',
+    removed: 'Import „{{file}}“ entfernt',
+    removedMark: 'Entfernt',
+    undo: 'Rückgängig',
   },
   categoryMenu: {
     search: 'Kategorie suchen',
@@ -283,6 +294,8 @@ export const de = {
     file: {
       UNSUPPORTED_CONTENT_TYPE:
         'Dateityp nicht unterstützt — bitte den CSV-Export der Bank hochladen',
+      ACCOUNT_IBAN_MISMATCH:
+        'Die Datei gehört zu einem anderen Konto — bitte das passende Konto wählen oder anlegen. IBAN in der Datei',
       HEADER_NOT_FOUND:
         'Keine Kopfzeile erkannt — unterstützt sind der CSV-CAMT-Export der Sparkasse und der Umsatz-Export der Deutschen Bank',
       REQUIRED_COLUMN_MISSING: 'Pflichtspalte fehlt',
@@ -301,6 +314,10 @@ export const de = {
       FORBIDDEN_ORIGIN: 'Anfrage abgelehnt: sie kam nicht von dieser Seite.',
       CATEGORY_COLOR_INVALID: 'Diese Farbe gibt es nicht.',
       RULE_ORDER_STALE: 'Die Regeln haben sich inzwischen geändert — die Liste ist neu geladen.',
+      IMPORT_NOT_LATEST:
+        'Nur der neueste Import eines Kontos lässt sich entfernen — bitte die neueren zuerst entfernen.',
+      IMPORT_RESTORE_BLOCKED:
+        'Dieser Import lässt sich nicht mehr zurückholen — danach wurde ein weiterer entfernt.',
       RULE_ORDER_INVALID: 'Diese Reihenfolge ist ungültig.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */

@@ -3,7 +3,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  Param,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -64,6 +67,22 @@ export class ImportController {
   @Get()
   list(): Promise<ImportBatchPayload[]> {
     return this.imports.listBatches();
+  }
+
+  /**
+   * DELETE /api/imports/:id — removes an upload's rows, keeps the upload listed as removed.
+   * 200 with the batch as it now stands, which is what the undo snackbar shows.
+   */
+  @Delete(':id')
+  @HttpCode(200)
+  undo(@Param('id') id: string): Promise<ImportBatchPayload> {
+    return this.imports.undo(id);
+  }
+
+  /** POST /api/imports/:id/restore — the undo for `DELETE`: the same rows come back. */
+  @Post(':id/restore')
+  restore(@Param('id') id: string): Promise<ImportBatchPayload> {
+    return this.imports.restore(id);
   }
 
   /** POST /api/imports — multipart: `file` plus an `accountId` field. */

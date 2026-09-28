@@ -30,8 +30,9 @@ spending against limits per category, what is still uncategorized, a six-month t
 `/transactions` is the ledger of every account, narrowed by account, category and free text,
 and where uncategorized rows are categorized (`/inbox` redirects to its „Ohne Kategorie“
 filter); `/rules` shows rules as sentences in the order they are tried; `/imports` lists every
-upload. Import happens in a dialog from any page, or by dropping a file on the window. All
-pages read one household copy of the data (`apps/web/src/household/`).
+upload and can remove one, with undo ([plan 11](docs/plans/11-import-undo.md)). Import
+happens in a dialog from any page, or by dropping a file on the window. All pages read one
+household copy of the data (`apps/web/src/household/`).
 
 `POST /api/imports` takes a bank CSV upload scoped to an account — Sparkasse CSV-CAMT or
 Deutsche Bank ([research 07](docs/research/07-deutsche-bank-csv.md)), the format detected from

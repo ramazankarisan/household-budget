@@ -1,4 +1,4 @@
-import { type ImportSummary } from '@household-budget/core';
+import { type ImportBatchPayload, type ImportSummary } from '@household-budget/core';
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,13 +6,18 @@ import { ImportController } from './import.controller.js';
 import { type ImportService } from './import.service.js';
 
 const summary = { imported: 1 } as unknown as ImportSummary;
+const batch = { id: 'batch-1' } as unknown as ImportBatchPayload;
 
 let importCsv: ReturnType<typeof vi.fn>;
+let undo: ReturnType<typeof vi.fn>;
+let restore: ReturnType<typeof vi.fn>;
 let controller: ImportController;
 
 beforeEach(() => {
   importCsv = vi.fn(() => Promise.resolve(summary));
-  controller = new ImportController({ importCsv } as unknown as ImportService);
+  undo = vi.fn(() => Promise.resolve(batch));
+  restore = vi.fn(() => Promise.resolve(batch));
+  controller = new ImportController({ importCsv, undo, restore } as unknown as ImportService);
 });
 
 function file(mimetype: string) {
@@ -65,5 +70,19 @@ describe('ImportController.upload', () => {
     const error = rejection(() => controller.upload(file('text/csv'), '  '));
 
     expect(error.message).toBe('accountId is required');
+  });
+});
+
+describe('ImportController.undo and restore', () => {
+  it('removes the upload the path names', async () => {
+    await expect(controller.undo('batch-1')).resolves.toBe(batch);
+
+    expect(undo).toHaveBeenCalledWith('batch-1');
+  });
+
+  it('restores the upload the path names', async () => {
+    await expect(controller.restore('batch-1')).resolves.toBe(batch);
+
+    expect(restore).toHaveBeenCalledWith('batch-1');
   });
 });

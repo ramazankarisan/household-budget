@@ -516,8 +516,9 @@ interface UploadedCsv {
 - [x] `sparkasse-camt-18-bad-rows.csv` returns `failed.length === 3` with correct line numbers and
       codes, and the good rows are stored.
 - [x] `sparkasse-camt-malformed.csv` returns **4xx**, not 500, and imports nothing.
-- [x] An import whose `Auftragskonto` differs from the selected `Account.iban` still succeeds and
-      stores the file's value in `Transaction.accountIban`.
+- [x] ~~An import whose `Auftragskonto` differs from the selected `Account.iban` still succeeds and
+      stores the file's value in `Transaction.accountIban`.~~ _Changed: such a file is now refused
+      with `ACCOUNT_IBAN_MISMATCH` — see Later changes._
 - [x] `pnpm check` green.
 
 ### Phase 5: Web UI and end-to-end coverage
@@ -773,6 +774,16 @@ failed: []` says the file held nine rows and one of them was the pending snapsho
   later export, freezing the pending set until that date passed.
 - 2026-09-22, `e45bcda`: a deleted _pending_ row comes back as a new row on re-import, not a
   restored one — it has no `dedupKey` to match (see the Phase 4 notes).
+- 2026-09-28: a file whose rows name another IBAN than the chosen account is **refused**
+  (`400 ACCOUNT_IBAN_MISMATCH`, the file's IBANs masked in `columns`), reversing the Phase 4
+  criterion. Once a second bank existed, "record the mismatch as provenance" stopped being
+  harmless: the pending set and the stale-export watermark are both per account, so a Deutsche
+  Bank file imported into the Sparkasse account deleted Sparkasse's pending rows, and its later
+  dates then made the next real Sparkasse export look older, dropping its pending rows too. The
+  same file could also land in two accounts and double every total. Checked per row, since
+  Sparkasse names the owner on every row, and before anything is written. Accounts cannot be
+  edited, so an account created with a mistyped IBAN now accepts no file; the error names the
+  file's IBAN so the right account can be created.
 
 ## References
 
