@@ -162,6 +162,11 @@ export const en: Messages<typeof de> = {
     empty: 'Nothing imported yet.',
     counts: '{{imported}} new · {{skipped}} skipped · {{restored}} restored · {{failed}} failed',
     listLabel: 'Past imports',
+    remove: 'Remove',
+    removeLabel: 'Remove import "{{file}}"',
+    removed: 'Import "{{file}}" removed',
+    removedMark: 'Removed',
+    undo: 'Undo',
   },
   categoryMenu: {
     search: 'Search categories',

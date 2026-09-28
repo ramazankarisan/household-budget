@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { listTransactions, uploadImport } from '../api/client';
+import { listTransactions, restoreImport, undoImport, uploadImport } from '../api/client';
 import { HouseholdProvider } from '../household/HouseholdProvider';
 import i18n from '../locales/i18n';
 import { ImportDialog } from './import/ImportDialog';
@@ -38,8 +38,10 @@ const BATCHES: ImportBatchPayload[] = [
     rowsSkipped: 8,
     rowsRestored: 0,
     rowsFailed: 0,
+    undoneAt: null,
   },
 ];
+let batches: ImportBatchPayload[] = BATCHES;
 
 vi.mock('../api/client', () => ({
   ApiError: class ApiError extends Error {},
@@ -51,7 +53,13 @@ vi.mock('../api/client', () => ({
   listRules: () => Promise.resolve([]),
   // Counted: "narrowing issues no request" is a claim about how many times this was called.
   listTransactions: vi.fn((accountId: string) => Promise.resolve(stored[accountId] ?? [])),
-  listImports: () => Promise.resolve(BATCHES),
+  listImports: () => Promise.resolve(batches),
+  undoImport: vi.fn((batchId: string) =>
+    Promise.resolve({ ...BATCHES[0], id: batchId, undoneAt: '2025-09-21T10:00:00.000Z' }),
+  ),
+  restoreImport: vi.fn((batchId: string) =>
+    Promise.resolve({ ...BATCHES[0], id: batchId, undoneAt: null }),
+  ),
   createCategory: (name: string) => Promise.resolve({ id: `cat-${name}`, name, colorIndex: 1 }),
   uploadImport: vi.fn(() =>
     Promise.resolve({
@@ -110,6 +118,7 @@ const OLD = row('t-2', 'Versicherung AG', { bookingDate: '2014-03-24' });
 beforeEach(() => {
   accounts = [GIRO];
   stored = {};
+  batches = BATCHES;
   writes.length = 0;
   vi.mocked(listTransactions).mockClear();
   vi.mocked(uploadImport).mockClear();
@@ -414,5 +423,44 @@ describe('ImportsPage', () => {
     await waitFor(() => {
       expect(list).toHaveTextContent('Giro');
     });
+  });
+
+  it('removes an upload at once and offers „Rückgängig“, which restores it', async () => {
+    render(
+      <MemoryRouter>
+        <HouseholdProvider>
+          <ImportsPage />
+        </HouseholdProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Import „september.csv“ entfernen' }),
+    );
+
+    expect(await screen.findByText('Import „september.csv“ entfernt')).toBeInTheDocument();
+    expect(undoImport).toHaveBeenCalledWith('b-2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rückgängig' }));
+
+    await waitFor(() => {
+      expect(restoreImport).toHaveBeenCalledWith('b-2');
+    });
+    expect(screen.queryByText('Import „september.csv“ entfernt')).not.toBeInTheDocument();
+  });
+
+  it('marks a removed upload and offers no second removal', async () => {
+    batches = BATCHES.map((batch) => ({ ...batch, undoneAt: '2025-09-21T10:00:00.000Z' }));
+    render(
+      <MemoryRouter>
+        <HouseholdProvider>
+          <ImportsPage />
+        </HouseholdProvider>
+      </MemoryRouter>,
+    );
+
+    const list = await screen.findByRole('list', { name: 'Bisherige Importe' });
+    expect(list).toHaveTextContent('Entfernt');
+    expect(within(list).queryByRole('button', { name: /entfernen$/u })).not.toBeInTheDocument();
   });
 });

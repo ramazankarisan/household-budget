@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -503,6 +503,93 @@ describe('ImportService, Deutsche Bank', () => {
  * `beforeEach` truncation: these are about what an upload leaves behind, not about what
  * the engine decides.
  */
+describe('ImportService.undo and restore', () => {
+  it('hides every row the upload brought and keeps the upload listed as removed', async () => {
+    const accountId = await account();
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const second = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+
+    const removed = await imports.undo(second.batchId);
+    const rows = await liveRows(accountId);
+
+    expect(removed.undoneAt).not.toBeNull();
+    expect(rows.every((row) => row.importBatchId === first.batchId)).toBe(true);
+    // Its booked rows only: the pending row was replaced by the newer export when it ran.
+    expect(rows).toHaveLength(first.imported);
+    const listed = await imports.listBatches();
+    expect(listed.find((batch) => batch.id === second.batchId)?.undoneAt).toBe(removed.undoneAt);
+  });
+
+  it('brings back exactly the same rows on restore', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+
+    await imports.undo(batchId);
+    const restored = await imports.restore(batchId);
+
+    expect(restored.undoneAt).toBeNull();
+    expect((await liveRows(accountId)).map((row) => row.id)).toEqual(before.map((row) => row.id));
+  });
+
+  it('leaves a row deleted by hand before the removal deleted after a restore', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+    const [gone] = before;
+    await accounts.softDeleteTransaction(gone?.id ?? '');
+
+    await imports.undo(batchId);
+    await imports.restore(batchId);
+    const rows = await liveRows(accountId);
+
+    expect(rows.map((row) => row.id)).not.toContain(gone?.id);
+    expect(rows).toHaveLength(before.length - 1);
+  });
+
+  it('releases a hand-set category lock, as deleting a single row does', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const wohnen = await categories.create('Wohnen');
+    const [row] = await liveRows(accountId);
+    await accounts.setTransactionCategory(row?.id ?? '', wohnen.id);
+
+    await imports.undo(batchId);
+
+    expect(await prisma.transaction.count({ where: { categoryLockedAt: { not: null } } })).toBe(0);
+  });
+
+  it('treats the file as new to the account once its upload is removed', async () => {
+    const accountId = await account();
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    await imports.undo(first.batchId);
+
+    const again = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    expect(again.duplicateOfBatchId).toBeUndefined();
+    expect(again.restored).toBe(first.imported);
+    expect(await liveRows(accountId)).toHaveLength(first.imported + first.pendingReplaced);
+  });
+
+  it('changes nothing when an upload is removed twice or restored while it stands', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const standing = await imports.restore(batchId);
+    const removed = await imports.undo(batchId);
+    const again = await imports.undo(batchId);
+
+    expect(standing.undoneAt).toBeNull();
+    expect(again.undoneAt).toBe(removed.undoneAt);
+    expect(await liveRows(accountId)).toHaveLength(0);
+  });
+
+  it('answers 404 for an upload that does not exist', async () => {
+    await expect(imports.undo('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(imports.restore('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
 describe('ImportService and the rules engine', () => {
   async function wohnenRule(): Promise<string> {
     const wohnen = await categories.create('Wohnen');

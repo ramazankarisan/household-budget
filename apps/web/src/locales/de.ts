@@ -201,6 +201,12 @@ export const de = {
     counts:
       '{{imported}} neu · {{skipped}} übersprungen · {{restored}} wiederhergestellt · {{failed}} fehlerhaft',
     listLabel: 'Bisherige Importe',
+    /** Removes the upload's rows; the upload stays listed, marked `removedMark`. */
+    remove: 'Entfernen',
+    removeLabel: 'Import „{{file}}“ entfernen',
+    removed: 'Import „{{file}}“ entfernt',
+    removedMark: 'Entfernt',
+    undo: 'Rückgängig',
   },
   categoryMenu: {
     search: 'Kategorie suchen',

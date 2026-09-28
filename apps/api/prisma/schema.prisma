@@ -44,6 +44,9 @@ model ImportBatch {
   rowsSkipped  Int
   rowsRestored Int
   rowsFailed   Int
+  /// Set when the user removed this upload. Its rows were soft-deleted with this exact
+  /// timestamp, which is how an undo tells them from rows deleted one by one before.
+  undoneAt     DateTime?
   transactions Transaction[]
 
   /// Powers "you already uploaded this file".
