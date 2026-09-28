@@ -648,49 +648,49 @@ Dependencies: Phase 3 (`previewRule`, append-on-create).
 
 **Tasks**:
 
-- [ ] Core `RuleOrderInput`. API `RuleService.reorder(body)` (decision 8): validate shape and
+- [x] Core `RuleOrderInput`. API `RuleService.reorder(body)` (decision 8): validate shape and
       duplicates (400 `RULE_ORDER_INVALID`), set equality with stored ids (409
       `RULE_ORDER_STALE`), one `$transaction` writing `(index + 1) * 10`, return `RulePayload[]`
       in order. `RuleController` `@Put('order')`.
-- [ ] `api/client.ts` — `reorderRules(ids)`.
-- [ ] `pnpm --filter @household-budget/web add @dnd-kit/core@^6.3.1 @dnd-kit/sortable@^10.0.0 @dnd-kit/utilities@^3.2.2`.
-- [ ] `ruleStats.ts` — `ruleWins(rules, transactions)` → `Map<ruleId, number>` over unlocked rows
+- [x] `api/client.ts` — `reorderRules(ids)`.
+- [x] `pnpm --filter @household-budget/web add @dnd-kit/core@^6.3.1 @dnd-kit/sortable@^10.0.0 @dnd-kit/utilities@^3.2.2`.
+- [x] `ruleStats.ts` — `ruleWins(rules, transactions)` → `Map<ruleId, number>` over unlocked rows
       via `matchingRule(orderRules(rules), row)` (decision 12).
-- [ ] `ui/RuleSentence.tsx` — „Wenn _Feld_ _Operator_ ‚Wert‘ → CategoryPill“; IBAN in mono
+- [x] `ui/RuleSentence.tsx` — „Wenn _Feld_ _Operator_ ‚Wert‘ → CategoryPill“; IBAN in mono
       without quotes; read and edit variants (edit: selects + input; sends the stored priority).
-- [ ] `pages/rules/RuleList.tsx` — `DndContext` + `SortableContext`
+- [x] `pages/rules/RuleList.tsx` — `DndContext` + `SortableContext`
       (`verticalListSortingStrategy`, `PointerSensor` + `KeyboardSensor`); row: handle,
       position, `RuleSentence`, „gewinnt N“ or „inaktiv“, active `Switch`, ↑/↓ `IconButton`s,
       edit, delete (undo snackbar as today). Every move: optimistic `setRules` → `reorderRules`
       → on failure revert + `describeFailure`. `Alt+↑`/`Alt+↓` on the focused row.
-- [ ] `pages/rules/RuleComposer.tsx` — new rule as a sentence, no priority input; live
+- [x] `pages/rules/RuleComposer.tsx` — new rule as a sentence, no priority input; live
       `previewRule` („trifft n · m ohne Kategorie · k von Hand bleibt · wird Regel N+1“).
-- [ ] `pages/rules/CategoryPanel.tsx` — dot, name, booked row count; create with a colour radio
+- [x] `pages/rules/CategoryPanel.tsx` — dot, name, booked row count; create with a colour radio
       group (8 swatches, `aria-label` „Farbe n“, preselecting the next index); colour change via
       `updateCategory`; delete with the existing in-use refusal and undo.
-- [ ] `RulesPage.tsx` — composes the three; „Regeln anwenden“ in `usePageChrome` actions (spinner
+- [x] `RulesPage.tsx` — composes the three; „Regeln anwenden“ in `usePageChrome` actions (spinner
       inside the button while applying); apply summary as today.
-- [ ] Locales: `rules.*` (if, then, moveUp, moveDown, dragHandle, wins, inactive, willBeRule,
+- [x] Locales: `rules.*` (if, then, moveUp, moveDown, dragHandle, wins, inactive, willBeRule,
       color, colorN, colorLabel); `errors.api.RULE_ORDER_STALE`, `RULE_ORDER_INVALID` (and the
       union).
-- [ ] Tests (api): `rule.service.test.ts` — reorder writes 10/20/…; missing id → 409; extra id
+- [x] Tests (api): `rule.service.test.ts` — reorder writes 10/20/…; missing id → 409; extra id
       → 409; duplicate → 400; non-array → 400; `list()` returns the new order.
-- [ ] Tests (web): `ruleStats.test.ts` (a row matched by rules 1 and 3 counts for 1 only; locked
+- [x] Tests (web): `ruleStats.test.ts` (a row matched by rules 1 and 3 counts for 1 only; locked
       rows excluded); `ui/RuleSentence.test.tsx`; `RulesPage.test.tsx` rewritten — ↑ calls
       `reorderRules` with the new order; a refusal reverts the order and shows the sentence;
       `Alt+↓` moves; composer preview; colour change calls `updateCategory`; ports `:137-139`
       (rows by sentence text instead of `role="row"`/`td`) and the delete/undo/refusal cases.
-- [ ] E2E: `rules.spec.ts:63`, `:127` cell lookups → sentence text; drag test (rule 2 above rule
+- [x] E2E: `rules.spec.ts:63`, `:127` cell lookups → sentence text; drag test (rule 2 above rule
       1 with `page.mouse`, reload, order kept); keyboard test (`Alt+↑`).
-- [ ] Docs: dated note in `docs/plans/02-categorization-rules.md` (priority set by position via
+- [x] Docs: dated note in `docs/plans/02-categorization-rules.md` (priority set by position via
       `PUT /api/rules/order`); `README.md` rules paragraph.
 
 **Automated Verification**:
 
-- [ ] `pnpm --filter @household-budget/api exec vitest run src/rules` passes
-- [ ] `pnpm --filter @household-budget/web exec vitest run src/ruleStats.test.ts src/ui/RuleSentence.test.tsx src/pages/RulesPage.test.tsx` passes
-- [ ] `pnpm check` passes
-- [ ] `pnpm check:all` passes
+- [x] `pnpm --filter @household-budget/api exec vitest run src/rules` passes
+- [x] `pnpm --filter @household-budget/web exec vitest run src/ruleStats.test.ts src/ui/RuleSentence.test.tsx src/pages/RulesPage.test.tsx` passes
+- [x] `pnpm check` passes
+- [x] `pnpm check:all` passes
 
 **Manual Verification**:
 
@@ -802,6 +802,11 @@ During implementation, document user feedback, problems, and decisions here.
   editor) rather than in phase 4, which reuses them.
 - Phase 3, the Überblick „Ohne Kategorie“ row and card now lead to `/inbox?m=…`; the
   account hand-off (`?a=`) is no longer needed there, since the inbox spans all accounts.
+- Phase 4, the composer is always on screen and „Regel anlegen“ submits it — there is no
+  separate "open the form" step any more. Editing a rule turns its own row into the
+  sentence editor. The colour of an existing category is changed from its dot; a new one
+  preselects the colour the server would assign next.
+- Phase 4, `ruleErrorsOf` lives in `pages/rules/ruleErrors.ts` (Fast Refresh).
 - Phase 2, jsdom has no `ResizeObserver`; `src/test/setup.ts` stubs it so the self-sizing
   trend chart can mount in page tests.
 

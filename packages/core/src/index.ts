@@ -11,6 +11,7 @@ export type {
   CategoryPayload,
   DeletedRulePayload,
   ImportSummary,
+  RuleOrderInput,
   RulePayload,
   TransactionPayload,
 } from './api.js';

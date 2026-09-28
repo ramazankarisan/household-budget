@@ -50,7 +50,7 @@ test.describe.serial('categorization rules', () => {
     /*
      * Both of these are asked for only when they are not already there. A retry — CI runs
      * with two — re-runs the whole serial file against the database the failed attempt
-     * left behind, and a second `müller` rule would make the cell locator match twice and
+     * left behind, and a second `müller` rule would make the keyword locator match twice and
      * fail on strict mode, hiding whatever actually broke behind a locator error.
      */
     const wohnen = page.getByText('Wohnen', { exact: true });
@@ -60,11 +60,15 @@ test.describe.serial('categorization rules', () => {
     }
     await expect(wohnen.first()).toBeVisible();
 
-    const keyword = page.getByRole('cell', { name: 'müller', exact: true });
+    const keyword = page
+      .getByRole('list', { name: 'Regeln' })
+      .getByText('„müller“', { exact: true });
     if ((await keyword.count()) === 0) {
-      await page.getByRole('button', { name: 'Regel anlegen' }).click();
-      await page.getByLabel('Suchbegriff').fill('müller');
-      await page.getByRole('button', { name: 'Speichern' }).click();
+      const composer = page.getByRole('region', { name: 'Neue Regel' });
+      await composer.getByLabel('Suchbegriff').fill('müller');
+      await composer.getByRole('combobox', { name: 'Kategorie' }).click();
+      await page.getByRole('option', { name: 'Wohnen' }).click();
+      await composer.getByRole('button', { name: 'Regel anlegen' }).click();
     }
 
     await expect(keyword).toHaveCount(1);
@@ -101,5 +105,52 @@ test.describe.serial('categorization rules', () => {
       .first();
     await expect(afterApply.getByRole('combobox')).toHaveText('Wohnen');
     await expect(afterApply.getByLabel('von Hand gesetzt — Regeln ändern das nicht')).toBeVisible();
+  });
+
+  test('the order is changed by dragging and by Alt+↑, and saved', async ({ page }) => {
+    await page.goto('/rules');
+    const composer = page.getByRole('region', { name: 'Neue Regel' });
+    const list = page.getByRole('list', { name: 'Regeln' });
+    // Two rules that match nothing, so no other spec's rows move; removed at the end.
+    for (const value of ['e2e-eins', 'e2e-zwei']) {
+      if ((await list.getByText(`„${value}“`, { exact: true }).count()) === 0) {
+        await composer.getByLabel('Suchbegriff').fill(value);
+        await composer.getByRole('button', { name: 'Regel anlegen' }).click();
+        await expect(list.getByText(`„${value}“`, { exact: true })).toBeVisible();
+      }
+    }
+    const order = async () =>
+      (await list.getByRole('listitem').allInnerTexts())
+        .map((text) => /„(e2e-[a-z]+)“/u.exec(text)?.[1])
+        .filter((value) => value !== undefined);
+    await expect.poll(order).toEqual(['e2e-eins', 'e2e-zwei']);
+
+    // Drag the second above the first by its handle.
+    const handle = page.getByRole('button', { name: 'Ziehen, um zu verschieben: e2e-zwei' });
+    const target = page.getByRole('button', { name: 'Ziehen, um zu verschieben: e2e-eins' });
+    const from = await handle.boundingBox();
+    const to = await target.boundingBox();
+    if (from === null || to === null) {
+      throw new Error('handles not on screen');
+    }
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2, to.y + 2, { steps: 12 });
+    await page.mouse.up();
+    await expect.poll(order).toEqual(['e2e-zwei', 'e2e-eins']);
+
+    // Stored, not only shown.
+    await page.reload();
+    await expect.poll(order).toEqual(['e2e-zwei', 'e2e-eins']);
+
+    // And back with the keyboard, on the focused row.
+    await page.getByRole('button', { name: 'Nach oben: e2e-eins' }).focus();
+    await page.keyboard.press('Alt+ArrowUp');
+    await expect.poll(order).toEqual(['e2e-eins', 'e2e-zwei']);
+
+    for (const value of ['e2e-eins', 'e2e-zwei']) {
+      await page.getByRole('button', { name: `Regel löschen: ${value}` }).click();
+      await expect(list.getByText(`„${value}“`, { exact: true })).toHaveCount(0);
+    }
   });
 });

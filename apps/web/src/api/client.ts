@@ -186,6 +186,15 @@ export function updateRule(ruleId: string, input: RuleInput): Promise<RulePayloa
   return request<RulePayload>(`/rules/${encodeURIComponent(ruleId)}`, json('PATCH', input));
 }
 
+/**
+ * The whole order, first to last: the API renumbers every rule 10, 20, 30 … in one go and
+ * answers with the list in its new order. `RULE_ORDER_STALE` when the ids are not exactly
+ * the stored rules — another tab added or deleted one.
+ */
+export function reorderRules(ids: readonly string[]): Promise<RulePayload[]> {
+  return request<RulePayload[]>('/rules/order', json('PUT', { ids }));
+}
+
 /** Answers with the rule as it stood, which is what {@link restoreRule} takes back. */
 export function deleteRule(ruleId: string): Promise<DeletedRulePayload> {
   return request<DeletedRulePayload>(`/rules/${encodeURIComponent(ruleId)}`, {

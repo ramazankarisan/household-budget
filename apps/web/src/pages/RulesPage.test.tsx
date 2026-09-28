@@ -4,7 +4,7 @@ import {
   type DeletedRulePayload,
   type RulePayload,
 } from '@household-budget/core';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +45,9 @@ const removedCategory = vi.fn<(id: string) => Promise<void>>();
 const createdCategory = vi.fn<(name: string) => Promise<CategoryPayload>>();
 const removedRule = vi.fn<(id: string) => Promise<DeletedRulePayload>>();
 const restoredRule = vi.fn<(rule: DeletedRulePayload) => Promise<RulePayload>>();
+const reordered = vi.fn<(ids: readonly string[]) => Promise<RulePayload[]>>();
+const updatedCategory =
+  vi.fn<(id: string, update: { colorIndex?: number }) => Promise<CategoryPayload>>();
 
 vi.mock('../api/client', () => ({
   ApiError: class extends Error {
@@ -78,6 +81,8 @@ vi.mock('../api/client', () => ({
   deleteRule: (id: string) => removedRule(id),
   restoreRule: (deleted: DeletedRulePayload) => restoredRule(deleted),
   applyRules: () => applied(),
+  reorderRules: (ids: readonly string[]) => reordered(ids),
+  updateCategory: (id: string, update: { colorIndex?: number }) => updatedCategory(id, update),
 }));
 
 beforeEach(() => {
@@ -114,9 +119,36 @@ beforeEach(() => {
   });
 });
 
+beforeEach(() => {
+  reordered.mockReset();
+  reordered.mockImplementation((ids) => {
+    rules = ids.map((id, index) => ({
+      ...(rules.find((candidate) => candidate.id === id) ?? rule({ id })),
+      priority: (index + 1) * 10,
+    }));
+    return Promise.resolve(rules);
+  });
+  updatedCategory.mockReset();
+  updatedCategory.mockImplementation((id, update) => {
+    categories = categories.map((category) =>
+      category.id === id ? { ...category, ...update } : category,
+    );
+    const updated = categories.find((category) => category.id === id);
+    return updated === undefined ? Promise.reject(new Error('gone')) : Promise.resolve(updated);
+  });
+});
+
 afterEach(() => {
   vi.useRealTimers();
 });
+
+/** The rules as shown, first to last: each one's keyword. */
+async function shownOrder(): Promise<string[]> {
+  const list = await screen.findByRole('list', { name: 'Regeln' });
+  return within(list)
+    .getAllByRole('listitem')
+    .map((item) => /„([^“]+)“/u.exec(item.textContent)?.[1] ?? '');
+}
 
 /** The page reads categories and rules from the household, which loads them. */
 const page = () => (
@@ -129,8 +161,8 @@ const page = () => (
 
 describe('RulesPage', () => {
   it('renders rules in the order the API returned and does not re-sort them', async () => {
-    // The API's order is the order the engine walks. Re-sorting here would make the
-    // table lie about which rule wins.
+    // The API's order is the order the engine walks. Re-sorting here would make the list
+    // lie about which rule wins.
     rules = [
       rule({ id: 'r-a', value: 'erste', priority: 30 }),
       rule({ id: 'r-b', value: 'zweite', priority: 10 }),
@@ -138,56 +170,120 @@ describe('RulesPage', () => {
     ];
     render(page());
 
-    await screen.findByText('erste');
-    const shown = screen
-      .getAllByRole('row')
-      .slice(1)
-      .map((row) => row.querySelectorAll('td')[3]?.textContent);
-
-    expect(shown).toEqual(['erste', 'zweite', 'dritte']);
+    await screen.findByText('„erste“');
+    expect(await shownOrder()).toEqual(['erste', 'zweite', 'dritte']);
   });
 
   it('marks the field and sends nothing when the keyword is empty', async () => {
     // Core's own parser runs in the browser, so the common mistake never round-trips.
     render(page());
     fireEvent.click(await screen.findByRole('button', { name: 'Regel anlegen' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
 
     expect(await screen.findByText('Suchbegriff fehlt')).toBeInTheDocument();
     expect(created).not.toHaveBeenCalled();
   });
 
-  it('submits a rule the parser accepts', async () => {
+  it('submits a rule the parser accepts, without a priority so it is appended', async () => {
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: 'Regel anlegen' }));
+    await screen.findByRole('button', { name: 'Regel anlegen' });
     fireEvent.change(screen.getByRole('textbox', { name: 'Suchbegriff' }), {
       target: { value: 'müller' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Regel anlegen' }));
 
     await waitFor(() => {
       expect(created).toHaveBeenCalledWith(
-        expect.objectContaining({ value: 'müller', categoryId: 'cat-wohnen', priority: 100 }),
+        expect.objectContaining({ value: 'müller', categoryId: 'cat-wohnen' }),
       );
     });
+    expect(created.mock.calls[0]?.[0]).not.toHaveProperty('priority');
+  });
+
+  it('previews what a new rule would reach and where it would go', async () => {
+    rules = [rule({ id: 'r-a', value: 'erste' })];
+    render(page());
+    await screen.findByText('„erste“');
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Suchbegriff' }), {
+      target: { value: 'müller' },
+    });
+
+    const composer = screen.getByRole('region', { name: 'Neue Regel' });
+    expect(within(composer).getByRole('status')).toHaveTextContent('wird Regel 2');
   });
 
   it('shows the second rule when you switch which one you are editing', async () => {
-    // RuleForm seeds its editable copy from the prop, so without a key it keeps the
-    // first rule's values *and* its id — and saving then overwrites the wrong rule.
+    // The editor seeds its copy from the rule, so it has to follow a switch of rule rather
+    // than keep the first one's values — and saving then overwrites the wrong rule.
+    rules = [
+      rule({ id: 'r-a', value: 'erste', priority: 10 }),
+      rule({ id: 'r-b', value: 'zweite', priority: 20 }),
+    ];
+    render(page());
+    const list = await screen.findByRole('list', { name: 'Regeln' });
+
+    const [editA, editB] = within(list).getAllByRole('button', { name: 'Regel bearbeiten' });
+    fireEvent.click(editA as HTMLElement);
+    expect(within(list).getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('erste');
+
+    fireEvent.click(editB as HTMLElement);
+
+    expect(within(list).getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('zweite');
+  });
+
+  it('moves a rule up and saves the whole order as one', async () => {
     rules = [
       rule({ id: 'r-a', value: 'erste', priority: 10 }),
       rule({ id: 'r-b', value: 'zweite', priority: 20 }),
     ];
     render(page());
 
-    const [editA, editB] = await screen.findAllByRole('button', { name: 'Regel bearbeiten' });
-    fireEvent.click(editA as HTMLElement);
-    expect(screen.getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('erste');
+    fireEvent.click(await screen.findByRole('button', { name: 'Nach oben: zweite' }));
 
-    fireEvent.click(editB as HTMLElement);
+    expect(reordered).toHaveBeenCalledWith(['r-b', 'r-a']);
+    await waitFor(async () => {
+      expect(await shownOrder()).toEqual(['zweite', 'erste']);
+    });
+  });
 
-    expect(screen.getByRole('textbox', { name: 'Suchbegriff' })).toHaveValue('zweite');
+  it('moves a focused rule with Alt and an arrow key', async () => {
+    rules = [
+      rule({ id: 'r-a', value: 'erste', priority: 10 }),
+      rule({ id: 'r-b', value: 'zweite', priority: 20 }),
+    ];
+    render(page());
+
+    fireEvent.keyDown(await screen.findByRole('button', { name: 'Nach unten: erste' }), {
+      key: 'ArrowDown',
+      altKey: true,
+    });
+
+    expect(reordered).toHaveBeenCalledWith(['r-b', 'r-a']);
+  });
+
+  it('puts the old order back when the new one is refused', async () => {
+    rules = [
+      rule({ id: 'r-a', value: 'erste', priority: 10 }),
+      rule({ id: 'r-b', value: 'zweite', priority: 20 }),
+    ];
+    reordered.mockRejectedValue(new ApiError('RULE_ORDER_INVALID'));
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nach oben: zweite' }));
+
+    expect(await screen.findByText('Diese Reihenfolge ist ungültig.')).toBeInTheDocument();
+    expect(await shownOrder()).toEqual(['erste', 'zweite']);
+  });
+
+  it('changes a category’s colour', async () => {
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Farbe ändern: Wohnen' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Farbe 6' }));
+
+    await waitFor(() => {
+      expect(updatedCategory).toHaveBeenCalledWith('cat-wohnen', { colorIndex: 5 });
+    });
   });
 
   it('explains a refused category deletion with all three counts', async () => {
@@ -235,7 +331,7 @@ describe('RulesPage', () => {
     // `contains` is the default for a new rule, and an IBAN accepts only `equals`. Offering
     // the other three builds a form whose single outcome is a rejection on submit.
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: 'Regel anlegen' }));
+    await screen.findByRole('button', { name: 'Regel anlegen' });
 
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Feld' }));
     fireEvent.click(screen.getByRole('option', { name: 'IBAN' }));
@@ -255,6 +351,7 @@ describe('RulesPage', () => {
     render(page());
 
     expect(await screen.findByText('DE89370400440532013000')).toBeInTheDocument();
+    expect(screen.queryByText('de89370400440532013000')).toBeNull();
   });
 
   it('says why the lists are empty when they could not be loaded', async () => {

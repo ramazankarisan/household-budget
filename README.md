@@ -52,8 +52,11 @@ an account, drop a Sparkasse CSV export on the import panel, and the transaction
 appear below it. `fixtures/sparkasse-camt-18.csv`
 is a synthetic export to try it with.
 
-Under **Regeln**, add a category and a rule — `Empfänger enthält müller → Wohnen` —
-and press _Regeln anwenden_. Matching runs in `packages/core` rather than in SQL
+Under **Regeln**, add a category and write a rule as the sentence it is —
+`Wenn Empfänger enthält müller → Wohnen`; the preview counts what it would reach before
+it is saved — and press _Regeln anwenden_. The first matching rule wins, so order is
+priority: drag a rule, use its ↑/↓ buttons or `Alt+↑`/`Alt+↓`, and the whole order is
+saved at once. Each category's colour is chosen there too. Matching runs in `packages/core` rather than in SQL
 because SQLite folds case for ASCII only, so `LIKE '%müller%'` would miss
 `MÜLLER GmbH`. Choosing a category by hand on a transaction locks that row: the
 rules engine will not touch it again until the category is cleared.

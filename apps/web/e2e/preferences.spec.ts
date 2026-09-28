@@ -106,9 +106,8 @@ test.describe('language', () => {
       await page.getByLabel('Name').fill('Wohnen');
       await page.getByRole('button', { name: 'Add category' }).click();
     }
-    await page.getByRole('button', { name: 'Add rule' }).click();
-    await expect(page.getByRole('combobox', { name: 'Operator' })).toHaveText('contains');
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    const composer = page.getByRole('region', { name: 'New rule' });
+    await expect(composer.getByRole('combobox', { name: 'Operator' })).toHaveText('contains');
 
     await nav.getByRole('link', { name: 'Overview' }).click();
     await expect(page.getByRole('heading', { name: 'Budgets by category' })).toBeVisible();

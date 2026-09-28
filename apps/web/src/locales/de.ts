@@ -27,7 +27,9 @@ type ApiRefusalCode =
   | 'RULE_EXISTS'
   | 'RULE_RESTORE_INVALID'
   | 'FORBIDDEN_ORIGIN'
-  | 'CATEGORY_COLOR_INVALID';
+  | 'CATEGORY_COLOR_INVALID'
+  | 'RULE_ORDER_STALE'
+  | 'RULE_ORDER_INVALID';
 
 export const de = {
   common: {
@@ -117,6 +119,18 @@ export const de = {
     },
   },
   rules: {
+    newRule: 'Neue Regel',
+    orderHint: 'Die erste passende Regel gewinnt — ziehen oder verschieben ändert die Reihenfolge.',
+    moveUp: 'Nach oben',
+    moveDown: 'Nach unten',
+    dragHandle: 'Ziehen, um zu verschieben',
+    wins: 'gewinnt {{count}}',
+    inactive: 'inaktiv',
+    willBeRule: 'wird Regel {{position}}',
+    colorLabel: 'Farbe',
+    colorN: 'Farbe {{n}}',
+    changeColor: 'Farbe ändern',
+    rowCount: '{{count}} Umsätze',
     categoriesTitle: 'Kategorien',
     categoryName: 'Name',
     addCategory: 'Kategorie anlegen',
@@ -270,6 +284,8 @@ export const de = {
       RULE_RESTORE_INVALID: 'Diese Regel lässt sich nicht wiederherstellen.',
       FORBIDDEN_ORIGIN: 'Anfrage abgelehnt: sie kam nicht von dieser Seite.',
       CATEGORY_COLOR_INVALID: 'Diese Farbe gibt es nicht.',
+      RULE_ORDER_STALE: 'Die Regeln haben sich inzwischen geändert — die Liste ist neu geladen.',
+      RULE_ORDER_INVALID: 'Diese Reihenfolge ist ungültig.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */
     unknownApi: 'Anfrage abgelehnt ({{code}})',

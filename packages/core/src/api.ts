@@ -53,6 +53,14 @@ export interface DeletedRulePayload extends RulePayload {
   readonly createdAt: string;
 }
 
+/**
+ * The whole rule order, first to last — what `PUT /api/rules/order` takes. Every stored
+ * rule's id exactly once: an order that leaves one out is not an order.
+ */
+export interface RuleOrderInput {
+  readonly ids: readonly string[];
+}
+
 /** What one run of the rules engine changed. */
 export interface ApplySummary {
   /** Rows offered to the rules — every row not locked by hand, matched or not. */

@@ -163,6 +163,42 @@ export class RuleService {
     return toPayload(created);
   }
 
+  /**
+   * Puts every rule in the order given: priority 10, 20, 30 … in one transaction, so two
+   * quick moves can never leave half of one applied (plan 08, decision 8).
+   *
+   * The body must name every stored rule exactly once. An order sent from a list that is
+   * out of date — a rule added or deleted in another tab — is refused with 409 rather than
+   * guessed at: the rules it left out would land wherever their old numbers put them.
+   */
+  async reorder(body: unknown): Promise<RulePayload[]> {
+    const ids = (body as { ids?: unknown } | null)?.ids;
+    if (
+      !Array.isArray(ids) ||
+      !ids.every((id): id is string => typeof id === 'string') ||
+      new Set(ids).size !== ids.length
+    ) {
+      throw new BadRequestException({ code: 'RULE_ORDER_INVALID' });
+    }
+
+    const stored = await this.prisma.rule.findMany({ select: { id: true } });
+    const known = new Set(stored.map((rule) => rule.id));
+    if (ids.length !== known.size || !ids.every((id) => known.has(id))) {
+      this.logger.warn(
+        `Rule order refused: ${String(ids.length)} ids sent, ${String(known.size)} rules stored`,
+      );
+      throw new ConflictException({ code: 'RULE_ORDER_STALE' });
+    }
+
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.rule.update({ where: { id }, data: { priority: (index + 1) * PRIORITY_STEP } }),
+      ),
+    );
+    this.logger.log(`reorder rules=${String(ids.length)}`);
+    return this.list();
+  }
+
   /** One step after the last rule, or the default for the first one. */
   private async appendedPriority(): Promise<number> {
     const last = await this.prisma.rule.aggregate({ _max: { priority: true } });

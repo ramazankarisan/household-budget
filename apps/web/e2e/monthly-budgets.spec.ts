@@ -126,11 +126,15 @@ async function seed(page: Page): Promise<void> {
     }
     await expect(wohnen.first()).toBeVisible();
 
-    const keyword = page.getByRole('cell', { name: 'müller', exact: true });
+    const keyword = page
+      .getByRole('list', { name: 'Regeln' })
+      .getByText('„müller“', { exact: true });
     if ((await keyword.count()) === 0) {
-      await page.getByRole('button', { name: 'Regel anlegen' }).click();
-      await page.getByLabel('Suchbegriff').fill('müller');
-      await page.getByRole('button', { name: 'Speichern' }).click();
+      const composer = page.getByRole('region', { name: 'Neue Regel' });
+      await composer.getByLabel('Suchbegriff').fill('müller');
+      await composer.getByRole('combobox', { name: 'Kategorie' }).click();
+      await page.getByRole('option', { name: 'Wohnen' }).click();
+      await composer.getByRole('button', { name: 'Regel anlegen' }).click();
     }
     await expect(keyword).toHaveCount(1);
 
