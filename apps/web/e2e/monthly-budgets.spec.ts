@@ -33,26 +33,29 @@ test.describe.serial('monthly budgets', () => {
   });
 
   test('September 2025 against a limit on Wohnen', async ({ page }) => {
-    await page.getByRole('link', { name: 'Budgets' }).click();
+    await page.getByRole('link', { name: 'Überblick' }).click();
 
     await page.getByRole('button', { name: /^Monat wählen/u }).click();
     await expect(page.getByRole('menuitem', { name: 'März 2014' })).toBeVisible();
     await page.getByRole('menuitem', { name: 'September 2025' }).click();
 
-    const wohnen = page.getByRole('row').filter({ hasText: 'Wohnen' });
+    const rows = page.getByRole('list', { name: 'Budgets nach Kategorie' }).getByRole('listitem');
+    const wohnen = rows.filter({ hasText: 'Wohnen' });
     await expect(wohnen).toContainText('875,07');
 
+    await page.getByRole('button', { name: 'Budgets bearbeiten' }).click();
     const field = page.getByRole('textbox', { name: 'Budget Wohnen' });
     await field.fill('700');
     await field.press('Enter');
     await expect(field).toHaveValue('700,00');
+    await page.getByRole('button', { name: 'Fertig' }).click();
 
     // The word, not the colour: that is what reaches someone who cannot see the red.
-    await expect(wohnen).toHaveAccessibleName(/175,07\s€ über/);
+    await expect(page.getByRole('img', { name: /^Wohnen: .*175,07\s€ über$/u })).toBeVisible();
     expect(plain(await wohnen.innerText())).toContain('175,07 € über');
 
-    // The salary sits in this bucket and changes none of it.
-    const uncategorized = page.getByRole('row').filter({ hasText: 'Ohne Kategorie' });
+    // The salary is money in and changes none of the bucket.
+    const uncategorized = rows.filter({ hasText: 'Ohne Kategorie' });
     expect(plain(await uncategorized.innerText())).toContain('1.510,67 €');
     expect(plain(await uncategorized.innerText())).toContain('19,00 €');
     await expect(uncategorized.getByRole('textbox')).toHaveCount(0);
@@ -61,26 +64,25 @@ test.describe.serial('monthly budgets', () => {
       /^2\.385,74\s€ von 700,00\s€ · 1\.685,74\s€ über/,
     );
 
-    // The month drawn once, from the same report: present because September has spending.
-    const chart = page.getByRole('figure', { name: 'Ausgaben nach Kategorie' });
-    await expect(chart).toBeVisible();
-    await expect(chart.locator('rect.MuiBarChart-element').first()).toBeVisible();
+    // The trend reads the same months, and draws the limit as a line.
+    await expect(page.getByRole('figure', { name: 'Verlauf' })).toBeVisible();
 
     // The limit is stored, not only drawn: a reload reads it back from the API.
     await page.reload();
-    await expect(page.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
+    await expect(page.getByRole('img', { name: /^Wohnen: .*von 700,00\s€/u })).toBeVisible();
   });
 
-  test('the uncategorized row opens exactly the rows it summed', async ({ page }) => {
-    await page.getByRole('link', { name: 'Budgets' }).click();
+  test('„Ohne Kategorie“ opens exactly the rows it summed', async ({ page }) => {
+    await page.getByRole('link', { name: 'Überblick' }).click();
 
     await page
-      .getByRole('row')
+      .getByRole('list', { name: 'Budgets nach Kategorie' })
+      .getByRole('listitem')
       .filter({ hasText: 'Ohne Kategorie' })
-      .getByRole('button', { name: 'Ohne Kategorie' })
+      .getByRole('link', { name: 'Anzeigen' })
       .click();
 
-    await expect(page).toHaveURL(/\/\?m=2025-09$/u);
+    await expect(page).toHaveURL(/\/transactions\?m=2025-09&c=uncategorized&a=/u);
     await expect(page.getByRole('button', { name: /^Monat wählen/u })).toHaveText('September 2025');
     await expect(page.getByRole('cell', { name: 'Hausverwaltung Süd GmbH' })).toBeVisible();
     // Another month, and a categorized row of this one: neither is in the bucket.
@@ -91,7 +93,7 @@ test.describe.serial('monthly budgets', () => {
 
 /** The account, the fixture, `Wohnen`, the `müller` rule applied, and one REWE row by hand. */
 async function seed(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/transactions');
 
   const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
   await expect(

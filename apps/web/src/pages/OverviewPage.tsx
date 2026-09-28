@@ -1,39 +1,26 @@
-import {
-  type AccountPayload,
-  type BudgetPayload,
-  type CategoryPayload,
-  monthlyReport,
-  type TransactionPayload,
-} from '@household-budget/core';
+import { type BudgetPayload, monthlyReport } from '@household-budget/core';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
-import {
-  clearBudget,
-  listAccounts,
-  listBudgets,
-  listCategories,
-  listTransactions,
-  setBudget,
-} from '../api/client';
-import { type ListEntryState, monthOf, monthsOf, UNCATEGORIZED } from '../filter';
-import { describeFailure, describeMonthTotal } from '../locales/sentences';
+import { clearBudget, listBudgets, setBudget } from '../api/client';
+import { monthOf, monthsOf, UNCATEGORIZED, uncategorizedRows } from '../filter';
+import { useHousehold } from '../household/context';
+import { describeFailure } from '../locales/sentences';
 import { TopBar } from '../shell/TopBar';
 import { MONTH_PARAM, useMonth } from '../shell/useMonth';
+import { monthTotals, trailingMonths } from '../trend';
 import { DelayedSkeleton } from '../ui/DelayedSkeleton';
-import { BudgetTable } from './BudgetTable';
-import { SpendingChart } from './SpendingChart';
-
-/** One account's rows, kept apart so the uncategorized row can say whose they are. */
-interface AccountRows {
-  readonly accountId: string;
-  readonly rows: readonly TransactionPayload[];
-}
+import { EmptyState } from '../ui/EmptyState';
+import { ACCOUNT_PARAM, CATEGORY_PARAM } from './AccountPage';
+import { BudgetRows } from './overview/BudgetRows';
+import { Hero } from './overview/Hero';
+import { SortCallout, StatTiles, TopSpends } from './overview/SideCards';
+import { TrendChart } from './overview/TrendChart';
 
 /** A cell is one category in one month, and so is everything tracked about it. */
 function cellKey(month: string, categoryId: string): string {
@@ -52,28 +39,32 @@ function inMonth<T>(cells: ReadonlyMap<string, T>, month: string): ReadonlyMap<s
   return here;
 }
 
+/** How many months the trend shows, the page's month last. */
+const TREND_MONTHS = 6;
+/** Where the page has room for the side column (sidebar + rows + 320 px). */
+const TWO_COLUMNS = '@media (min-width: 1360px)';
+
+/** How many of the month's largest outflows are listed. */
+const TOP_SPENDS = 4;
+
 /**
- * The third page: one month's spending per category against its limits.
+ * `/` — the month, answered (plan 08, phase 2): what was spent against what may be, per
+ * category, what is still unsorted, and how the month compares to the ones before.
  *
  * Household-wide, because a limit is: `Budget` has no account, so the spending it is
  * measured against is every account's. Measuring it against one account at a time would
- * let two cards each stay "übrig" while the household is over, and would flip a limit
- * between over and under as the selected account changed. So there is no account picker
- * here, and the month list is the union of every account's months.
+ * let two cards each stay "übrig" while the household is over. So there is no account
+ * picker here, and the month list is the union of every account's months.
  *
- * It owns the loads, the selected month and the writes; the arithmetic is
- * `monthlyReport` from `packages/core`, run over the rows loaded the same way
- * `AccountPage` loads them, once per account. A month switch re-derives the table from
- * what is already loaded, shows that month's spending at once, and fetches its limits only
- * the first time the month is shown (see `budgets`).
+ * The rows come from the household; the page owns the limits and their writes. The
+ * arithmetic is `monthlyReport` from `packages/core`. A month switch re-derives everything
+ * from rows already in memory and fetches that month's limits only the first time it is
+ * shown (see `budgets`).
  */
-export function BudgetsPage() {
+export function OverviewPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const { accounts, rowsByAccount, transactions, categories, error: loadError } = useHousehold();
 
-  const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
-  // `undefined` while the rows are on their way; `[]` means there is no account yet.
-  const [loaded, setLoaded] = useState<readonly AccountRows[] | undefined>(undefined);
   /*
    * The limits per month, kept for as long as the page is. A month switch shows the
    * cached month at once and fetches only a month not seen yet; writes update the entry
@@ -91,63 +82,15 @@ export function BudgetsPage() {
   useEffect(() => {
     budgetsRef.current = budgets;
   }, [budgets]);
-  // A refused write is worded by `describeFailure` — `BUDGET_INVALID` as one sentence per
-  // bad field, which the field itself would normally have caught; this is the path for
-  // when it did not.
   // The cause, not its sentence: worded at render by `describeFailure`, so an alert already
   // on screen follows a language switch rather than staying in the old language.
   const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
+  const [editing, setEditing] = useState(false);
 
   const fail = useCallback((cause: unknown) => {
     setError({ cause });
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const { signal } = controller;
-
-    listAccounts(signal)
-      .then((accounts: readonly AccountPayload[]) =>
-        Promise.all(
-          accounts.map(async (account) => ({
-            accountId: account.id,
-            rows: await listTransactions(account.id, signal),
-          })),
-        ),
-      )
-      .then((perAccount) => {
-        if (!signal.aborted) {
-          setLoaded(perAccount);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (!signal.aborted) {
-          fail(cause);
-        }
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [fail]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    listCategories(controller.signal)
-      .then(setCategories)
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          fail(cause);
-        }
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [fail]);
-
-  const transactions = useMemo(() => loaded?.flatMap((account) => account.rows), [loaded]);
   const months = useMemo(() => monthsOf(transactions ?? []), [transactions]);
   // The URL's month, else the newest one. Derived, not stored: an effect that copied
   // `months[0]` into state would render the wrong month once first.
@@ -182,9 +125,9 @@ export function BudgetsPage() {
    * for September must not disable the same category's August field, and a refused one
    * must reset only the field it came from, not every draft on the page.
    *
-   * `writeSeq` is the guard `AccountPage.changeCategory` uses: a response the user has
-   * already superseded is dropped rather than overwriting the newer one. `revisions` is
-   * bumped when a write is refused, which remounts that one field with the stored number.
+   * `writeSeq` is the guard `useCategorize` uses: a response the user has already
+   * superseded is dropped rather than overwriting the newer one. `revisions` is bumped when
+   * a write is refused, which remounts that one field with the stored number.
    */
   const [savingCells, setSavingCells] = useState<ReadonlyMap<string, true>>(() => new Map());
   const [revisions, setRevisions] = useState<ReadonlyMap<string, number>>(() => new Map());
@@ -249,86 +192,123 @@ export function BudgetsPage() {
     () => monthlyReport(transactions ?? [], loadedBudgets ?? [], categories, month),
     [transactions, loadedBudgets, categories, month],
   );
+  const totals = useMemo(
+    () =>
+      month === ''
+        ? []
+        : monthTotals(transactions ?? [], budgets, categories, trailingMonths(month, TREND_MONTHS)),
+    [transactions, budgets, categories, month],
+  );
+
+  const inThisMonth = useMemo(
+    () => (transactions ?? []).filter((row) => monthOf(row) === month),
+    [transactions, month],
+  );
+  const incomeCents = inThisMonth
+    .filter((row) => row.status === 'booked' && row.amountCents > 0)
+    .reduce((sum, row) => sum + row.amountCents, 0);
+  const topSpends = [...inThisMonth]
+    .filter((row) => row.status === 'booked' && row.amountCents < 0)
+    .sort((a, b) => a.amountCents - b.amountCents)
+    .slice(0, TOP_SPENDS);
+
+  const unsortedTotal = uncategorizedRows(transactions ?? []).length;
+  const unsortedMonth = uncategorizedRows(transactions ?? [], { month }).length;
 
   /**
-   * Where the uncategorized row sends the user. The list is one account at a time, so it
-   * opens on the first account holding uncategorized spending this month — with a single
-   * account, that account. The bucket can span several; the list's account picker is
-   * the way to the rest, and the count chip there says how many each one has.
+   * Where „Ohne Kategorie“ leads. The list is one account at a time, so it opens on the
+   * first account holding this month's uncategorized rows — with one account, that one.
+   * The bucket can span several; the list's account picker is the way to the rest.
    */
-  function uncategorizedAccount(): string {
-    const holder = loaded?.find((account) =>
-      account.rows.some(
-        (row) => row.categoryId === null && row.amountCents < 0 && monthOf(row) === month,
-      ),
-    );
-    return holder?.accountId ?? loaded?.[0]?.accountId ?? '';
-  }
+  const holder =
+    accounts?.find(
+      (account) => uncategorizedRows(rowsByAccount.get(account.id) ?? [], { month }).length > 0,
+    ) ?? accounts?.[0];
+  const uncategorizedHref = `/transactions?${new URLSearchParams({
+    [MONTH_PARAM]: month,
+    [CATEGORY_PARAM]: UNCATEGORIZED,
+    ...(holder === undefined ? {} : { [ACCOUNT_PARAM]: holder.id }),
+  }).toString()}`;
 
   const empty = transactions?.length === 0;
 
   return (
     <Stack spacing={3}>
       <TopBar
-        title={t('common.pages.budgets')}
+        title={t('common.pages.overview')}
+        subtitle={t('overview.allAccounts')}
         month={
           months.length > 0 ? { state: monthState, available: months, allowAll: false } : undefined
         }
       />
 
+      {loadError !== undefined && (
+        <Alert severity="error">{describeFailure(t, loadError.cause)}</Alert>
+      )}
       {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
       {empty ? (
-        <Stack
-          direction="row"
-          spacing={2}
-          useFlexGap
-          sx={{ flexWrap: 'wrap', alignItems: 'center' }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {t('transactions.noTransactions')}
-          </Typography>
-          <Button size="small" component={Link} to="/">
-            {t('budgets.toTransactions')}
-          </Button>
-        </Stack>
+        <EmptyState
+          message={t('transactions.noTransactions')}
+          action={
+            <Button size="small" component={Link} to="/transactions">
+              {t('budgets.toTransactions')}
+            </Button>
+          }
+        />
       ) : transactions === undefined ? (
-        <DelayedSkeleton label={t('common.loading')} />
+        <DelayedSkeleton rows={6} label={t('common.loading')} />
       ) : (
-        <Stack spacing={2}>
-          <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-            {describeMonthTotal(t, report, { limitsLoading })}
-          </Typography>
-
-          <BudgetTable
-            report={report}
-            categories={categories}
-            savingIds={savingIds}
-            revisions={monthRevisions}
-            limitsLoading={limitsLoading}
-            onSave={(categoryId, amountCents) => {
-              write(categoryId, () => setBudget(month, categoryId, amountCents));
-            }}
-            onClear={(categoryId) => {
-              write(categoryId, () => clearBudget(month, categoryId).then(() => null));
-            }}
-            onShowUncategorized={() => {
-              const state: ListEntryState = {
-                accountId: uncategorizedAccount(),
-                categoryId: UNCATEGORIZED,
-              };
-              // The month rides in the URL like everywhere else; the account and the
-              // category are this one hand-off's.
-              void navigate(
-                { pathname: '/', search: `?${MONTH_PARAM}=${encodeURIComponent(month)}` },
-                { state },
-              );
-            }}
-          />
-
-          {/* The same report object: the chart reads what the table reads, nothing else. */}
-          <SpendingChart report={report} categories={categories} limitsLoading={limitsLoading} />
-        </Stack>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            gap: 2.5,
+            alignItems: 'start',
+            // A side column only once the budget rows beside it keep room for their bars:
+            // below this the rows' fixed columns would squeeze the bar to nothing.
+            [TWO_COLUMNS]: { gridTemplateColumns: 'minmax(0, 1fr) 320px' },
+          }}
+        >
+          <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+            <Hero report={report} limitsLoading={limitsLoading} />
+            <BudgetRows
+              report={report}
+              categories={categories}
+              editing={editing}
+              onToggleEditing={() => {
+                setEditing((current) => !current);
+              }}
+              savingIds={savingIds}
+              revisions={monthRevisions}
+              limitsLoading={limitsLoading}
+              onSave={(categoryId, amountCents) => {
+                write(categoryId, () => setBudget(month, categoryId, amountCents));
+              }}
+              onClear={(categoryId) => {
+                write(categoryId, () => clearBudget(month, categoryId).then(() => null));
+              }}
+              uncategorizedHref={uncategorizedHref}
+            />
+          </Stack>
+          <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+            <SortCallout
+              total={unsortedTotal}
+              inMonth={unsortedMonth}
+              month={month}
+              href={uncategorizedHref}
+            />
+            <StatTiles
+              incomeCents={incomeCents}
+              surplusCents={incomeCents - report.totalBookedCents}
+            />
+            <TrendChart
+              totals={totals}
+              limitCents={limitsLoading ? null : report.totalBudgetCents}
+            />
+            <TopSpends rows={topSpends} categories={categories} />
+          </Stack>
+        </Box>
       )}
     </Stack>
   );

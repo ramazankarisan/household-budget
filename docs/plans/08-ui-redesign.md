@@ -494,62 +494,62 @@ fed from the provider.
 
 **Tasks**:
 
-- [ ] `household/HouseholdProvider.tsx` + `useHousehold()` (decision 4) — loads as
+- [x] `household/HouseholdProvider.tsx` + `useHousehold()` (decision 4) — loads as
       `BudgetsPage.tsx:111-154` does plus `listRules`, with abort handling; exposes
       `{ accounts, rowsByAccount, transactions, categories, rules, status, error, reload(),
 replaceTransaction(row), addAccount(a), setCategories(fn), setRules(fn) }`; mounted in
       `App.tsx` above `AppShell`.
-- [ ] `household/useCategorize.ts` — `AccountPage.changeCategory` (`AccountPage.tsx:153-181`)
+- [x] `household/useCategorize.ts` — `AccountPage.changeCategory` (`AccountPage.tsx:153-181`)
       with its per-row sequence guard and `savingIds`, writing through `replaceTransaction`.
-- [ ] `AccountPage.tsx` — rows from `rowsByAccount[accountId]`, categories from the provider,
+- [x] `AccountPage.tsx` — rows from `rowsByAccount[accountId]`, categories from the provider,
       `useCategorize`; `ImportPanel` `onImported` → `reload()`; `NewAccountForm` →
       `addAccount`. Account from `?a=` (default: first account). Category filter from `?c=`.
-- [ ] `RulesPage.tsx` — rules and categories from the provider; after
+- [x] `RulesPage.tsx` — rules and categories from the provider; after
       create/update/delete/restore → `setRules`/`setCategories`; after „Regeln anwenden“ →
       `reload()`.
-- [ ] `filter.ts` — `uncategorizedRows(rows, { month?, accountId? })` (decision 5) replaces
+- [x] `filter.ts` — `uncategorizedRows(rows, { month?, accountId? })` (decision 5) replaces
       `uncategorizedCount`; the `TransactionFilters` chip uses it for the account's rows;
       `ListEntryState` and `listEntryOf` removed.
-- [ ] `App.tsx` routes: `/` `OverviewPage`, `/transactions` `AccountPage`, `/rules`, `/budgets`
+- [x] `App.tsx` routes: `/` `OverviewPage`, `/transactions` `AccountPage`, `/rules`, `/budgets`
       → `Navigate` keeping `search`. `nav.ts`: Überblick `/`, Umsätze `/transactions`, Regeln
       `/rules`. The sidebar gains the accounts list (name + last four IBAN digits) from the
       provider.
-- [ ] Badge on Umsätze (moves to Sortieren in phase 3): `uncategorizedRows(transactions).length`.
-- [ ] `trend.ts` — `trailingMonths(month, 6)`;
+- [x] Badge on Umsätze (moves to Sortieren in phase 3): `uncategorizedRows(transactions).length`.
+- [x] `trend.ts` — `trailingMonths(month, 6)`;
       `monthTotals(transactions, budgetsByMonth, categories, months)` →
       `{ month, bookedCents, limitCents | null }[]` via `monthlyReport`.
-- [ ] `ui/BudgetBar.tsx` + exported `budgetTone(entry: CategoryReport)` (decision 6: booked +
+- [x] `ui/BudgetBar.tsx` + exported `budgetTone(entry: CategoryReport)` (decision 6: booked +
       pending vs `budgetCents`; `null` limit → `none`); track 125 % of the limit; solid booked,
       hatched pending, limit tick; `role="img"`, `aria-label` from
       `describeBudgetBar(t, name, entry)`.
-- [ ] `pages/overview/Hero.tsx` — `report.totalBookedCents` in `display`, `describeMonthTotal`'s
+- [x] `pages/overview/Hero.tsx` — `report.totalBookedCents` in `display`, `describeMonthTotal`'s
       parts as structured text (booked vs limits, remaining booked-only), pace bar with the
       „Heute · Tag d von n“ marker only in the current calendar month, vorgemerkt chip,
       „schneller als der Monat“ chip when booked share > day share.
-- [ ] `pages/overview/BudgetRows.tsx` — rows sorted by (booked + pending) / limit descending,
+- [x] `pages/overview/BudgetRows.tsx` — rows sorted by (booked + pending) / limit descending,
       unbudgeted after, „Ohne Kategorie“ last with its money-out amount and a link to
       `/transactions?m=…&c=uncategorized&a=<first account holding one>` (the account rule from
       `BudgetsPage.tsx:265-272`). Loading limits → `…` as today.
-- [ ] Edit mode: „Budgets bearbeiten“ / „Fertig“ swap the right column for `BudgetField`;
+- [x] Edit mode: „Budgets bearbeiten“ / „Fertig“ swap the right column for `BudgetField`;
       `OverviewPage` carries `BudgetsPage`'s `budgets` cache, `budgetsRef`, `savingCells`,
       `revisions`, `writeSeq` and `write` (`:203-243`) unchanged.
-- [ ] `pages/overview/TrendChart.tsx` — load the `dataviz` skill first. `BarChart` (no `width`
+- [x] `pages/overview/TrendChart.tsx` — load the `dataviz` skill first. `BarChart` (no `width`
       except in tests), six months, current in `primary`, others `primary.soft`,
       `ChartsReferenceLine y` = summed limit when every month has limits; `figure` +
       `figcaption` with the six-month average; past months' limits via `listBudgets`, cached
       with the rest.
-- [ ] `pages/overview/Callout.tsx` (`uncategorizedRows(month)` and the total, linking like the
+- [x] `pages/overview/Callout.tsx` (`uncategorizedRows(month)` and the total, linking like the
       budget row), `StatTiles.tsx` (Einnahmen = booked money in; Überschuss = income − booked
       spend, „ohne vorgemerkt“), `TopSpends.tsx` (four largest booked outflows).
-- [ ] `pages/OverviewPage.tsx` — `usePageChrome({ title, months, monthDefault: 'newest' })`;
+- [x] `pages/OverviewPage.tsx` — `usePageChrome({ title, months, monthDefault: 'newest' })`;
       `DelayedSkeleton` while loading; `EmptyState` „Noch keine Umsätze“ + link to
       `/transactions` (import moves to a dialog in phase 5).
-- [ ] Delete `BudgetsPage.tsx`, `BudgetTable.tsx`, `SpendingChart.tsx` and their tests.
-- [ ] Locales: `common.nav.overview`, `common.pages.overview`, `overview.*` (spentIn, of, left,
+- [x] Delete `BudgetsPage.tsx`, `BudgetTable.tsx`, `SpendingChart.tsx` and their tests.
+- [x] Locales: `common.nav.overview`, `common.pages.overview`, `overview.*` (spentIn, of, left,
       over, today, dayOf, pendingNotCounted, faster, byCategory, sortedByUse, edit, done, income,
       surplus, withoutPending, trend, average, topSpends, toSort, toSortMonth,
       uncategorizedSpend); `sentences.ts` `describeBudgetBar`, `describePace`.
-- [ ] Tests (web): `trend.test.ts`; `filter.test.ts` (`uncategorizedRows`: pending excluded,
+- [x] Tests (web): `trend.test.ts`; `filter.test.ts` (`uncategorizedRows`: pending excluded,
       income included, month and account scopes); `ui/BudgetBar.test.tsx` (tone at 84.9 / 85 /
       100 / 100.01 % of booked + pending; pending segment only when > 0; accessible name has
       „über“); `pages/OverviewPage.test.tsx` — ports `BudgetsPage.test.tsx` (write sequencing,
@@ -558,14 +558,14 @@ replaceTransaction(row), addAccount(a), setCategories(fn), setRules(fn) }`; moun
       `household/HouseholdProvider.test.tsx` (an import on the list is visible on Überblick
       without a reload; `replaceTransaction` updates both); `AccountPage.test.tsx` and
       `RulesPage.test.tsx` rendered inside the provider; chip count test updated to decision 5.
-- [ ] E2E: list `page.goto('/')` → `'/transactions'` (`smoke`, `transactions`, `import`,
+- [x] E2E: list `page.goto('/')` → `'/transactions'` (`smoke`, `transactions`, `import`,
       `rules`, `monthly-*`, `preferences`); `transactions.spec.ts:80-92` chip test counts booked
       rows (decision 5); `monthly-budgets.spec.ts` and `monthly-totals.spec.ts` rewritten against
       Überblick rows; `preferences.spec.ts:113` 'Budgets' link → „Überblick“ and its chart
       caption assertion → the trend `figcaption`; new `overview.spec.ts` (`/budgets?m=2025-09` →
       `/?m=2025-09`; edit mode saves a limit; import on the list, then Überblick shows it without
       a reload; 390×844 no horizontal scroll).
-- [ ] Docs: `CLAUDE.md` — status; invariant "`/budgets` has no account picker" → "Überblick is
+- [x] Docs: `CLAUDE.md` — status; invariant "`/budgets` has no account picker" → "Überblick is
       household-wide; `/budgets` redirects to it"; invariant "no query parameter, no endpoint" →
       decision 3's wording; invariant "the uncategorized count describes the whole account" →
       decision 5 (booked, account scope, never the filtered view). Dated notes in
@@ -575,9 +575,9 @@ replaceTransaction(row), addAccount(a), setCategories(fn), setRules(fn) }`; moun
 
 **Automated Verification**:
 
-- [ ] `pnpm --filter @household-budget/web exec vitest run src/trend.test.ts src/filter.test.ts src/ui src/household src/pages` passes
-- [ ] `pnpm check` passes
-- [ ] `pnpm check:all` passes (including `overview.spec.ts`)
+- [x] `pnpm --filter @household-budget/web exec vitest run src/trend.test.ts src/filter.test.ts src/ui src/household src/pages` passes
+- [x] `pnpm check` passes
+- [x] `pnpm check:all` passes (including `overview.spec.ts`)
 
 **Manual Verification**:
 
@@ -786,6 +786,17 @@ During implementation, document user feedback, problems, and decisions here.
   rendering the top bar in the page gives the same single component with no state to sync.
 - Phase 1, the nav is `shell/navItems.ts` (items) + `shell/NavItemLink.tsx` (link), split
   for React Fast Refresh.
+- Phase 2, the list's „Ohne Kategorie“ filter still shows vorgemerkt rows (plan 03's tested
+  decision: they are on screen either way, and marked). Only the counts follow decision 5;
+  `transactions.spec.ts` compares the chip with the booked rows of the filtered list.
+- Phase 2, the trend draws the shown month's limit as its line and fetches no other month's
+  limits: fetching six months on every visit would have broken "each month's limits load
+  once, when shown", which the page's cache and its tests are built on.
+- Phase 2, Überblick puts the side column beside the rows only from 1360 px
+  (`TWO_COLUMNS`): at 1280 px with the sidebar, the rows' fixed columns left the bar no
+  width at all — Playwright found it hidden.
+- Phase 2, jsdom has no `ResizeObserver`; `src/test/setup.ts` stubs it so the self-sizing
+  trend chart can mount in page tests.
 
 ## References
 

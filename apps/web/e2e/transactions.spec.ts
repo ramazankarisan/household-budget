@@ -20,7 +20,7 @@ const FIXTURE = resolve(
  */
 test.describe.serial('the transactions list', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/transactions');
 
     // The account and the import may already be here: the other specs share this
     // database, and re-importing the same file is a no-op by design.
@@ -86,9 +86,12 @@ test.describe.serial('the transactions list', () => {
     const counted = Number(/^\d+/.exec((await chip.innerText()).trim())?.[0] ?? '0');
     await chip.click();
 
+    // The chip counts what can be sorted: booked rows. The filter also shows vorgemerkt
+    // ones — on screen either way, and marked — so those are left out of the comparison.
     const rows = page.getByRole('row').filter({ hasText: 'Ohne Kategorie' });
-    await expect(rows).toHaveCount(counted);
+    const booked = rows.filter({ hasNot: page.getByRole('img', { name: 'vorgemerkt' }) });
+    await expect(booked).toHaveCount(counted);
     // Every visible data row is one of them: nothing categorized slipped through.
-    await expect(page.getByRole('row')).toHaveCount(counted + 1);
+    await expect(page.getByRole('row')).toHaveCount((await rows.count()) + 1);
   });
 });

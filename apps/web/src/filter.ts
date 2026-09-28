@@ -36,34 +36,6 @@ export const UNCATEGORIZED = 'uncategorized';
 export const NO_FILTERS: TransactionFilterState = { categoryId: '', search: '' };
 
 /**
- * What another page hands the list through router state: which account, already narrowed.
- *
- * Router state rather than a query parameter, so no route learns to parse one — the
- * budgets page's uncategorized row is the only sender. The account travels with it
- * because the list otherwise opens on the first account, and a month's uncategorized rows
- * on a different account than the one they were counted on are not those rows.
- */
-export interface ListEntryState {
-  readonly accountId: string;
-  readonly categoryId: string;
-}
-
-/**
- * `location.state` is `unknown` — history survives a reload, and whatever put it there
- * may have been an older build. Anything not exactly this shape is ignored.
- */
-export function listEntryOf(state: unknown): ListEntryState | undefined {
-  if (typeof state !== 'object' || state === null) {
-    return undefined;
-  }
-  const { accountId, categoryId } = state as Record<string, unknown>;
-  if (typeof accountId !== 'string' || typeof categoryId !== 'string') {
-    return undefined;
-  }
-  return { accountId, categoryId };
-}
-
-/**
  * True while anything is narrowing the list — what tells the two empty states apart. The
  * month is not a filter: every month the stepper offers has rows.
  */
@@ -90,16 +62,28 @@ export function monthsOf(transactions: readonly TransactionPayload[]): readonly 
 }
 
 /**
- * Every live row with no category, pending included.
+ * What „Ohne Kategorie“ means everywhere it is counted (plan 08, decision 5): booked rows,
+ * money in or out, that no rule and no hand has given a category.
  *
- * A fact about the account, not about the view, which is why it takes the whole array and
- * not the filtered one: a number that moves while the user narrows the list cannot answer
- * "how much is left". Pending rows count because they are on screen — a count that
- * disagreed with the table under it would be read as a bug, even though a pending row
- * cannot be categorized by hand until it books.
+ * A fact about the scope, not about the view, which is why it takes rows and not the
+ * filtered list: a number that moves while the user narrows the list cannot answer "how
+ * much is left". Vorgemerkt rows are not counted — the API refuses to categorize them
+ * until they book (`TRANSACTION_PENDING`), so counting them would promise work that
+ * cannot be done. The sidebar badge, the list's chip and the inbox all call this, which is
+ * what keeps their numbers the same.
+ *
+ * @param month `'YYYY-MM'` to count one month; omitted or `'all'` for every month
  */
-export function uncategorizedCount(transactions: readonly TransactionPayload[]): number {
-  return transactions.filter((transaction) => transaction.categoryId === null).length;
+export function uncategorizedRows(
+  transactions: readonly TransactionPayload[],
+  { month }: { readonly month?: string } = {},
+): readonly TransactionPayload[] {
+  return transactions.filter(
+    (row) =>
+      row.categoryId === null &&
+      row.status === 'booked' &&
+      (month === undefined || month === 'all' || monthOf(row) === month),
+  );
 }
 
 /** A row with its haystacks, normalized once per load rather than once per keystroke. */

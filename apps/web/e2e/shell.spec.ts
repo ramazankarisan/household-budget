@@ -13,7 +13,7 @@ const FIXTURE = resolve(
  * done it already; re-importing the same file is a no-op by design.
  */
 async function withTransactions(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/transactions');
   const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
   await expect(
     createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
@@ -33,7 +33,9 @@ const stepper = (page: Page) => page.getByRole('button', { name: /^Monat wählen
 test.describe('the month in the URL', () => {
   test('[ and ] step it, and the back button undoes a step', async ({ page }) => {
     await withTransactions(page);
+    // The old address still works, and keeps the month.
     await page.goto('/budgets?m=2025-09');
+    await expect(page).toHaveURL(/\/\?m=2025-09$/u);
     await expect(stepper(page)).toHaveText('September 2025');
 
     // The fixture's months are September 2025 and March 2014, nothing between.
@@ -54,7 +56,7 @@ test.describe('the month in the URL', () => {
 
     await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
 
-    await expect(page).toHaveURL(/\/\?m=2014-03$/u);
+    await expect(page).toHaveURL(/\/transactions\?m=2014-03$/u);
     await expect(stepper(page)).toHaveText('März 2014');
   });
 });
@@ -71,7 +73,7 @@ test.describe('on a phone', () => {
     await expect(page.getByRole('group', { name: 'Sprache' })).toBeVisible();
     await page.keyboard.press('Escape');
 
-    for (const path of ['/', '/rules', '/budgets']) {
+    for (const path of ['/', '/transactions', '/rules']) {
       await page.goto(path);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);

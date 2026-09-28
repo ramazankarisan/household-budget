@@ -24,9 +24,11 @@ Both apps depend on `@household-budget/core` as `workspace:*` and import its **b
 `TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract between API
 responses and the UI that renders them.
 
-Status: import → categorize → report works end to end. The list can be narrowed by month,
-category and free text, and `/budgets` shows one month's spending per category against a
-limit.
+Status: import → categorize → report works end to end. Every page sits in one app shell
+([DESIGN.md](DESIGN.md)); the month is `?m=` in the URL. `/` (Überblick) answers the month —
+spending against limits per category, what is still unsorted, a six-month trend;
+`/transactions` is the list, narrowed by category and free text. All pages read one
+household copy of the data (`apps/web/src/household/`).
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
 (UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
@@ -58,11 +60,14 @@ Each is deliberate; the link is the reason. Do not undo one without reading it.
   folds case for ASCII only, so `LIKE '%müller%'` misses `MÜLLER GmbH`.
   [research 02 §3](docs/research/02-categorization-rules.md),
   [03 §6](docs/research/03-transactions-list.md)
-- The transactions list filters in the browser (`apps/web/src/filter.ts`) — no query
-  parameter, no endpoint. [research 03 §9](docs/research/03-transactions-list.md)
-- The uncategorized count describes the whole account, not the filtered view.
+- The transactions list filters in the browser (`apps/web/src/filter.ts`) — no server query,
+  no endpoint; URL search params (`?m`, `?c`, `?a`) hold view state only.
+  [research 03 §9](docs/research/03-transactions-list.md), [plan 08](docs/plans/08-ui-redesign.md)
+- „Ohne Kategorie“ is counted by one function, `uncategorizedRows` — booked rows, in or
+  out, with no category — over the chosen account scope, never the filtered view.
+  Vorgemerkt rows are not counted: they cannot be categorized until they book.
 - Budgets are one limit per category per month, household-wide, measured against every
-  account — `/budgets` has no account picker.
+  account — Überblick has no account picker; `/budgets` redirects to it.
 - `monthlyReport` (core) counts money out only, keeps booked and vorgemerkt apart, and gives
   every category a row; the uncategorized bucket is `null` and never has a limit.
   [research 04 §4](docs/research/04-monthly-budgets.md)

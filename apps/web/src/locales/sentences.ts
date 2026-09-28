@@ -168,6 +168,28 @@ export function describeRemaining(t: TFunction, remainingCents: number | null): 
   return remainingCents < 0 ? describeOverBy(t, -remainingCents) : describeLeft(t, remainingCents);
 }
 
+/**
+ * A category's bar, said out loud: `Wohnen: 875,07 € von 700,00 €, 175,07 € über`. The
+ * spent part is booked and vorgemerkt together — what the limit is measured against.
+ */
+export function describeBudgetBar(
+  t: TFunction,
+  name: string,
+  entry: {
+    readonly bookedCents: number;
+    readonly pendingCents: number;
+    readonly budgetCents: number | null;
+    readonly remainingCents: number | null;
+  },
+): string {
+  return t('overview.barLabel', {
+    name,
+    spent: formatAmount(entry.bookedCents + entry.pendingCents),
+    limit: entry.budgetCents === null ? '—' : formatAmount(entry.budgetCents),
+    remaining: describeRemaining(t, entry.remainingCents),
+  });
+}
+
 export interface MonthTotalOptions {
   /**
    * The month's limits have not arrived yet. The spending is known — the rows are already

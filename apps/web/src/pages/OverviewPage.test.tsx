@@ -8,8 +8,9 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listBudgets, listTransactions } from '../api/client';
+import { HouseholdProvider } from '../household/HouseholdProvider';
 import i18n from '../locales/i18n';
-import { BudgetsPage } from './BudgetsPage';
+import { OverviewPage } from './OverviewPage';
 
 const ACCOUNTS: AccountPayload[] = [
   { id: 'acc-1', iban: 'DE89370400440532013000', name: 'Giro' },
@@ -32,10 +33,11 @@ const writes: {
 vi.mock('../api/client', () => ({
   ApiError: class ApiError extends Error {},
   listAccounts: () => Promise.resolve(ACCOUNTS),
+  listRules: () => Promise.resolve([]),
   listCategories: () =>
     Promise.resolve([
       { id: 'cat-essen', name: 'Lebensmittel', colorIndex: 0 },
-      { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+      { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 1 },
     ]),
   // Counted: "a month switch refetches nothing but that month's limits" is a claim about
   // how many times this was called.
@@ -78,31 +80,41 @@ function row(overrides: Partial<TransactionPayload>): TransactionPayload {
 }
 
 const GIRO_ROWS = [
-  row({ amountCents: -87507, categoryId: 'cat-wohnen' }),
+  row({ amountCents: -87507, categoryId: 'cat-wohnen', counterpartyName: 'Hausverwaltung' }),
   row({ amountCents: -151067 }),
   row({ amountCents: -1900, status: 'pending' }),
   row({ amountCents: 245000, counterpartyName: 'Beispiel AG' }),
   row({ bookingDate: '2014-03-24', amountCents: -114341 }),
 ];
 
-/** Where the uncategorized row sends the user, and with what. */
+/** Where a link to the list lands, and with which search. */
 function ListProbe() {
   const location = useLocation();
-  return (
-    <output aria-label="list state">
-      {JSON.stringify({ search: location.search, ...(location.state as object) })}
-    </output>
-  );
+  return <output aria-label="list search">{location.search}</output>;
 }
 
-const app = () => (
-  <MemoryRouter initialEntries={['/budgets']}>
-    <Routes>
-      <Route path="/budgets" element={<BudgetsPage />} />
-      <Route path="/" element={<ListProbe />} />
-    </Routes>
+const app = (entry = '/') => (
+  <MemoryRouter initialEntries={[entry]}>
+    <HouseholdProvider>
+      <Routes>
+        <Route path="/" element={<OverviewPage />} />
+        <Route path="/transactions" element={<ListProbe />} />
+      </Routes>
+    </HouseholdProvider>
   </MemoryRouter>
 );
+
+/** `Intl` puts U+00A0 between the amount and the €. */
+const plain = (text: string | null): string => (text ?? '').replaceAll('\u00a0', ' ');
+
+/** A category's row: every row is a list item that starts with its name. */
+const rowOf = (name: string) =>
+  screen
+    .getAllByRole('listitem')
+    .find((element) => element.textContent.includes(name)) as HTMLElement;
+
+/** A category's bar, whose name is the sentence the bar shows. */
+const barOf = (name: string) => screen.getByRole('img', { name: new RegExp(`^${name}:`) });
 
 /** The month stepper's label button; its name carries the month shown. */
 const monthButton = (label = 'Monat wählen') =>
@@ -117,12 +129,6 @@ function chooseMonth(name: string): void {
   fireEvent.click(monthButton());
   fireEvent.click(screen.getByRole('menuitem', { name }));
 }
-
-/** `Intl` puts U+00A0 between the amount and the €. */
-const plain = (text: string | null): string => (text ?? '').replaceAll('\u00a0', ' ');
-
-const rowOf = (name: string) =>
-  screen.getAllByRole('row').find((element) => element.textContent.includes(name)) as HTMLElement;
 
 beforeEach(() => {
   loads.clear();
@@ -144,10 +150,13 @@ async function answerAccounts(
   loads.get('acc-2')?.(tagesgeld);
 }
 
-/** Renders the page with every account loaded and September's limits answered. */
+/**
+ * Renders the page with every account loaded and September's limits answered — in edit
+ * mode when asked, where each limit is a field.
+ */
 async function withGiro(
   budgets: BudgetPayload[] = [],
-  tagesgeld: TransactionPayload[] = [],
+  { tagesgeld = [], editing = false }: { tagesgeld?: TransactionPayload[]; editing?: boolean } = {},
 ): Promise<void> {
   render(app());
   await answerAccounts(GIRO_ROWS, tagesgeld);
@@ -155,29 +164,52 @@ async function withGiro(
     expect(budgetLoads.has('2025-09')).toBe(true);
   });
   budgetLoads.get('2025-09')?.(budgets);
-  await screen.findByRole('textbox', { name: 'Budget Wohnen' });
+  await screen.findByRole('button', { name: 'Budgets bearbeiten' });
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Budgets bearbeiten' })).toBeEnabled();
+  });
+  if (editing) {
+    fireEvent.click(screen.getByRole('button', { name: 'Budgets bearbeiten' }));
+    await screen.findByRole('textbox', { name: 'Budget Wohnen' });
+  }
 }
 
-describe('BudgetsPage', () => {
-  it('opens on the newest month the account has', async () => {
+describe('OverviewPage', () => {
+  it('opens on the newest month, and answers it first', async () => {
     await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
 
     expect(monthButton()).toHaveTextContent('September 2025');
+    expect(screen.getByText('Ausgegeben im September 2025')).toBeInTheDocument();
     expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
     expect(plain(screen.getByText(/von 700,00 €/).textContent)).toBe(
       '2.385,74 € von 700,00 € · 1.685,74 € über · 19,00 € vorgemerkt',
     );
   });
 
-  it('lists only the months the account has, newest first', async () => {
-    await withGiro();
+  it('says „über“ in the bar’s name as well as its colour', async () => {
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
 
-    const options = openMonths();
-
-    expect(options).toEqual(['September 2025', 'März 2014']);
+    expect(plain(barOf('Wohnen').getAttribute('aria-label'))).toBe(
+      'Wohnen: 875,07 € von 700,00 €, 175,07 € über',
+    );
+    expect(barOf('Wohnen')).toHaveAttribute('data-tone', 'over');
   });
 
-  it('re-derives the table for another month without refetching the rows', async () => {
+  it('shows vorgemerkt beside the headline, never inside it', async () => {
+    await withGiro();
+
+    expect(
+      screen.getByText('19,00 € vorgemerkt, nicht mitgezählt', { normalizer: plain }),
+    ).toBeInTheDocument();
+  });
+
+  it('lists only the months the accounts have, newest first', async () => {
+    await withGiro();
+
+    expect(openMonths()).toEqual(['September 2025', 'März 2014']);
+  });
+
+  it('re-derives the month from rows already loaded', async () => {
     await withGiro();
 
     chooseMonth('März 2014');
@@ -195,7 +227,7 @@ describe('BudgetsPage', () => {
   });
 
   it('shows a month with no limits with an empty field on every category', async () => {
-    await withGiro();
+    await withGiro([], { editing: true });
 
     expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('');
     expect(screen.getByRole('textbox', { name: 'Budget Lebensmittel' })).toHaveValue('');
@@ -203,7 +235,7 @@ describe('BudgetsPage', () => {
   });
 
   it('writes a typed limit and replaces that one limit in place', async () => {
-    await withGiro();
+    await withGiro([], { editing: true });
 
     const field = screen.getByRole('textbox', { name: 'Budget Wohnen' });
     fireEvent.change(field, { target: { value: '700' } });
@@ -215,14 +247,16 @@ describe('BudgetsPage', () => {
     writes[0]?.resolve({ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 });
 
     await waitFor(() => {
-      expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
+      expect(plain(barOf('Wohnen').getAttribute('aria-label'))).toContain('175,07 € über');
     });
     // Nothing was reloaded to learn it.
     expect(listBudgets).toHaveBeenCalledOnce();
   });
 
   it('surfaces a failed write in the one alert and keeps the previous number', async () => {
-    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }], {
+      editing: true,
+    });
 
     const field = screen.getByRole('textbox', { name: 'Budget Wohnen' });
     fireEvent.change(field, { target: { value: '900' } });
@@ -233,10 +267,10 @@ describe('BudgetsPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
     });
-    expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
+    expect(plain(barOf('Wohnen').getAttribute('aria-label'))).toContain('175,07 € über');
   });
 
-  it('measures a household limit against every account, not the one on screen', async () => {
+  it('measures a household limit against every account, not one of them', async () => {
     // 400 € from each account against a 700 € limit: each account alone is under it, the
     // household is 100 € over. The limit belongs to the household, so the page says over.
     render(app());
@@ -251,23 +285,22 @@ describe('BudgetsPage', () => {
       { categoryId: 'cat-essen', month: '2025-09', amountCents: 70000 },
     ]);
 
-    await screen.findByRole('textbox', { name: 'Budget Lebensmittel' });
+    await waitFor(() => {
+      expect(plain(rowOf('Lebensmittel').textContent)).toContain('100,00 € über');
+    });
     expect(plain(rowOf('Lebensmittel').textContent)).toContain('800,00 €');
-    expect(plain(rowOf('Lebensmittel').textContent)).toContain('100,00 € über');
     // No account to pick: a picker would only let the same limit flip between answers.
     expect(screen.queryByRole('combobox', { name: 'Konto' })).toBeNull();
   });
 
   it('offers every month any account has', async () => {
-    await withGiro([], [row({ bookingDate: '2024-01-10', amountCents: -5000 })]);
+    await withGiro([], { tagesgeld: [row({ bookingDate: '2024-01-10', amountCents: -5000 })] });
 
-    const options = openMonths();
-
-    expect(options).toEqual(['September 2025', 'Januar 2024', 'März 2014']);
+    expect(openMonths()).toEqual(['September 2025', 'Januar 2024', 'März 2014']);
   });
 
   it('keeps a slow write in one month from locking the same category in another', async () => {
-    await withGiro();
+    await withGiro([], { editing: true });
 
     const field = screen.getByRole('textbox', { name: 'Budget Wohnen' });
     fireEvent.change(field, { target: { value: '700' } });
@@ -287,7 +320,9 @@ describe('BudgetsPage', () => {
   });
 
   it('resets only the field whose write was refused, not the one being typed in', async () => {
-    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }], {
+      editing: true,
+    });
 
     const wohnen = screen.getByRole('textbox', { name: 'Budget Wohnen' });
     fireEvent.change(wohnen, { target: { value: '900' } });
@@ -304,19 +339,15 @@ describe('BudgetsPage', () => {
     expect(screen.getByRole('textbox', { name: 'Budget Lebensmittel' })).toHaveValue('45');
   });
 
-  it('opens the list on the account holding this month’s uncategorized rows', async () => {
+  it('leads „Ohne Kategorie“ to the account holding this month’s rows', async () => {
     await withGiro();
 
     const uncategorized = rowOf('Ohne Kategorie');
     expect(within(uncategorized).queryByRole('textbox')).toBeNull();
-    fireEvent.click(within(uncategorized).getByRole('button', { name: 'Ohne Kategorie' }));
+    fireEvent.click(within(uncategorized).getByRole('link', { name: 'Anzeigen' }));
 
-    const state = await screen.findByRole('status', { name: 'list state' });
-    expect(JSON.parse(state.textContent)).toEqual({
-      search: '?m=2025-09',
-      accountId: 'acc-1',
-      categoryId: 'uncategorized',
-    });
+    const search = await screen.findByRole('status', { name: 'list search' });
+    expect(search).toHaveTextContent('?m=2025-09&c=uncategorized&a=acc-1');
   });
 
   it('skips an account with nothing uncategorized that month', async () => {
@@ -334,14 +365,21 @@ describe('BudgetsPage', () => {
     });
     budgetLoads.get('2025-09')?.([]);
 
-    fireEvent.click(
-      within(await screen.findByRole('row', { name: /Ohne Kategorie/ })).getByRole('button', {
-        name: 'Ohne Kategorie',
-      }),
-    );
+    await waitFor(() => {
+      expect(rowOf('Ohne Kategorie')).toBeDefined();
+    });
+    fireEvent.click(within(rowOf('Ohne Kategorie')).getByRole('link', { name: 'Anzeigen' }));
 
-    const state = await screen.findByRole('status', { name: 'list state' });
-    expect(JSON.parse(state.textContent)).toMatchObject({ accountId: 'acc-2' });
+    expect(await screen.findByRole('status', { name: 'list search' })).toHaveTextContent('a=acc-2');
+  });
+
+  it('counts what is left to sort, the same way everywhere', async () => {
+    // Giro: one booked uncategorized outflow and the salary this month, one in March 2014;
+    // the vorgemerkt row cannot be sorted yet and is not counted.
+    await withGiro();
+
+    const callout = screen.getByRole('link', { name: /Zu sortieren: 3/ });
+    expect(callout).toHaveTextContent('davon 2 im September 2025');
   });
 
   it('invites an import when no account has anything to report on', async () => {
@@ -351,28 +389,28 @@ describe('BudgetsPage', () => {
     expect(
       await screen.findByText('Noch keine Umsätze. Importieren Sie einen CSV-Export.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zu den Umsätzen' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Zu den Umsätzen' })).toHaveAttribute(
+      'href',
+      '/transactions',
+    );
   });
 
   it('keeps the page on screen while another month’s limits load', async () => {
     // Dogfood ISSUE-009: a month switch used to swap the whole page for a spinner.
-    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }], {
+      editing: true,
+    });
 
     chooseMonth('März 2014');
     await waitFor(() => {
       expect(budgetLoads.has('2014-03')).toBe(true);
     });
 
-    // March's limits are still unanswered: picker, table and spending are all there.
+    // March's limits are still unanswered: stepper, rows and spending are all there.
     expect(monthButton()).toHaveTextContent('März 2014');
     expect(screen.getByText('1.143,41 € ausgegeben', { normalizer: plain })).toBeInTheDocument();
     expect(within(rowOf('Wohnen')).getAllByLabelText('Budgets werden geladen')).toHaveLength(2);
     expect(screen.queryByRole('textbox', { name: 'Budget Wohnen' })).toBeNull();
-    // The chart waits for the limits too, rather than drawing a month with none.
-    expect(screen.getByRole('figure', { name: 'Ausgaben nach Kategorie' })).toHaveAttribute(
-      'aria-busy',
-      'true',
-    );
 
     budgetLoads.get('2014-03')?.([
       { categoryId: 'cat-wohnen', month: '2014-03', amountCents: 50000 },
@@ -382,7 +420,9 @@ describe('BudgetsPage', () => {
   });
 
   it('fetches each month’s limits once, however often it is shown', async () => {
-    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
+    await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }], {
+      editing: true,
+    });
 
     chooseMonth('März 2014');
     await waitFor(() => {
@@ -402,14 +442,14 @@ describe('BudgetsPage', () => {
   });
 
   it('keeps a write in the cached month when the user comes back to it', async () => {
-    await withGiro();
+    await withGiro([], { editing: true });
 
     const field = screen.getByRole('textbox', { name: 'Budget Wohnen' });
     fireEvent.change(field, { target: { value: '700' } });
     fireEvent.blur(field);
     writes[0]?.resolve({ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 });
     await waitFor(() => {
-      expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
+      expect(plain(barOf('Wohnen').getAttribute('aria-label'))).toContain('175,07 € über');
     });
 
     chooseMonth('März 2014');
@@ -424,9 +464,18 @@ describe('BudgetsPage', () => {
     expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
     expect(listBudgets).toHaveBeenCalledTimes(2);
   });
+
+  it('opens on the month a link names', async () => {
+    render(app('/?m=2014-03'));
+    await answerAccounts(GIRO_ROWS);
+
+    await waitFor(() => {
+      expect(monthButton()).toHaveTextContent('März 2014');
+    });
+  });
 });
 
-describe('BudgetsPage, in English', () => {
+describe('OverviewPage, in English', () => {
   it('switches its words and month names without a reload, keeping amounts German', async () => {
     await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
 
@@ -434,13 +483,11 @@ describe('BudgetsPage, in English', () => {
       await i18n.changeLanguage('en');
     });
 
-    expect(await screen.findByRole('columnheader', { name: 'Remaining' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Budgets by category' })).toBeInTheDocument();
     expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € over');
     expect(plain(screen.getByText(/of 700,00 €/).textContent)).toBe(
       '2.385,74 € of 700,00 € · 1.685,74 € over · 19,00 € pending',
     );
-
-    const options = openMonths('Choose month');
-    expect(options).toEqual(['September 2025', 'March 2014']);
+    expect(openMonths('Choose month')).toEqual(['September 2025', 'March 2014']);
   });
 });

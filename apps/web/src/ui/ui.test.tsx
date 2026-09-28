@@ -7,7 +7,7 @@ import { DelayedSkeleton, SKELETON_DELAY_MS } from './DelayedSkeleton';
 import { StatusIcon } from './StatusIcon';
 
 /** `Intl` puts U+00A0 between the amount and the €. */
-const plain = (text: string | null): string => (text ?? '').replaceAll(' ', ' ');
+const plain = (text: string | null): string => (text ?? '').replaceAll('\u00a0', ' ');
 
 describe('StatusIcon', () => {
   it('is named when it carries the meaning', () => {

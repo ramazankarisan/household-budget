@@ -22,7 +22,7 @@ const FIXTURE = resolve(
  */
 test.describe.serial('categorization rules', () => {
   test('a rule written in the browser categorizes an imported transaction', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/transactions');
 
     /*
      * The account may already exist: the import spec runs against this same database and
@@ -78,7 +78,7 @@ test.describe.serial('categorization rules', () => {
   });
 
   test('a category set by hand survives the next apply', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/transactions');
 
     const reweRow = page
       .getByRole('row')

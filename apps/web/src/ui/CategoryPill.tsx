@@ -5,6 +5,8 @@ import { type SxProps, type Theme } from '@mui/material/styles';
 import { type MouseEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { categoryColor } from './categoryColor';
+
 interface PillCategory {
   readonly name: string;
   readonly colorIndex: number;
@@ -39,8 +41,7 @@ export function CategoryDot({
         height: size,
         borderRadius: '50%',
         flexShrink: 0,
-        // Optional: a test rendering without the app theme has no `category` palette.
-        backgroundColor: theme.palette.category?.[colorIndex] ?? theme.palette.text.disabled,
+        backgroundColor: categoryColor(theme, colorIndex),
       })}
     />
   );

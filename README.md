@@ -47,8 +47,9 @@ After pulling a change to `apps/api/prisma/schema.prisma`, run
 `pnpm --filter @household-budget/api prisma:generate` and `db:push` again — `db:push`
 adds new columns to your existing `budget.db` without touching its rows.
 
-Then open http://localhost:5173. Create an account, drop a Sparkasse CSV export on
-the import panel, and the transactions appear below it. `fixtures/sparkasse-camt-18.csv`
+Then open http://localhost:5173. Überblick answers the month; under **Umsätze**, create
+an account, drop a Sparkasse CSV export on the import panel, and the transactions
+appear below it. `fixtures/sparkasse-camt-18.csv`
 is a synthetic export to try it with.
 
 Under **Regeln**, add a category and a rule — `Empfänger enthält müller → Wohnen` —
@@ -59,11 +60,17 @@ rules engine will not touch it again until the category is cleared.
 
 The month every page shows lives in the URL (`?m=2025-09`): the stepper in the top
 bar, or `[` and `]`, move it, and the back button undoes a move. Above the table, the
-toolbar narrows what is shown by category and by a search over payee, purpose and IBAN. The search runs in the browser over the rows
+toolbar narrows what is shown by category and by a search over payee, purpose and IBAN.
+The search runs in the browser over the rows
 already loaded, for the same case-folding reason — typing `müller` finds
 `MÜLLER GmbH`, and a grouped `DE89 3704 …` finds the IBAN as it is stored. The chip
-on the right counts the transactions of the whole account that still have no
-category, and clicking it shows exactly those.
+on the right counts the booked transactions of the whole account that still have no
+category, and clicking it shows them.
+
+**Überblick** (`/`) shows one month for the whole household: the booked total against
+the limits, a bar per category (vorgemerkt hatched, never added in; „über“ past the
+limit), what is still unsorted, and a six-month trend. „Budgets bearbeiten“ turns the
+limits into fields.
 
 ## Scripts
 

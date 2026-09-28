@@ -3,6 +3,9 @@ import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded';
 import TuneRounded from '@mui/icons-material/TuneRounded';
 import { type SvgIconComponent } from '@mui/icons-material';
 
+import { uncategorizedRows } from '../filter';
+import { useHousehold } from '../household/context';
+
 export interface NavItem {
   readonly to: string;
   readonly labelKey:
@@ -17,9 +20,17 @@ export interface NavItem {
  * Order is the product's: import → categorize → report reads best as overview first.
  */
 export function useNavItems(): readonly NavItem[] {
+  const { transactions } = useHousehold();
+  // The same function the list's chip and the Überblick callout count with.
+  const unsorted = uncategorizedRows(transactions ?? []).length;
   return [
-    { to: '/', labelKey: 'common.nav.transactions', Icon: ReceiptLongRounded },
+    { to: '/', labelKey: 'common.nav.overview', Icon: SpaceDashboardRounded },
+    {
+      to: '/transactions',
+      labelKey: 'common.nav.transactions',
+      Icon: ReceiptLongRounded,
+      badge: unsorted,
+    },
     { to: '/rules', labelKey: 'common.nav.rules', Icon: TuneRounded },
-    { to: '/budgets', labelKey: 'common.nav.budgets', Icon: SpaceDashboardRounded },
   ];
 }

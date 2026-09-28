@@ -32,7 +32,7 @@ import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { type TFunction } from 'i18next';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -42,8 +42,6 @@ import {
   createRule,
   deleteCategory,
   deleteRule,
-  listCategories,
-  listRules,
   restoreRule,
   updateRule,
 } from '../api/client';
@@ -57,6 +55,7 @@ import {
   describeRuleDeleted,
   describeRuleErrors,
 } from '../locales/sentences';
+import { useHousehold } from '../household/context';
 import { TopBar } from '../shell/TopBar';
 import { CategoryDot, CategoryPill } from '../ui/CategoryPill';
 import { StatusIcon } from '../ui/StatusIcon';
@@ -111,8 +110,9 @@ function ruleErrorsOf(error: unknown): readonly RuleInputError[] {
 
 export function RulesPage() {
   const { t } = useTranslation();
-  const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
-  const [rules, setRules] = useState<readonly RulePayload[]>([]);
+  // The household's copy: an apply re-categorizes rows, and the list and Überblick read
+  // the same copy, so every change here reloads it rather than a page-local one.
+  const { categories, rules, reload, error: loadError } = useHousehold();
   // Causes and codes, not sentences, throughout this page: everything is worded at render,
   // so a message already on screen follows a language switch with the rest of the page.
   const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
@@ -134,39 +134,6 @@ export function RulesPage() {
     setError({ cause });
   }, []);
 
-  // The load in flight. Every reload goes through it, the mount and the five mutations
-  // alike: a rule saved twice in quick succession fires two reloads, and the slower one
-  // landing last would put the earlier list back on screen. Aborting the older one is the
-  // same guard `AccountPage` uses for its transaction list, and it is what keeps a
-  // response arriving after this page unmounts from setting state.
-  const inFlight = useRef<AbortController | undefined>(undefined);
-
-  const reload = useCallback(() => {
-    inFlight.current?.abort();
-    const controller = new AbortController();
-    inFlight.current = controller;
-
-    Promise.all([listCategories(controller.signal), listRules(controller.signal)])
-      .then(([loadedCategories, loadedRules]) => {
-        if (!controller.signal.aborted) {
-          setCategories(loadedCategories);
-          setRules(loadedRules);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          fail(cause);
-        }
-      });
-  }, [fail]);
-
-  useEffect(() => {
-    reload();
-    return () => {
-      inFlight.current?.abort();
-    };
-  }, [reload]);
-
   /*
    * Every write goes through here rather than calling `reload` directly. Dropping the
    * apply result is the point: "412 geprüft · 318 zugeordnet" describes a run against the
@@ -183,6 +150,8 @@ export function RulesPage() {
     applyRules()
       .then((summary) => {
         setApply({ status: 'done', summary });
+        // The run re-categorized rows the list and Überblick are showing.
+        reload();
       })
       .catch((cause: unknown) => {
         setApply({ status: 'error', cause });
@@ -194,6 +163,9 @@ export function RulesPage() {
       <Stack spacing={3}>
         <TopBar title={t('common.pages.rules')} />
 
+        {loadError !== undefined && (
+          <Alert severity="error">{describeFailure(t, loadError.cause)}</Alert>
+        )}
         {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
         <CategoryStrip

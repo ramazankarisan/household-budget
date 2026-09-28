@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
  * exactly the class of break unit tests cannot see.
  */
 test('the page loads and reaches the API', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/transactions');
 
   await expect(page.getByRole('heading', { level: 1, name: 'Umsätze' })).toBeVisible();
   await expect(page.getByRole('navigation').getByText('Haushaltsbuch')).toBeVisible();

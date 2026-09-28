@@ -190,7 +190,10 @@ describe('AppShell', () => {
     atWidth(1440);
     renderShell();
 
-    expect(screen.getByRole('link', { name: 'Umsätze' })).toHaveAttribute('href', '/?m=2025-09');
+    expect(screen.getByRole('link', { name: 'Umsätze' })).toHaveAttribute(
+      'href',
+      '/transactions?m=2025-09',
+    );
   });
 
   it('is a rail of named icons on a medium window', () => {
@@ -198,7 +201,7 @@ describe('AppShell', () => {
     renderShell();
 
     expect(screen.getAllByRole('navigation')).toHaveLength(1);
-    expect(screen.getByRole('link', { name: 'Budgets' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Überblick' })).toBeInTheDocument();
     expect(screen.queryByText('Haushaltsbuch')).toBeNull();
   });
 

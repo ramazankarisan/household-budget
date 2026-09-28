@@ -56,7 +56,7 @@ test.describe('theme on a dark OS', () => {
  * have done it already; re-importing the same file is a no-op by design.
  */
 async function withTransactions(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto('/transactions');
   const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
   await expect(
     createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
@@ -110,8 +110,9 @@ test.describe('language', () => {
     await expect(page.getByRole('combobox', { name: 'Operator' })).toHaveText('contains');
     await page.getByRole('button', { name: 'Cancel' }).click();
 
-    await nav.getByRole('link', { name: 'Budgets' }).click();
-    await expect(page.getByText('Spending by category', { exact: true })).toBeVisible();
+    await nav.getByRole('link', { name: 'Overview' }).click();
+    await expect(page.getByRole('heading', { name: 'Budgets by category' })).toBeVisible();
+    await expect(page.getByRole('figure', { name: 'Trend' })).toBeVisible();
     await expect(page.getByText(/ of (—|\d)/u)).toBeVisible();
 
     await nav.getByRole('link', { name: 'Transactions' }).click();

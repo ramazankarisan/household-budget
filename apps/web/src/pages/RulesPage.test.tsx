@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // second class with the same shape is a different class.
 import { ApiError } from '../api/client';
 import i18n from '../locales/i18n';
+import { HouseholdProvider } from '../household/HouseholdProvider';
 import { RulesPage } from './RulesPage';
 
 const initialCategories: CategoryPayload[] = [
@@ -61,6 +62,8 @@ vi.mock('../api/client', () => ({
       this.details = details;
     }
   },
+  listAccounts: () => Promise.resolve([]),
+  listTransactions: () => Promise.resolve([]),
   listCategories: () =>
     listFailure === undefined ? Promise.resolve(categories) : Promise.reject(listFailure),
   listRules: () =>
@@ -115,9 +118,12 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** The page reads categories and rules from the household, which loads them. */
 const page = () => (
   <MemoryRouter>
-    <RulesPage />
+    <HouseholdProvider>
+      <RulesPage />
+    </HouseholdProvider>
   </MemoryRouter>
 );
 

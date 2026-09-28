@@ -21,7 +21,7 @@ const plain = (text: string): string => text.replaceAll('\u00a0', ' ');
  */
 test.describe.serial('CSV import', () => {
   test('imports a Sparkasse export and shows the transactions', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/transactions');
 
     await page.getByRole('heading', { name: 'Konto anlegen' }).waitFor();
     await page.getByLabel('IBAN').fill('DE89370400440532013000');
@@ -49,7 +49,7 @@ test.describe.serial('CSV import', () => {
   });
 
   test('a second upload of the same file imports nothing and says so', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/transactions');
 
     await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
 

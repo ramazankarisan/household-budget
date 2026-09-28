@@ -1,8 +1,4 @@
-import {
-  type AccountPayload,
-  type CategoryPayload,
-  type TransactionPayload,
-} from '@household-budget/core';
+import { type TransactionPayload } from '@household-budget/core';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,27 +8,22 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router';
+import { useSearchParams } from 'react-router';
 
-import {
-  createAccount,
-  listAccounts,
-  listCategories,
-  listTransactions,
-  setTransactionCategory,
-} from '../api/client';
+import { createAccount } from '../api/client';
 import {
   filterTransactions,
   hasFilters,
-  listEntryOf,
   monthsOf,
   NO_FILTERS,
   searchableOf,
   type TransactionFilterState,
-  uncategorizedCount,
+  uncategorizedRows,
 } from '../filter';
+import { useHousehold } from '../household/context';
+import { useCategorize } from '../household/useCategorize';
 import { describeFailure } from '../locales/sentences';
 import { TopBar } from '../shell/TopBar';
 import { useMonth } from '../shell/useMonth';
@@ -42,21 +33,30 @@ import { ImportPanel } from './ImportPanel';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionList } from './TransactionList';
 
+const EMPTY_ROWS: readonly TransactionPayload[] = [];
+
+/** Search params another page may land on this one with. */
+export const ACCOUNT_PARAM = 'a';
+export const CATEGORY_PARAM = 'c';
+
 export function AccountPage() {
   const { t } = useTranslation();
-  // Read once, on mount: another page may have sent the user here already narrowed. A
-  // later change of filter is the user's, and must not be overridden by where they came
-  // from.
-  const location = useLocation();
-  const [entry] = useState(() => listEntryOf(location.state));
+  const household = useHousehold();
+  const { accounts, rowsByAccount, categories, reload, addAccount } = household;
+  // Read once, on mount: another page may have sent the user here already narrowed
+  // (`?a=…&c=uncategorized`). A later change of filter is the user's, and must not be
+  // overridden by where they came from.
+  const [params] = useSearchParams();
+  const [entry] = useState(() => ({
+    accountId: params.get(ACCOUNT_PARAM) ?? '',
+    categoryId: params.get(CATEGORY_PARAM) ?? '',
+  }));
 
-  const [accounts, setAccounts] = useState<AccountPayload[] | undefined>(undefined);
-  const [accountId, setAccountId] = useState<string>(entry?.accountId ?? '');
-  const [transactions, setTransactions] = useState<readonly TransactionPayload[]>([]);
-  const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
-  const [filters, setFilters] = useState<TransactionFilterState>(
-    entry === undefined ? NO_FILTERS : { ...NO_FILTERS, categoryId: entry.categoryId },
-  );
+  const [chosenAccountId, setAccountId] = useState<string>(entry.accountId);
+  const [filters, setFilters] = useState<TransactionFilterState>({
+    ...NO_FILTERS,
+    categoryId: entry.categoryId,
+  });
   // The cause, not its sentence: worded at render by `describeFailure`, so an alert already
   // on screen follows a language switch rather than staying in the old language.
   const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
@@ -65,143 +65,35 @@ export function AccountPage() {
     setError({ cause });
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  // The account asked for, if it exists; the first one otherwise.
+  const accountId =
+    accounts?.find((account) => account.id === chosenAccountId)?.id ?? accounts?.[0]?.id ?? '';
+  // `[]` until this account's rows arrive — never another account's rows under its name.
+  const transactions = rowsByAccount.get(accountId) ?? EMPTY_ROWS;
 
-    listAccounts(controller.signal)
-      .then((loaded) => {
-        setAccounts(loaded);
-        setAccountId((current) => (current === '' ? (loaded[0]?.id ?? '') : current));
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          fail(cause);
-        }
-      });
+  const { changeCategory, savingIds } = useCategorize(fail);
 
-    return () => {
-      controller.abort();
-    };
-  }, [fail]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    listCategories(controller.signal)
-      .then(setCategories)
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          fail(cause);
-        }
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [fail]);
-
-  // The load in flight, so switching accounts twice in a row cannot land the first
-  // account's rows under the third one's name: the older request is aborted, and a
-  // response that arrives anyway is dropped.
-  const inFlight = useRef<AbortController | undefined>(undefined);
-
-  const refreshTransactions = useCallback(() => {
-    inFlight.current?.abort();
-    inFlight.current = undefined;
-    if (accountId === '') {
-      return;
-    }
-
-    const controller = new AbortController();
-    inFlight.current = controller;
-
-    listTransactions(accountId, controller.signal)
-      .then((loaded) => {
-        if (!controller.signal.aborted) {
-          setTransactions(loaded);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          fail(cause);
-        }
-      });
-  }, [accountId, fail]);
-
-  useEffect(() => {
-    refreshTransactions();
-    return () => {
-      inFlight.current?.abort();
-    };
-  }, [refreshTransactions]);
-
-  // The rows whose own change is in flight, and which change that is. The set disables the
-  // cell so a second pick cannot be made while the first is unanswered; the counter is
-  // what makes that safe rather than merely likely — a response the user has already
-  // superseded is dropped instead of overwriting the newer one, the same guard
-  // `refreshTransactions` applies to the list as a whole.
-  const [savingIds, setSavingIds] = useState<ReadonlySet<string>>(() => new Set());
-  const changeSeq = useRef(new Map<string, number>());
-
-  /**
-   * Written through the API and then replaced in place, rather than reloading the list:
-   * the server decides the lock timestamp, and re-fetching every row to learn one row's
-   * new state would scroll the table out from under the click.
-   */
-  function changeCategory(transactionId: string, categoryId: string | null): void {
-    const seq = (changeSeq.current.get(transactionId) ?? 0) + 1;
-    changeSeq.current.set(transactionId, seq);
-    setSavingIds((current) => new Set(current).add(transactionId));
-
-    const current = () => changeSeq.current.get(transactionId) === seq;
-
-    setTransactionCategory(transactionId, categoryId)
-      .then((updated) => {
-        if (current()) {
-          setTransactions((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
-        }
-      })
-      .catch((cause: unknown) => {
-        if (current()) {
-          fail(cause);
-        }
-      })
-      .finally(() => {
-        if (!current()) {
-          return;
-        }
-        setSavingIds((ids) => {
-          const next = new Set(ids);
-          next.delete(transactionId);
-          return next;
-        });
-      });
-  }
-
-  // Derived during render, from the one array the loader owns. Nothing here is a second
-  // copy of the rows, which is what lets `changeCategory`'s in-place replacement drop a
-  // row out of an active filter the moment it stops matching.
+  // Derived during render, from the one array the household owns. Nothing here is a
+  // second copy of the rows, which is what lets a category set by hand drop a row out of
+  // an active filter the moment it stops matching.
   const months = useMemo(() => monthsOf(transactions), [transactions]);
   // The URL's month. A month this account does not have falls back to all of them.
   const monthState = useMonth(months, { defaultTo: 'all' });
   const { month } = monthState;
   // Normalized per loaded list rather than per keystroke — which is the comparison that
-  // matters, since typing is the frequent event. Setting a category by hand rebuilds it
-  // too, because `changeCategory` replaces the array: ~2 ms for an eight-year history,
-  // once per click, and cheaper than a per-id cache that would need invalidating on
-  // exactly that event anyway.
+  // matters, since typing is the frequent event.
   const searchable = useMemo(() => searchableOf(transactions), [transactions]);
   const visible = useMemo(
     () => filterTransactions(searchable, filters, month),
     [searchable, filters, month],
   );
   // The whole account, not the view: the number answers "how much is left to do".
-  const uncategorized = useMemo(() => uncategorizedCount(transactions), [transactions]);
+  const uncategorized = useMemo(() => uncategorizedRows(transactions).length, [transactions]);
   const filtering = hasFilters(filters);
 
-  async function addAccount(iban: string, name: string): Promise<void> {
+  async function createAndSelect(iban: string, name: string): Promise<void> {
     const created = await createAccount(iban, name);
-    setAccounts((current) => [...(current ?? []), created]);
+    addAccount(created);
     setAccountId(created.id);
   }
 
@@ -224,10 +116,6 @@ export function AccountPage() {
             accounts={accounts}
             value={accountId}
             onChange={(nextAccountId) => {
-              // Cleared here rather than in the effect that reloads them: showing the
-              // previous account's rows under the new account's name is worse than
-              // showing none for a moment.
-              setTransactions([]);
               // A category chosen for one account means nothing for the next. The month
               // stays in the URL and falls back to "all" if this account lacks it.
               setFilters(NO_FILTERS);
@@ -237,11 +125,14 @@ export function AccountPage() {
         </Box>
       )}
 
+      {household.error !== undefined && (
+        <Alert severity="error">{describeFailure(t, household.error.cause)}</Alert>
+      )}
       {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
       {accounts === undefined && <DelayedSkeleton label={t('common.loading')} />}
 
-      {accounts?.length === 0 && <NewAccountForm onCreate={addAccount} onError={fail} />}
+      {accounts?.length === 0 && <NewAccountForm onCreate={createAndSelect} onError={fail} />}
 
       {accountId !== '' && (
         <Card variant="outlined">
@@ -250,7 +141,7 @@ export function AccountPage() {
               <Typography variant="h6" component="h2">
                 {t('common.import.title')}
               </Typography>
-              <ImportPanel accountId={accountId} onImported={refreshTransactions} />
+              <ImportPanel accountId={accountId} onImported={reload} />
               <Divider />
               {transactions.length > 0 && (
                 <TransactionFilters
@@ -263,7 +154,9 @@ export function AccountPage() {
               <TransactionList
                 transactions={visible}
                 categories={categories}
-                onCategoryChange={changeCategory}
+                onCategoryChange={(id, categoryId) => {
+                  void changeCategory(id, categoryId);
+                }}
                 savingIds={savingIds}
                 emptyMessage={filtering ? t('transactions.noMatches') : undefined}
                 onResetFilters={

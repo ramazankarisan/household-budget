@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listTransactions } from '../api/client';
 import i18n from '../locales/i18n';
+import { HouseholdProvider } from '../household/HouseholdProvider';
 import { AccountPage } from './AccountPage';
 
 const ACCOUNTS: AccountPayload[] = [
@@ -29,6 +30,7 @@ vi.mock('../api/client', () => ({
   createAccount: () => Promise.reject(new Error('not used here')),
   uploadImport: () => Promise.reject(new Error('not used here')),
   listCategories: () => Promise.resolve([{ id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 }]),
+  listRules: () => Promise.resolve([]),
   setTransactionCategory: (transactionId: string, categoryId: string | null) =>
     new Promise<TransactionPayload>((resolve, reject) => {
       writes.push({ transactionId, categoryId, resolve, reject });
@@ -43,10 +45,12 @@ vi.mock('../api/client', () => ({
   ),
 }));
 
-/** The page renders the app's nav, and `NavLink` needs a router around it. */
-const page = () => (
-  <MemoryRouter>
-    <AccountPage />
+/** The page reads the household, which loads every account; the router carries `?m`. */
+const page = (entry = '/transactions') => (
+  <MemoryRouter initialEntries={[entry]}>
+    <HouseholdProvider>
+      <AccountPage />
+    </HouseholdProvider>
   </MemoryRouter>
 );
 
@@ -216,7 +220,8 @@ describe('AccountPage, filtering', () => {
       expect(screen.queryByRole('cell', { name: 'Versicherung AG' })).not.toBeInTheDocument();
     });
     expect(screen.getByRole('cell', { name: 'Müller GmbH' })).toBeInTheDocument();
-    expect(vi.mocked(listTransactions)).toHaveBeenCalledOnce();
+    // One load per account, made when the household loaded — none for the filter.
+    expect(vi.mocked(listTransactions)).toHaveBeenCalledTimes(ACCOUNTS.length);
   });
 
   it('searches the rows it already has, one keystroke at a time', async () => {
@@ -232,7 +237,8 @@ describe('AccountPage, filtering', () => {
       expect(screen.queryByRole('cell', { name: 'Versicherung AG' })).not.toBeInTheDocument();
     });
     expect(screen.getByRole('cell', { name: 'Müller GmbH' })).toBeInTheDocument();
-    expect(vi.mocked(listTransactions)).toHaveBeenCalledOnce();
+    // One load per account, made when the household loaded — none for the filter.
+    expect(vi.mocked(listTransactions)).toHaveBeenCalledTimes(ACCOUNTS.length);
   });
 
   it('counts the account, not the view', async () => {
@@ -313,27 +319,14 @@ describe('AccountPage, filtering', () => {
     expect(screen.getByRole('textbox', { name: 'Suche' })).toHaveValue('');
   });
 
-  it('lands already narrowed when the budgets page sends the user here', async () => {
-    // The uncategorized row on /budgets hands over its account and bucket through router
-    // state and its month in the URL — the rows it counted, not every month's.
-    render(
-      <MemoryRouter
-        initialEntries={[
-          {
-            pathname: '/',
-            search: '?m=2025-09',
-            state: { accountId: 'acc-2', categoryId: 'uncategorized' },
-          },
-        ]}
-      >
-        <AccountPage />
-      </MemoryRouter>,
-    );
+  it('lands already narrowed when Überblick sends the user here', async () => {
+    // The „Ohne Kategorie“ row hands over its account, its bucket and its month in the
+    // URL — the rows it counted, not the first account's rows for every month.
+    render(page('/transactions?m=2025-09&c=uncategorized&a=acc-2'));
 
     await waitFor(() => {
       expect(pending.has('acc-2')).toBe(true);
     });
-    expect(pending.has('acc-1')).toBe(false);
     pending.get('acc-2')?.([
       row('t-1', 'Ärzte GmbH'),
       row('t-2', 'Müller GmbH', { categoryId: 'cat-wohnen' }),
