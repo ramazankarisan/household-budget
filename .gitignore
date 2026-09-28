@@ -162,9 +162,9 @@ data/
 *.csv
 !**/fixtures/**/*.csv
 
-# Dogfood screenshots can show local data. Only the screenshots: dogfood-output/report.md
-# stays trackable, docs/plans/05-dogfood-fixes.md links it as its findings log.
-dogfood-output/screenshots/
+# Output of an exploratory (dogfood) session: notes and screenshots that can show local data.
+# Findings worth keeping are summarised by hand under docs/reports/.
+dogfood-output/
 
 # Playwright output
 test-results/

@@ -19,7 +19,8 @@ apps/web        React 19 + Vite 8 + MUI 9 + react-router, inside one app shell
                 Look and rules: DESIGN.md.
 fixtures/       Synthetic bank CSVs. Byte-exact test data: CRLF endings and,
                 for the primary fixture, Windows-1252. Never real statements.
-docs/           research/ and plans/, one Markdown file per topic.
+docs/           research/ and plans/, one Markdown file per topic; reports/ for
+                reviews and test sessions (security review, dogfood session).
 ```
 
 Both apps depend on `@household-budget/core` as `workspace:*`. core has two entry

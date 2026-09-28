@@ -9,6 +9,12 @@ status: implemented
 
 # PLAN: Dogfood fixes (2026-09-23 session)
 
+> **Outcome (2026-09-28):** all five phases shipped. The findings log this plan links,
+> `dogfood-output/report.md`, was removed before review; its findings and what became of each
+> are summarised in [docs/reports/2026-09-23-dogfood.md](../reports/2026-09-23-dogfood.md).
+> Pages named below (`BudgetsPage`, `CategoryCell`) were later replaced by the UI redesign
+> ([plan 08](08-ui-redesign.md)).
+
 This plan fixes five findings from the exploratory test session recorded in
 [`dogfood-output/report.md`](../../dogfood-output/report.md), and Phase 5 two more the user found
 afterwards (ISSUE-011, ISSUE-012). Issue numbers below are the report's.

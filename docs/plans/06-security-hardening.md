@@ -9,6 +9,10 @@ status: implemented
 
 # PLAN: Security hardening
 
+> **Outcome (2026-09-28):** implemented as written. One later change: the whole
+> `dogfood-output/` folder is now removed and ignored, not only its screenshots; the dogfood
+> findings live on in [docs/reports/2026-09-23-dogfood.md](../reports/2026-09-23-dogfood.md).
+
 Fixes the findings of the security review in
 [docs/reports/2026-09-24-security-review.html](../reports/2026-09-24-security-review.html). That
 report is the authority for _what_ is wrong and where; do not re-derive it. Its **Tracking**

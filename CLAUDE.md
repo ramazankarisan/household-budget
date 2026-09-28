@@ -187,6 +187,7 @@ Import → categorize → report is the whole product. Weigh new work against it
   `scripts/check-staged-data.mjs` blocks the rest at commit time. When a bug needs a real
   statement to reproduce, hand-write a synthetic fixture that reproduces it.
 - **Research goes in `docs/research/`, plans go in `docs/plans/`**, one Markdown file per
-  topic, committed. Check there before researching something twice.
+  topic, committed. Check there before researching something twice. Reviews and test
+  sessions go in `docs/reports/`, dated. Raw session output (`dogfood-output/`) stays local.
 - **Link, do not inline.** When a topic needs more than a few lines here, write it under
   `docs/` and link it from this file. Keep CLAUDE.md short enough to stay read.
