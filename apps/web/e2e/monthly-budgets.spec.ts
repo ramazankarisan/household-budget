@@ -25,6 +25,10 @@ test.describe.serial('monthly budgets', () => {
 
   test('September 2025 against a limit on Wohnen', async ({ page }) => {
     await page.getByRole('link', { name: 'Überblick' }).click();
+    // Every page has a „Monat wählen“ button. Until Überblick has rendered, the one on
+    // screen is still Umsätze's, and on a slow CPU the click opens that menu — which then
+    // unmounts with its page, so the menu item below detaches mid-click.
+    await expect(page.getByRole('heading', { level: 1, name: 'Überblick' })).toBeVisible();
 
     await page.getByRole('button', { name: /^Monat wählen/u }).click();
     await expect(page.getByRole('menuitem', { name: 'März 2014' })).toBeVisible();

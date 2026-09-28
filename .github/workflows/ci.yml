@@ -52,9 +52,11 @@ jobs:
         env:
           CI: 'true'
 
+      # CI runs Playwright with the dot reporter, so there is no HTML report: the traces,
+      # screenshots and error context of a failed spec are in test-results/.
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: apps/web/playwright-report/
+          name: playwright-results
+          path: apps/web/test-results/
           retention-days: 7
