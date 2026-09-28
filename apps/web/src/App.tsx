@@ -43,6 +43,8 @@ export function App() {
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/imports" element={<ImportsPage />} />
             <Route path="/budgets" element={<BudgetsRedirect />} />
+            {/* An address no page answers lands on Überblick rather than an empty frame. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppShell>
       </HouseholdProvider>

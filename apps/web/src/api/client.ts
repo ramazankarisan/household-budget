@@ -129,6 +129,20 @@ export function listImports(signal?: AbortSignal): Promise<ImportBatchPayload[]>
   return request<ImportBatchPayload[]>('/imports', signal === undefined ? {} : { signal });
 }
 
+/** Removes an upload's rows; the upload stays listed with `undoneAt` set. */
+export function undoImport(batchId: string): Promise<ImportBatchPayload> {
+  return request<ImportBatchPayload>(`/imports/${encodeURIComponent(batchId)}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Undo for {@link undoImport}: the same rows come back. */
+export function restoreImport(batchId: string): Promise<ImportBatchPayload> {
+  return request<ImportBatchPayload>(`/imports/${encodeURIComponent(batchId)}/restore`, {
+    method: 'POST',
+  });
+}
+
 /** Multipart, because the API decodes the bytes — the browser must not guess an encoding. */
 export function uploadImport(accountId: string, file: File): Promise<ImportSummary> {
   const form = new FormData();

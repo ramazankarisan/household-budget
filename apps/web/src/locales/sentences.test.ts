@@ -123,6 +123,15 @@ describe('describeFileError', () => {
     );
   });
 
+  it('names the file s IBAN when it belongs to another account, in both languages', () => {
+    expect(describeFileError(de, 'ACCOUNT_IBAN_MISMATCH', ['DE91…6789'])).toBe(
+      'Die Datei gehört zu einem anderen Konto — bitte das passende Konto wählen oder anlegen. IBAN in der Datei: DE91…6789',
+    );
+    expect(describeFileError(en, 'ACCOUNT_IBAN_MISMATCH', ['DE91…6789'])).toBe(
+      'this file belongs to a different account — choose or create the matching account. IBAN in the file: DE91…6789',
+    );
+  });
+
   it('still shows an unknown code rather than swallowing it', () => {
     // csv-parse's code list is open-ended, and a code the user can quote is worth more
     // than a generic "import failed".

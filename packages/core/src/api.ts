@@ -126,6 +126,8 @@ export interface ImportBatchPayload {
   readonly rowsSkipped: number;
   readonly rowsRestored: number;
   readonly rowsFailed: number;
+  /** ISO 8601 when the user removed this upload and its rows; `null` while it stands. */
+  readonly undoneAt: string | null;
 }
 
 export interface ImportSummary {

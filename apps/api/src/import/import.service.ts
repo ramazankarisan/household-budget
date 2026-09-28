@@ -10,9 +10,16 @@ import {
   Transaction as ParsedTransaction,
 } from '@household-budget/core';
 import { detectDialect, parseBankCsv } from '@household-budget/core/csv';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { AccountService } from '../accounts/account.service.js';
+import { type ImportBatch } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RuleService } from '../rules/rule.service.js';
 import { sanitizeForLog } from '../security/sanitize-log.js';
@@ -61,6 +68,34 @@ function csvErrorCode(error: unknown): string | undefined {
  */
 function storedDialect(value: string | null): BankDialectId {
   return value === null ? 'sparkasse-camt' : (value as BankDialectId);
+}
+
+/** Uploads to the same account listed above this one: the order `listBatches` shows. */
+function newerThan(batch: ImportBatch) {
+  return {
+    accountId: batch.accountId,
+    OR: [
+      { importedAt: { gt: batch.importedAt } },
+      { importedAt: batch.importedAt, id: { gt: batch.id } },
+    ],
+  };
+}
+
+function toBatchPayload(batch: ImportBatch): ImportBatchPayload {
+  return {
+    id: batch.id,
+    accountId: batch.accountId,
+    fileName: batch.fileName,
+    encoding: batch.encoding === 'utf-8' ? 'utf-8' : 'windows-1252',
+    dialect: storedDialect(batch.dialect),
+    importedAt: batch.importedAt.toISOString(),
+    rowsParsed: batch.rowsParsed,
+    rowsImported: batch.rowsImported,
+    rowsSkipped: batch.rowsSkipped,
+    rowsRestored: batch.rowsRestored,
+    rowsFailed: batch.rowsFailed,
+    undoneAt: batch.undoneAt?.toISOString() ?? null,
+  };
 }
 
 type TransactionRow = {
@@ -141,27 +176,123 @@ export class ImportService {
       orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
       take: ImportService.HISTORY_LIMIT,
     });
-    return batches.map((batch) => ({
-      id: batch.id,
-      accountId: batch.accountId,
-      fileName: batch.fileName,
-      encoding: batch.encoding === 'utf-8' ? 'utf-8' : 'windows-1252',
-      dialect: storedDialect(batch.dialect),
-      importedAt: batch.importedAt.toISOString(),
-      rowsParsed: batch.rowsParsed,
-      rowsImported: batch.rowsImported,
-      rowsSkipped: batch.rowsSkipped,
-      rowsRestored: batch.rowsRestored,
-      rowsFailed: batch.rowsFailed,
-    }));
+    return batches.map(toBatchPayload);
+  }
+
+  /**
+   * Removes an upload: every row it inserted that is still live is soft-deleted, all with
+   * one timestamp that the batch keeps as `undoneAt`. Soft, like deleting a single row, so
+   * `restore` can put them back — and like a single row, the hand-set lock goes with it
+   * (see `AccountService.softDeleteTransaction`). The batch stays listed, marked removed.
+   *
+   * Only the account's newest standing upload (`IMPORT_NOT_LATEST` otherwise). A row an
+   * overlapping later export skipped as already stored still belongs to the older upload,
+   * so removing the older one would take rows the later file holds. Newest first, like a
+   * stack, never reaches such a row.
+   *
+   * Rows this upload restored rather than inserted belong to an older batch and stay. The
+   * pending rows it replaced were deleted outright when it ran and do not come back; the
+   * account's next export brings its pending set anew. Removing twice changes nothing.
+   */
+  async undo(batchId: string): Promise<ImportBatchPayload> {
+    await this.requireBatch(batchId);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const batch = await tx.importBatch.findUniqueOrThrow({ where: { id: batchId } });
+      if (batch.undoneAt !== null) {
+        return batch;
+      }
+      const newer = await tx.importBatch.count({
+        where: { ...newerThan(batch), undoneAt: null },
+      });
+      if (newer > 0) {
+        throw new ConflictException({ code: 'IMPORT_NOT_LATEST' });
+      }
+
+      // Strictly after every earlier deletion in this batch: a row deleted by hand in the
+      // same millisecond would otherwise share the timestamp, and `restore` would bring it
+      // back with the rest.
+      const { _max } = await tx.transaction.aggregate({
+        where: { importBatchId: batchId },
+        _max: { deletedAt: true },
+      });
+      const undoneAt = new Date(Math.max(Date.now(), (_max.deletedAt?.getTime() ?? 0) + 1));
+
+      // Claimed by a conditional write, not by the read above: of two removals in flight,
+      // exactly one sets `undoneAt`. The other would otherwise stamp a later time over it
+      // and leave `restore` looking for rows deleted at a moment nothing was.
+      const claimed = await tx.importBatch.updateMany({
+        where: { id: batchId, undoneAt: null },
+        data: { undoneAt },
+      });
+      if (claimed.count === 1) {
+        await tx.transaction.updateMany({
+          where: { importBatchId: batchId, deletedAt: null },
+          data: { deletedAt: undoneAt, categoryLockedAt: null },
+        });
+      }
+      return tx.importBatch.findUniqueOrThrow({ where: { id: batchId } });
+    });
+    this.logger.log(`import ${batchId} removed`);
+    return toBatchPayload(updated);
+  }
+
+  /**
+   * The undo for `undo`: brings back exactly the rows it deleted, found by the timestamp
+   * they share with the batch. A row the user had deleted by hand before carries another
+   * timestamp and stays deleted. Restoring a batch that stands changes nothing.
+   *
+   * Only the account's most recently removed upload (`IMPORT_RESTORE_BLOCKED` otherwise):
+   * with B removed and then A under it, B's file skipped rows that A holds, and bringing B
+   * back alone would leave them missing.
+   */
+  async restore(batchId: string): Promise<ImportBatchPayload> {
+    await this.requireBatch(batchId);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const batch = await tx.importBatch.findUniqueOrThrow({ where: { id: batchId } });
+      const { undoneAt } = batch;
+      if (undoneAt === null) {
+        return batch;
+      }
+      const later = await tx.importBatch.count({
+        where: { accountId: batch.accountId, undoneAt: { gt: undoneAt } },
+      });
+      if (later > 0) {
+        throw new ConflictException({ code: 'IMPORT_RESTORE_BLOCKED' });
+      }
+
+      const claimed = await tx.importBatch.updateMany({
+        where: { id: batchId, undoneAt },
+        data: { undoneAt: null },
+      });
+      if (claimed.count === 1) {
+        await tx.transaction.updateMany({
+          where: { importBatchId: batchId, deletedAt: undoneAt },
+          data: { deletedAt: null },
+        });
+      }
+      return tx.importBatch.findUniqueOrThrow({ where: { id: batchId } });
+    });
+    this.logger.log(`import ${batchId} restored`);
+    return toBatchPayload(updated);
+  }
+
+  private async requireBatch(batchId: string): Promise<ImportBatch> {
+    const batch = await this.prisma.importBatch.findUnique({ where: { id: batchId } });
+    if (batch === null) {
+      throw new NotFoundException(`No import ${batchId}`);
+    }
+    return batch;
   }
 
   async importCsv(request: ImportRequest): Promise<ImportSummary> {
     const account = await this.accounts.requireAccount(request.accountId);
     const fileHash = sha256Hex(request.bytes);
 
+    // A removed upload is not one the user still has: this file is new to the account again.
     const priorBatch = await this.prisma.importBatch.findFirst({
-      where: { accountId: account.id, fileHash },
+      where: { accountId: account.id, fileHash, undoneAt: null },
       orderBy: { importedAt: 'asc' },
       select: { id: true },
     });
@@ -172,6 +303,7 @@ export class ImportService {
     );
 
     const { dialect, transactions, errors } = this.parse(text, request, encoding);
+    this.requireOwnIban(account.iban, transactions);
 
     const booked = transactions.filter((transaction) => transaction.status === 'booked');
     const pending = transactions.filter((transaction) => transaction.status === 'pending');
@@ -239,8 +371,17 @@ export class ImportService {
         // Restored, not re-inserted: the unique index covers soft-deleted rows, so an
         // insert would hit P2002. The original batch stays as the row's provenance.
         await tx.transaction.updateMany({
-          where: { id: { in: toRestore } },
+          where: { id: { in: toRestore.map(({ id }) => id) } },
           data: { deletedAt: null },
+        });
+        // A removed upload whose rows this file brings back stands again: it holds live rows,
+        // so it must be removable again, and must not claim to be gone.
+        await tx.importBatch.updateMany({
+          where: {
+            id: { in: [...new Set(toRestore.map(({ importBatchId }) => importBatchId))] },
+            undoneAt: { not: null },
+          },
+          data: { undoneAt: null },
         });
       }
 
@@ -263,7 +404,7 @@ export class ImportService {
         where: { importBatchId: batch.id },
         select: { id: true },
       });
-      const touched = [...inserted.map((row) => row.id), ...toRestore];
+      const touched = [...inserted.map((row) => row.id), ...toRestore.map(({ id }) => id)];
 
       return { batchId: batch.id, categorized: await this.rules.applyToRows(tx, touched) };
     });
@@ -330,6 +471,31 @@ export class ImportService {
   }
 
   /**
+   * Every row must belong to the account the user picked. The pending set and the
+   * stale-export watermark are both per account, so a file from another account does not
+   * just add foreign rows: it wipes this account's pending rows, and its dates decide
+   * whether this account's next real export counts as older. Checked before anything is
+   * written, so a refused file changes nothing.
+   *
+   * Per row, not once per file: Sparkasse repeats the owner IBAN on every row, and one
+   * foreign row among many is still a foreign row. The file's IBANs go back masked, the
+   * way the account list shows them, so the user can tell which account the file is for.
+   */
+  private requireOwnIban(accountIban: string, transactions: readonly ParsedTransaction[]): void {
+    const foreign = new Set(
+      transactions
+        .map((transaction) => transaction.accountIban.toUpperCase())
+        .filter((iban) => iban !== accountIban),
+    );
+    if (foreign.size > 0) {
+      throw new BadRequestException({
+        code: 'ACCOUNT_IBAN_MISMATCH',
+        columns: [...foreign].map(maskIban),
+      });
+    }
+  }
+
+  /**
    * An export is a snapshot as of its newest *booked* date, and the pending set is only ever
    * replaced wholesale. That is right for the newest file and wrong for any older one:
    * re-importing last month's statement would otherwise delete pending rows it never saw,
@@ -389,17 +555,17 @@ export class ImportService {
     keyed: readonly { transaction: ParsedTransaction; dedupKey: string }[],
   ): Promise<{
     toInsert: { transaction: ParsedTransaction; dedupKey: string }[];
-    toRestore: string[];
+    toRestore: { id: string; importBatchId: string }[];
     skipped: number;
   }> {
     const stored = await this.prisma.transaction.findMany({
       where: { accountId, dedupKey: { in: keyed.map(({ dedupKey }) => dedupKey) } },
-      select: { id: true, dedupKey: true, deletedAt: true },
+      select: { id: true, dedupKey: true, deletedAt: true, importBatchId: true },
     });
     const byKey = new Map(stored.map((row) => [row.dedupKey, row]));
 
     const toInsert: { transaction: ParsedTransaction; dedupKey: string }[] = [];
-    const toRestore: string[] = [];
+    const toRestore: { id: string; importBatchId: string }[] = [];
     let skipped = 0;
 
     for (const entry of keyed) {
@@ -409,7 +575,7 @@ export class ImportService {
       } else if (row.deletedAt === null) {
         skipped += 1;
       } else {
-        toRestore.push(row.id);
+        toRestore.push({ id: row.id, importBatchId: row.importBatchId });
       }
     }
 

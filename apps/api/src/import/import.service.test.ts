@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -73,16 +73,16 @@ const liveRows = (accountId: string) =>
 describe('ImportService.listBatches', () => {
   it('lists every upload, newest first, across accounts — a no-op one included', async () => {
     const giro = await account();
-    const tagesgeld = await account('DE02120300000000202051');
+    const tagesgeld = await account('DE91100000000123456789');
     await importFile(giro, 'sparkasse-camt-18.csv');
-    await importFile(tagesgeld, 'sparkasse-camt-17.csv');
+    await importFile(tagesgeld, 'deutsche-bank.csv');
     await importFile(giro, 'sparkasse-camt-18.csv');
 
     const listed = await imports.listBatches();
 
     expect(listed.map((batch) => [batch.accountId, batch.fileName])).toEqual([
       [giro, 'sparkasse-camt-18.csv'],
-      [tagesgeld, 'sparkasse-camt-17.csv'],
+      [tagesgeld, 'deutsche-bank.csv'],
       [giro, 'sparkasse-camt-18.csv'],
     ]);
     expect(listed[0]).toMatchObject({ rowsImported: 0, encoding: 'windows-1252' });
@@ -358,16 +358,34 @@ describe('ImportService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('stores the file s own Auftragskonto even when it differs from the chosen account', async () => {
-    // The account is picked by the user before upload and never inferred from the file,
-    // so a mismatch is provenance to record, not a reason to refuse the import.
+  it('refuses a file whose Auftragskonto is not the chosen account, and stores nothing', async () => {
     const accountId = await account('DE00000000000000000000');
 
-    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
-    const rows = await liveRows(accountId);
+    await expect(importFile(accountId, 'sparkasse-camt-18.csv')).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE89…3000'] },
+    });
+    expect(await prisma.importBatch.count()).toBe(0);
+    expect(await liveRows(accountId)).toHaveLength(0);
+  });
 
-    expect(summary.imported).toBe(8);
-    expect(rows[0]?.accountIban).toBe('DE89370400440532013000');
+  it('refuses a file where a single row names another Auftragskonto', async () => {
+    const accountId = await account();
+    const lines = new TextDecoder('windows-1252')
+      .decode(bytesOf('sparkasse-camt-18.csv'))
+      .split('\r\n');
+    lines[1] = (lines[1] ?? '').replace('DE89370400440532013000', 'DE27100777770209299700');
+
+    await expect(
+      imports.importCsv({
+        accountId,
+        fileName: 'gemischt.csv',
+        bytes: new TextEncoder().encode(lines.join('\r\n')),
+        referenceYear,
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE27…9700'] },
+    });
+    expect(await liveRows(accountId)).toHaveLength(0);
   });
 
   it('records the batch with counts that add up', async () => {
@@ -447,6 +465,20 @@ describe('ImportService, Deutsche Bank', () => {
     expect(await prisma.importBatch.count()).toBe(0);
   });
 
+  it('refuses a Deutsche Bank file in a Sparkasse account and keeps that account s pending row', async () => {
+    const accountId = await account();
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+
+    await expect(importFile(accountId, 'deutsche-bank.csv')).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE91…6789'] },
+    });
+    const after = await liveRows(accountId);
+
+    expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+    expect(after.some((row) => row.status === 'pending')).toBe(true);
+  });
+
   it('rejects a preamble that names no IBAN, naming the missing field', async () => {
     const accountId = await account(OWN_IBAN);
 
@@ -471,6 +503,157 @@ describe('ImportService, Deutsche Bank', () => {
  * `beforeEach` truncation: these are about what an upload leaves behind, not about what
  * the engine decides.
  */
+describe('ImportService.undo and restore', () => {
+  it('hides every row the upload brought and keeps the upload listed as removed', async () => {
+    const accountId = await account();
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const second = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+
+    const removed = await imports.undo(second.batchId);
+    const rows = await liveRows(accountId);
+
+    expect(removed.undoneAt).not.toBeNull();
+    expect(rows.every((row) => row.importBatchId === first.batchId)).toBe(true);
+    // Its booked rows only: the pending row was replaced by the newer export when it ran.
+    expect(rows).toHaveLength(first.imported);
+    const listed = await imports.listBatches();
+    expect(listed.find((batch) => batch.id === second.batchId)?.undoneAt).toBe(removed.undoneAt);
+  });
+
+  it('brings back exactly the same rows on restore', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+
+    await imports.undo(batchId);
+    const restored = await imports.restore(batchId);
+
+    expect(restored.undoneAt).toBeNull();
+    expect((await liveRows(accountId)).map((row) => row.id)).toEqual(before.map((row) => row.id));
+  });
+
+  it('leaves a row deleted by hand before the removal deleted after a restore', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+    const [gone] = before;
+    await accounts.softDeleteTransaction(gone?.id ?? '');
+
+    await imports.undo(batchId);
+    await imports.restore(batchId);
+    const rows = await liveRows(accountId);
+
+    expect(rows.map((row) => row.id)).not.toContain(gone?.id);
+    expect(rows).toHaveLength(before.length - 1);
+  });
+
+  it('releases a hand-set category lock, as deleting a single row does', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const wohnen = await categories.create('Wohnen');
+    const [row] = await liveRows(accountId);
+    await accounts.setTransactionCategory(row?.id ?? '', wohnen.id);
+
+    await imports.undo(batchId);
+
+    expect(await prisma.transaction.count({ where: { categoryLockedAt: { not: null } } })).toBe(0);
+  });
+
+  it('treats the file as new to the account once its upload is removed', async () => {
+    const accountId = await account();
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    await imports.undo(first.batchId);
+
+    const again = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    expect(again.duplicateOfBatchId).toBeUndefined();
+    expect(again.restored).toBe(first.imported);
+    expect(await liveRows(accountId)).toHaveLength(first.imported + first.pendingReplaced);
+  });
+
+  it('lets an upload stand again, and be removed again, once a re-import brings its rows back', async () => {
+    const accountId = await account();
+    const first = await importFile(accountId, 'sparkasse-camt-18.csv');
+    await imports.undo(first.batchId);
+    const again = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const listed = await imports.listBatches();
+    expect(listed.find((batch) => batch.id === first.batchId)?.undoneAt).toBeNull();
+
+    // Newest first: the re-import goes, then the upload that owns the booked rows.
+    await imports.undo(again.batchId);
+    await imports.undo(first.batchId);
+    expect(await liveRows(accountId)).toHaveLength(0);
+  });
+
+  it('keeps the undo working when the same upload is removed twice at once', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+
+    const [one, two] = await Promise.all([imports.undo(batchId), imports.undo(batchId)]);
+    await imports.restore(batchId);
+
+    expect(one.undoneAt).toBe(two.undoneAt);
+    expect((await liveRows(accountId)).map((row) => row.id)).toEqual(before.map((row) => row.id));
+  });
+
+  it('removes only the newest standing upload, so a later overlapping file keeps its rows', async () => {
+    const accountId = await account();
+    const older = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const newer = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+    const before = await liveRows(accountId);
+
+    await expect(imports.undo(older.batchId)).rejects.toMatchObject({
+      response: { code: 'IMPORT_NOT_LATEST' },
+    });
+    expect(await liveRows(accountId)).toHaveLength(before.length);
+
+    await imports.undo(newer.batchId);
+    await expect(imports.undo(older.batchId)).resolves.toMatchObject({
+      undoneAt: expect.any(String) as unknown,
+    });
+  });
+
+  it('restores only the most recently removed upload of the account', async () => {
+    const accountId = await account();
+    const older = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const newer = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+    const before = await liveRows(accountId);
+    await imports.undo(newer.batchId);
+    await imports.undo(older.batchId);
+
+    // The newer file skipped rows the older upload holds; alone, it would come back without them.
+    await expect(imports.restore(newer.batchId)).rejects.toMatchObject({
+      response: { code: 'IMPORT_RESTORE_BLOCKED' },
+    });
+
+    await imports.restore(older.batchId);
+    await imports.restore(newer.batchId);
+    expect((await liveRows(accountId)).map((row) => row.id).sort()).toEqual(
+      before.map((row) => row.id).sort(),
+    );
+  });
+
+  it('changes nothing when an upload is removed twice or restored while it stands', async () => {
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const standing = await imports.restore(batchId);
+    const removed = await imports.undo(batchId);
+    const again = await imports.undo(batchId);
+
+    expect(standing.undoneAt).toBeNull();
+    expect(again.undoneAt).toBe(removed.undoneAt);
+    expect(await liveRows(accountId)).toHaveLength(0);
+  });
+
+  it('answers 404 for an upload that does not exist', async () => {
+    await expect(imports.undo('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(imports.restore('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
 describe('ImportService and the rules engine', () => {
   async function wohnenRule(): Promise<string> {
     const wohnen = await categories.create('Wohnen');

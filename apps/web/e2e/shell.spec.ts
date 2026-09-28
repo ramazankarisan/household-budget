@@ -41,6 +41,14 @@ test.describe('the month in the URL', () => {
     await expect(page).toHaveURL(/\/transactions\?m=2025-09&c=uncategorized$/u);
     await expect(stepper(page)).toHaveText('September 2025');
   });
+
+  test('an address no page answers lands on Überblick', async ({ page }) => {
+    await withFixture(page);
+    await page.goto('/importe');
+
+    await expect(page).toHaveURL(/\/$/u);
+    await expect(page.getByRole('heading', { name: 'Überblick', level: 1 })).toBeVisible();
+  });
 });
 
 test.describe('on a phone', () => {

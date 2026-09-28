@@ -26,7 +26,8 @@ Both apps depend on `@household-budget/core` as `workspace:*` and import its **b
 responses and the UI that renders them.
 
 Status: import → categorize → report works end to end. Routes: `/` (Überblick),
-`/transactions` (`/inbox` redirects to its „Ohne Kategorie“ filter), `/rules`, `/imports`;
+`/transactions` (`/inbox` redirects to its „Ohne Kategorie“ filter), `/rules`, `/imports`
+(lists every upload and can remove one, with undo — [plan 11](docs/plans/11-import-undo.md));
 `/budgets` redirects to `/`. One app shell ([DESIGN.md](DESIGN.md)), the month in `?m=`, one
 household copy of the data (`apps/web/src/household/`). What each page does: [README](README.md).
 

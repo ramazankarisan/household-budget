@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
-import { FIXTURE, withFixture } from './support';
+import { FIXTURE, ledgerRow, withFixture } from './support';
 
 /**
  * Importing from anywhere: the history of what went up, and a file dropped on any page.
@@ -48,4 +48,27 @@ test('a file dropped on any page opens the import with it', async ({ page }) => 
 
   // The history is reloaded with the household: the new batch is on it without a reload.
   await expect(history.getByRole('listitem')).toHaveCount(before + 1);
+});
+
+test('the newest upload can be removed, and „Rückgängig“ brings it back', async ({ page }) => {
+  await withFixture(page);
+  await page.getByRole('navigation').getByRole('link', { name: 'Importe' }).click();
+  const uploads = page.getByRole('list', { name: 'Bisherige Importe' }).getByRole('listitem');
+  const newest = uploads.first();
+  const remove = /^Import „sparkasse-camt-18\.csv“ entfernen$/u;
+  // Newest first: an older upload may own rows a later file skipped, so only the top one offers it.
+  await expect(uploads.last().getByRole('button', { name: remove })).toHaveCount(0);
+
+  await newest.getByRole('button', { name: remove }).click();
+
+  await expect(page.getByText('Import „sparkasse-camt-18.csv“ entfernt')).toBeVisible();
+  await expect(newest).toContainText('Entfernt');
+  await expect(newest.getByRole('button', { name: remove })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
+
+  await expect(newest).not.toContainText('Entfernt');
+  await expect(newest.getByRole('button', { name: remove })).toBeVisible();
+  await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
+  await expect(ledgerRow(page, 'Müller GmbH')).toBeVisible();
 });
