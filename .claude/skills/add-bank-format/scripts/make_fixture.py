@@ -38,7 +38,15 @@ def quote_field(value: str, delimiter: str, mode: str, is_first: bool) -> str:
         return escaped if is_first and not needs_quotes else f'"{escaped}"'
     if mode == "minimal":
         return f'"{escaped}"' if needs_quotes else escaped
-    raise SystemExit(f"unknown quote mode {mode!r}: use all, all-but-first or minimal")
+    if mode == "none":
+        # Banks that never quote (current Deutsche Bank) write a quote character bare.
+        # A delimiter or newline in a value would then be a different file, so refuse.
+        if delimiter in value or "\n" in value or "\r" in value:
+            raise SystemExit(f"quote mode 'none' cannot render {value!r}")
+        return value
+    raise SystemExit(
+        f"unknown quote mode {mode!r}: use all, all-but-first, minimal or none"
+    )
 
 
 def render_row(
@@ -111,9 +119,14 @@ def build_text(spec: dict, variant: dict) -> str:
         if index in blanks:
             lines.append("")
 
-    text = CRLF.join(lines) + CRLF
+    lines.extend(variant.get("footer", spec.get("footer", [])))
+
+    eol = spec.get("lineEnding", CRLF)
+    if eol not in (CRLF, "\n"):
+        raise SystemExit("lineEnding must be \"\\r\\n\" or \"\\n\"")
+    text = eol.join(lines) + eol
     if variant.get("trailingBlank", spec.get("trailingBlank", False)):
-        text += CRLF
+        text += eol
     # Raw tail for deliberately broken fixtures: an unterminated quote cannot be
     # expressed as a well-formed row, and a malformed fixture is exactly the point.
     text += variant.get("appendRaw", "")

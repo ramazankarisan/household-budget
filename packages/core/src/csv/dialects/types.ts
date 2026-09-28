@@ -13,12 +13,10 @@ export type { BankDialectId } from '../transaction.js';
 
 /** Semantic field → the column name this bank uses for it. Absent where the bank has none. */
 export interface ColumnBindings {
-  readonly accountIban: string;
   readonly bookingDate: string;
   readonly valueDate?: string;
   readonly amount: string;
   readonly currency: string;
-  readonly status: string;
   readonly counterpartyName?: string;
   readonly counterpartyIban?: string;
   readonly counterpartyBic?: string;
@@ -38,12 +36,38 @@ export interface BankDialect {
   readonly requiredColumns: readonly string[];
   readonly columns: ColumnBindings;
   /**
-   * Raw status value → `BookingStatus`. A value not listed fails the row loudly rather than
-   * defaulting to `booked`: a silently booked pending row is a duplicate waiting to happen,
-   * and a silently booked cancellation is money the user never spent.
+   * Where the own account's IBAN comes from. Sparkasse repeats it on every row; Deutsche
+   * Bank states it once, in a small `Konto;…;IBAN;Währung` table in the preamble, whose
+   * next line holds the value. Provenance and a cross-check only — the account an import
+   * lands in is the user's choice before upload, never inferred from this.
    */
-  readonly statusByValue: ReadonlyMap<string, BookingStatus>;
+  readonly accountIban:
+    | { readonly from: 'column'; readonly column: string }
+    | { readonly from: 'preamble'; readonly label: string };
+  /**
+   * The booking-status column and its values. A value not listed fails the row loudly
+   * rather than defaulting to `booked`: a silently booked pending row is a duplicate
+   * waiting to happen, and a silently booked cancellation is money the user never spent.
+   *
+   * Absent means the export has no pending concept and every row is booked — Deutsche
+   * Bank says so in its own preamble.
+   */
+  readonly status?: {
+    readonly column: string;
+    readonly byValue: ReadonlyMap<string, BookingStatus>;
+  };
+  /**
+   * First field of a closing summary line after the data (`Kontostand;30.9.2026;;;…`).
+   * It has fewer fields than the header, which csv-parse would reject as a ragged file,
+   * so it is dropped before parsing — only as the last non-blank line, never mid-file.
+   */
+  readonly footerMarker?: string;
   readonly delimiter: string;
+  /**
+   * For exports that never quote: a `"` inside a field is then a literal character, and
+   * csv-parse must not read `Hotel "Nord" GmbH` as a malformed quoted field.
+   */
+  readonly relaxQuotes?: boolean;
   readonly parseAmount: (raw: string) => Cents | undefined;
   readonly parseDate: (raw: string, options: ParseGermanDateOptions) => string | undefined;
 }

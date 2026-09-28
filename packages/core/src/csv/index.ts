@@ -12,9 +12,10 @@
  */
 export type { DetectedDialect } from './dialects/index.js';
 export { detectDialect, DIALECTS } from './dialects/index.js';
+export { deutscheBank } from './dialects/deutsche-bank.js';
 export { sparkasseCamt } from './dialects/sparkasse-camt.js';
 export type { BankDialect, BankDialectId, ColumnBindings } from './dialects/types.js';
 export type { ColumnMap } from './header.js';
 export { findHeaderLine, mapColumns, normalizeHeaderToken } from './header.js';
 export type { ParseBankCsvContext, ParseBankCsvResult } from './parse.js';
-export { parseBankCsv, parseSparkasseCsv } from './parse.js';
+export { parseBankCsv } from './parse.js';

@@ -110,16 +110,16 @@ describe('describeFileError', () => {
 
   it('says the same thing in English', () => {
     expect(describeFileError(en, 'HEADER_NOT_FOUND', [])).toBe(
-      'no header row found — is this a Sparkasse CSV-CAMT export?',
+      'no header row recognised — supported are the Sparkasse CSV-CAMT export and the Deutsche Bank transactions export',
     );
   });
 
   it('words the upload check that turns away a non-CSV file, in both languages', () => {
     expect(describeFileError(de, 'UNSUPPORTED_CONTENT_TYPE')).toBe(
-      'Dateityp nicht unterstützt — bitte den CSV-Export der Sparkasse hochladen',
+      'Dateityp nicht unterstützt — bitte den CSV-Export der Bank hochladen',
     );
     expect(describeFileError(en, 'UNSUPPORTED_CONTENT_TYPE', [])).toBe(
-      'unsupported file type — upload the Sparkasse CSV export',
+      'unsupported file type — upload the bank’s CSV export',
     );
   });
 
@@ -406,7 +406,7 @@ describe('describeFailure', () => {
 describe('describeImportFailure', () => {
   it('reads every code as a file problem, an unknown one included', () => {
     expect(describeImportFailure(de, new ApiError('HEADER_NOT_FOUND'))).toBe(
-      'Keine Kopfzeile gefunden — ist das ein CSV-CAMT-Export der Sparkasse?',
+      'Keine Kopfzeile erkannt — unterstützt sind der CSV-CAMT-Export der Sparkasse und der Umsatz-Export der Deutschen Bank',
     );
     expect(describeImportFailure(en, new ApiError('CSV_SOMETHING_NEW'))).toBe(
       'file not readable (CSV_SOMETHING_NEW)',

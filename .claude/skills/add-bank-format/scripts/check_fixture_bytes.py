@@ -45,6 +45,7 @@ def main() -> int:
     parser.add_argument("file", type=Path)
     parser.add_argument("--encoding", required=True, choices=["cp1252", "utf-8"])
     parser.add_argument("--bom", action="store_true", help="a UTF-8 BOM is expected")
+    parser.add_argument("--lf", action="store_true", help="LF line endings are expected")
     parser.add_argument("--twin", type=Path, help="a file whose decoded text must match")
     parser.add_argument("--delimiter", default=";")
     parser.add_argument(
@@ -58,11 +59,15 @@ def main() -> int:
     raw = args.file.read_bytes()
     report.check(len(raw) > 0, f"{args.file} is non-empty ({len(raw)} bytes)")
 
-    # Line endings. A lone LF means something rewrote the file.
+    # Line endings. Mixed endings mean something rewrote the file.
     lone_lf = sum(
         1 for i, b in enumerate(raw) if b == 0x0A and (i == 0 or raw[i - 1] != 0x0D)
     )
-    report.check(lone_lf == 0, f"line endings are CRLF throughout ({lone_lf} lone LF)")
+    if args.lf:
+        crlf = raw.count(b"\r\n")
+        report.check(crlf == 0, f"line endings are LF throughout ({crlf} CRLF)")
+    else:
+        report.check(lone_lf == 0, f"line endings are CRLF throughout ({lone_lf} lone LF)")
 
     has_bom = raw.startswith(BOM)
     report.check(has_bom == args.bom, f"BOM {'present' if has_bom else 'absent'} as expected")

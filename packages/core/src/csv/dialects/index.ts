@@ -6,10 +6,11 @@
  * numbers instead of failing.
  */
 import { HEADER_SCAN_LINES, isHeaderLine } from '../header.js';
+import { deutscheBank } from './deutsche-bank.js';
 import { sparkasseCamt } from './sparkasse-camt.js';
 import type { BankDialect } from './types.js';
 
-export const DIALECTS: readonly BankDialect[] = [sparkasseCamt];
+export const DIALECTS: readonly BankDialect[] = [sparkasseCamt, deutscheBank];
 
 export interface DetectedDialect {
   readonly dialect: BankDialect;

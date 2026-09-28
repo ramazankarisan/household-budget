@@ -377,6 +377,8 @@ describe('ImportService', () => {
     const batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: summary.batchId } });
 
     expect(batch.encoding).toBe('windows-1252');
+    expect(batch.dialect).toBe('sparkasse-camt');
+    expect(summary.dialect).toBe('sparkasse-camt');
     expect(batch.fileName).toBe('sparkasse-camt-18.csv');
     expect(batch.fileHash).toHaveLength(64);
     expect(batch.rowsParsed).toBe(9);
@@ -391,6 +393,76 @@ describe('ImportService', () => {
     const row = (await liveRows(accountId))[0];
 
     expect(JSON.parse(row?.raw ?? '{}')).toMatchObject({ Betrag: '-832,9', Kategorie: 'Wohnen' });
+  });
+});
+
+describe('ImportService, Deutsche Bank', () => {
+  const OWN_IBAN = 'DE91100000000123456789';
+
+  it('detects the format from the header and imports the file as the bank ships it', async () => {
+    const accountId = await account(OWN_IBAN);
+
+    const summary = await importFile(accountId, 'deutsche-bank.csv');
+    const batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: summary.batchId } });
+    const rows = await liveRows(accountId);
+
+    expect(summary).toMatchObject({
+      dialect: 'deutsche-bank',
+      encoding: 'utf-8',
+      parsed: 8,
+      imported: 8,
+      failedCount: 0,
+    });
+    expect(batch.dialect).toBe('deutsche-bank');
+    expect(rows.map((row) => row.lineNumber)).toEqual([9, 10, 11, 12, 13, 14, 15, 16]);
+    expect(rows.every((row) => row.accountIban === OWN_IBAN && row.status === 'booked')).toBe(true);
+    expect(rows[0]).toMatchObject({ counterpartyName: 'Müller GmbH', amountCents: -83290 });
+  });
+
+  it('imports only what is new from an overlapping later export', async () => {
+    const accountId = await account(OWN_IBAN);
+
+    await importFile(accountId, 'deutsche-bank.csv');
+    const summary = await importFile(accountId, 'deutsche-bank-next.csv');
+
+    // Müller and the two identical card payments are already stored; the refund is new.
+    expect(summary).toMatchObject({ parsed: 4, imported: 1, skipped: 3 });
+    expect(await liveRows(accountId)).toHaveLength(9);
+  });
+
+  it('rejects the older export generation with HEADER_NOT_FOUND', async () => {
+    const accountId = await account(OWN_IBAN);
+    const older = new TextDecoder()
+      .decode(bytesOf('deutsche-bank.csv'))
+      .replace(';IBAN / Kontonummer;', ';IBAN;');
+
+    await expect(
+      imports.importCsv({
+        accountId,
+        fileName: 'alt.csv',
+        bytes: new TextEncoder().encode(older),
+        referenceYear,
+      }),
+    ).rejects.toMatchObject({ response: { code: 'HEADER_NOT_FOUND' } });
+    expect(await prisma.importBatch.count()).toBe(0);
+  });
+
+  it('rejects a preamble that names no IBAN, naming the missing field', async () => {
+    const accountId = await account(OWN_IBAN);
+
+    await expect(importFile(accountId, 'deutsche-bank-no-iban.csv')).rejects.toMatchObject({
+      response: { code: 'REQUIRED_COLUMN_MISSING', columns: ['IBAN'] },
+    });
+  });
+
+  it('lists a batch stored before the dialect column existed as Sparkasse', async () => {
+    const accountId = await account();
+    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
+    await prisma.importBatch.update({ where: { id: summary.batchId }, data: { dialect: null } });
+
+    const [listed] = await imports.listBatches();
+
+    expect(listed?.dialect).toBe('sparkasse-camt');
   });
 });
 

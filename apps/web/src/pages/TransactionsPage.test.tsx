@@ -31,6 +31,7 @@ const BATCHES: ImportBatchPayload[] = [
     accountId: 'acc-1',
     fileName: 'september.csv',
     encoding: 'windows-1252',
+    dialect: 'sparkasse-camt',
     importedAt: '2025-09-20T10:00:00.000Z',
     rowsParsed: 9,
     rowsImported: 0,
@@ -64,6 +65,7 @@ vi.mock('../api/client', () => ({
       failed: [],
       failedCount: 0,
       encoding: 'utf-8',
+      dialect: 'sparkasse-camt',
     }),
   ),
   setTransactionCategory: (transactionId: string, categoryId: string | null) =>

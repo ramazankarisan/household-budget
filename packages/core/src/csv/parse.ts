@@ -9,11 +9,10 @@
  */
 import { parse } from 'csv-parse/sync';
 
-import { sparkasseCamt } from './dialects/sparkasse-camt.js';
 import type { BankDialect } from './dialects/types.js';
 import { type RowError, CsvFileError, truncateErrorValue } from './errors.js';
-import { findHeaderLine, mapColumns } from './header.js';
-import type { BankFileEncoding, Transaction } from './transaction.js';
+import { findHeaderLine, mapColumns, normalizeHeaderToken } from './header.js';
+import type { BankFileEncoding, BookingStatus, Transaction } from './transaction.js';
 
 export interface ParseBankCsvContext {
   /** Recorded on every transaction, so a row can be traced back to its download. */
@@ -81,6 +80,57 @@ function optional(value: string | undefined): string | undefined {
   return value === undefined || value.trim() === '' ? undefined : value;
 }
 
+/**
+ * The own IBAN from a preamble that states it as a two-line table — a line naming the
+ * columns (`Konto;Filial-/Kontonummer;IBAN;Währung`) and the line under it holding the
+ * values. Read by name, like every other column, not by position in the file.
+ */
+function ibanFromPreamble(
+  text: string,
+  headerLine: number,
+  label: string,
+  delimiter: string,
+): string | undefined {
+  const lines = text.split('\n').slice(0, headerLine - 1);
+
+  for (const [index, line] of lines.entries()) {
+    const position = line.split(delimiter).map(normalizeHeaderToken).indexOf(label);
+    if (position === -1) {
+      continue;
+    }
+    const value = normalizeHeaderToken(lines[index + 1]?.split(delimiter)[position] ?? '');
+    const iban = value.replaceAll(' ', '');
+    if (iban !== '') {
+      return iban;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Blanks the closing summary line, if the file ends in one. Blanked rather than cut, so
+ * every line number the rows report still points at the file the user has.
+ */
+function withoutFooter(text: string, headerLine: number, dialect: BankDialect): string {
+  const marker = dialect.footerMarker;
+  if (marker === undefined) {
+    return text;
+  }
+  const lines = text.split('\n');
+  for (let index = lines.length - 1; index >= headerLine; index -= 1) {
+    const line = lines[index] ?? '';
+    if (line.trim() === '') {
+      continue;
+    }
+    if (normalizeHeaderToken(line.split(dialect.delimiter)[0] ?? '') === marker) {
+      lines[index] = '';
+      return lines.join('\n');
+    }
+    return text;
+  }
+  return text;
+}
+
 interface RowOutcome {
   readonly transaction?: Transaction;
   readonly error?: RowError;
@@ -92,9 +142,12 @@ function mapRow(
   columns: ReadonlyMap<string, number>,
   headerLength: number,
   dialect: BankDialect,
+  fileIban: string | undefined,
   context: ParseBankCsvContext,
 ): RowOutcome {
   const COLUMN = dialect.columns;
+  const ibanColumn =
+    dialect.accountIban.from === 'column' ? dialect.accountIban.column : dialect.accountIban.label;
   const at = (column: string | undefined): string | undefined => {
     const index = column === undefined ? undefined : columns.get(column);
     return index === undefined ? undefined : record[index];
@@ -111,12 +164,15 @@ function mapRow(
   // Unreachable while `relax_column_count` is false — csv-parse throws first — but a
   // ragged row should degrade to a reported row, never to silently shifted columns.
   if (record.length !== headerLength) {
-    return fail('FIELD_COUNT_MISMATCH', COLUMN.accountIban, String(record.length));
+    return fail('FIELD_COUNT_MISMATCH', ibanColumn, String(record.length));
   }
 
-  const accountIban = at(COLUMN.accountIban)?.replaceAll(' ', '') ?? '';
+  const accountIban =
+    dialect.accountIban.from === 'column'
+      ? (at(dialect.accountIban.column)?.replaceAll(' ', '') ?? '')
+      : (fileIban ?? '');
   if (accountIban === '') {
-    return fail('REQUIRED_FIELD_MISSING', COLUMN.accountIban);
+    return fail('REQUIRED_FIELD_MISSING', ibanColumn);
   }
 
   const rawBookingDate = at(COLUMN.bookingDate) ?? '';
@@ -149,10 +205,14 @@ function mapRow(
     return fail('REQUIRED_FIELD_MISSING', COLUMN.currency);
   }
 
-  const rawStatus = (at(COLUMN.status) ?? '').trim();
-  const status = dialect.statusByValue.get(rawStatus);
-  if (status === undefined) {
-    return fail('STATUS_UNKNOWN', COLUMN.status, rawStatus);
+  let status: BookingStatus = 'booked';
+  if (dialect.status !== undefined) {
+    const rawStatus = (at(dialect.status.column) ?? '').trim();
+    const mapped = dialect.status.byValue.get(rawStatus);
+    if (mapped === undefined) {
+      return fail('STATUS_UNKNOWN', dialect.status.column, rawStatus);
+    }
+    status = mapped;
   }
 
   const raw: Record<string, string> = {};
@@ -204,23 +264,34 @@ function mapRow(
  * Parses a decoded bank export as the given dialect.
  *
  * @throws {CsvFileError} when the file has no recognisable header or is missing a
- * required column.
+ * required column — for a preamble dialect, including a preamble that names no IBAN.
  * @throws {import('csv-parse').CsvError} when the CSV itself is malformed — an
  * unterminated quote or a ragged row. Silent corruption is the worst failure mode for
  * money, so a truncated download fails loudly instead of parsing to wrong numbers.
  */
 export function parseBankCsv(
-  text: string,
+  source: string,
   dialect: BankDialect,
   context: ParseBankCsvContext,
 ): ParseBankCsvResult {
-  const headerLine = findHeaderLine(text, dialect.headerMarkers, dialect.delimiter);
+  const headerLine = findHeaderLine(source, dialect.headerMarkers, dialect.delimiter);
   if (headerLine === undefined) {
     throw new CsvFileError('HEADER_NOT_FOUND');
   }
 
+  let fileIban: string | undefined;
+  if (dialect.accountIban.from === 'preamble') {
+    fileIban = ibanFromPreamble(source, headerLine, dialect.accountIban.label, dialect.delimiter);
+    if (fileIban === undefined) {
+      throw new CsvFileError('REQUIRED_COLUMN_MISSING', [dialect.accountIban.label]);
+    }
+  }
+
+  const text = withoutFooter(source, headerLine, dialect);
+
   const records = parse(text, {
     delimiter: dialect.delimiter,
+    relax_quotes: dialect.relaxQuotes ?? false,
     // TextDecoder already strips a UTF-8 BOM, but a file handed here as a string from
     // anywhere else may still carry one, and then the first column name is U+FEFF glued
     // to "Auftragskonto", which makes every row read as missing its own account number.
@@ -259,6 +330,7 @@ export function parseBankCsv(
       byName,
       header.record.length,
       dialect,
+      fileIban,
       context,
     );
     if (transaction !== undefined) {
@@ -270,9 +342,4 @@ export function parseBankCsv(
   });
 
   return { transactions, errors };
-}
-
-/** Sparkasse CSV-CAMT only. Kept until `apps/api` detects the dialect itself. */
-export function parseSparkasseCsv(text: string, context: ParseBankCsvContext): ParseBankCsvResult {
-  return parseBankCsv(text, sparkasseCamt, context);
 }

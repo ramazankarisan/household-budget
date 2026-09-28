@@ -156,7 +156,12 @@ export function ImportResult({ summary }: { readonly summary: ImportSummary }) {
               failed: summary.failedCount,
             })}
           </Typography>
-          {/* A surprise utf-8 here means the bank changed its export format. */}
+          <Chip
+            label={t(`common.import.dialect.${summary.dialect}`)}
+            size="small"
+            variant="outlined"
+          />
+          {/* A surprise encoding here means the bank changed its export format. */}
           <Chip label={summary.encoding} size="small" variant="outlined" />
         </Stack>
       </Alert>

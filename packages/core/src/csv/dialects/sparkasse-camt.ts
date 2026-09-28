@@ -15,8 +15,8 @@ export const sparkasseCamt: BankDialect = {
   headerMarkers: ['Auftragskonto', 'Betrag'],
   /** `Kategorie` is not one: the 17-column shape does not carry it. */
   requiredColumns: ['Auftragskonto', 'Buchungstag', 'Betrag', 'Waehrung', 'Info'],
+  accountIban: { from: 'column', column: 'Auftragskonto' },
   columns: {
-    accountIban: 'Auftragskonto',
     bookingDate: 'Buchungstag',
     valueDate: 'Valutadatum',
     bookingText: 'Buchungstext',
@@ -29,14 +29,16 @@ export const sparkasseCamt: BankDialect = {
     counterpartyBic: 'BIC (SWIFT-Code)',
     amount: 'Betrag',
     currency: 'Waehrung',
-    status: 'Info',
     bankCategory: 'Kategorie',
   },
-  /** The only two `Info` values attested in a V8 export. */
-  statusByValue: new Map<string, BookingStatus>([
-    ['Umsatz gebucht', 'booked'],
-    ['Umsatz vorgemerkt', 'pending'],
-  ]),
+  status: {
+    column: 'Info',
+    /** The only two `Info` values attested in a V8 export. */
+    byValue: new Map<string, BookingStatus>([
+      ['Umsatz gebucht', 'booked'],
+      ['Umsatz vorgemerkt', 'pending'],
+    ]),
+  },
   delimiter: ';',
   parseAmount: parseGermanAmount,
   parseDate: parseGermanDate,

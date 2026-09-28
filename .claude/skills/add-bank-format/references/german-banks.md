@@ -7,7 +7,9 @@ research note for the new bank is where the confirmed version gets written down.
 
 ## Verified against a real export
 
-Only **Sparkasse CSV-CAMT** has been verified in this repo.
+**Sparkasse CSV-CAMT** (below) and **Deutsche Bank**, current generation — the latter from
+cited public files rather than a user's own export; see `docs/research/07-deutsche-bank-csv.md`
+for the full picture, including why the pre-2024 generation is rejected.
 
 - Header on line 1, no preamble. Delimiter `;`. `Auftragskonto` unquoted, the rest quoted.
 - Two column counts in the wild: 17 (ending at `Info`) and 18 (ending at `Kategorie`).
@@ -43,7 +45,7 @@ means the fixture's encoding and the reader disagree, not that the parser is wro
 ## Preamble line counts (unverified, for the header scan)
 
 Sparkasse 0 · DKB 4 (current) / ~6 (legacy, sources disagree) · comdirect 3 (inconsistent) ·
-ING 12–13 · Postbank 7 · Deutsche Bank 5 · Volksbank 0–12 **plus 3 footer lines** ·
+ING 12–13 · Postbank 7 · Deutsche Bank 7 (verified, current) / 4 (pre-2024) · Volksbank 0–12 **plus 3 footer lines** ·
 Commerzbank 0. Fintechs (N26, Revolut, Wise) export a clean single header.
 
 The pattern: legacy retail banks ship preambles, Sparkasse is the exception. This is exactly

@@ -62,6 +62,14 @@ describe('decodeBankCsv', () => {
     expect(text.charCodeAt(0)).not.toBe(0xfeff);
   });
 
+  it('decodes the Deutsche Bank export as the UTF-8 with BOM it ships as', () => {
+    const { text, encoding } = decodeBankCsv(bytesOf('deutsche-bank.csv'));
+
+    expect(encoding).toBe('utf-8');
+    expect(text.startsWith('Umsätze\n')).toBe(true);
+    expect(text).toBe(decodeBankCsv(bytesOf('deutsche-bank-no-bom.csv')).text);
+  });
+
   it('never produces mojibake in either direction', () => {
     const cp1252 = decodeBankCsv(bytesOf('sparkasse-camt-18.csv')).text;
     const utf8 = decodeBankCsv(bytesOf('sparkasse-camt-18-utf8.csv')).text;

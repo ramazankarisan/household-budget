@@ -35,6 +35,9 @@ model ImportBatch {
   fileHash     String
   /// 'utf-8' | 'windows-1252' — the encoding the bytes were actually decoded with.
   encoding     String
+  /// The bank format detected from the header, e.g. 'sparkasse-camt' | 'deutsche-bank'.
+  /// Null on batches imported before a second format existed — all of them Sparkasse.
+  dialect      String?
   importedAt   DateTime      @default(now())
   rowsParsed   Int
   rowsImported Int

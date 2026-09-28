@@ -21,7 +21,8 @@ export function toCents(value: number): Cents {
 }
 
 /**
- * Booking status. Sparkasse's `Info` column carries `Umsatz gebucht` / `Umsatz vorgemerkt`.
+ * Booking status. Sparkasse's `Info` column carries `Umsatz gebucht` / `Umsatz vorgemerkt`;
+ * Deutsche Bank exports booked rows only.
  * Pending rows are a replaceable snapshot, never deduplicated — they reappear booked with a
  * different `Buchungstag` and a rewritten `Verwendungszweck`.
  */
@@ -31,7 +32,7 @@ export type BookingStatus = 'booked' | 'pending';
 export type BankFileEncoding = 'utf-8' | 'windows-1252';
 
 /** The registered bank formats. Declared here so `Transaction` needs no import from `dialects/`. */
-export type BankDialectId = 'sparkasse-camt';
+export type BankDialectId = 'sparkasse-camt' | 'deutsche-bank';
 
 export interface TransactionSource {
   /** Which registered dialect parsed the row. */

@@ -25,6 +25,7 @@ function summary(failed: RowError[], failedCount: number): ImportSummary {
     failed,
     failedCount,
     encoding: 'utf-8',
+    dialect: 'sparkasse-camt',
   };
 }
 
