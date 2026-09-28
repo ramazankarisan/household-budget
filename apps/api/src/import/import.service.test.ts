@@ -73,16 +73,16 @@ const liveRows = (accountId: string) =>
 describe('ImportService.listBatches', () => {
   it('lists every upload, newest first, across accounts — a no-op one included', async () => {
     const giro = await account();
-    const tagesgeld = await account('DE02120300000000202051');
+    const tagesgeld = await account('DE91100000000123456789');
     await importFile(giro, 'sparkasse-camt-18.csv');
-    await importFile(tagesgeld, 'sparkasse-camt-17.csv');
+    await importFile(tagesgeld, 'deutsche-bank.csv');
     await importFile(giro, 'sparkasse-camt-18.csv');
 
     const listed = await imports.listBatches();
 
     expect(listed.map((batch) => [batch.accountId, batch.fileName])).toEqual([
       [giro, 'sparkasse-camt-18.csv'],
-      [tagesgeld, 'sparkasse-camt-17.csv'],
+      [tagesgeld, 'deutsche-bank.csv'],
       [giro, 'sparkasse-camt-18.csv'],
     ]);
     expect(listed[0]).toMatchObject({ rowsImported: 0, encoding: 'windows-1252' });
@@ -358,16 +358,34 @@ describe('ImportService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('stores the file s own Auftragskonto even when it differs from the chosen account', async () => {
-    // The account is picked by the user before upload and never inferred from the file,
-    // so a mismatch is provenance to record, not a reason to refuse the import.
+  it('refuses a file whose Auftragskonto is not the chosen account, and stores nothing', async () => {
     const accountId = await account('DE00000000000000000000');
 
-    const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
-    const rows = await liveRows(accountId);
+    await expect(importFile(accountId, 'sparkasse-camt-18.csv')).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE89…3000'] },
+    });
+    expect(await prisma.importBatch.count()).toBe(0);
+    expect(await liveRows(accountId)).toHaveLength(0);
+  });
 
-    expect(summary.imported).toBe(8);
-    expect(rows[0]?.accountIban).toBe('DE89370400440532013000');
+  it('refuses a file where a single row names another Auftragskonto', async () => {
+    const accountId = await account();
+    const lines = new TextDecoder('windows-1252')
+      .decode(bytesOf('sparkasse-camt-18.csv'))
+      .split('\r\n');
+    lines[1] = (lines[1] ?? '').replace('DE89370400440532013000', 'DE27100777770209299700');
+
+    await expect(
+      imports.importCsv({
+        accountId,
+        fileName: 'gemischt.csv',
+        bytes: new TextEncoder().encode(lines.join('\r\n')),
+        referenceYear,
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE27…9700'] },
+    });
+    expect(await liveRows(accountId)).toHaveLength(0);
   });
 
   it('records the batch with counts that add up', async () => {
@@ -445,6 +463,20 @@ describe('ImportService, Deutsche Bank', () => {
       }),
     ).rejects.toMatchObject({ response: { code: 'HEADER_NOT_FOUND' } });
     expect(await prisma.importBatch.count()).toBe(0);
+  });
+
+  it('refuses a Deutsche Bank file in a Sparkasse account and keeps that account s pending row', async () => {
+    const accountId = await account();
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+    const before = await liveRows(accountId);
+
+    await expect(importFile(accountId, 'deutsche-bank.csv')).rejects.toMatchObject({
+      response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE91…6789'] },
+    });
+    const after = await liveRows(accountId);
+
+    expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+    expect(after.some((row) => row.status === 'pending')).toBe(true);
   });
 
   it('rejects a preamble that names no IBAN, naming the missing field', async () => {

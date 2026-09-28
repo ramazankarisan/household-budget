@@ -241,6 +241,8 @@ export const en: Messages<typeof de> = {
     },
     file: {
       UNSUPPORTED_CONTENT_TYPE: 'unsupported file type — upload the bank’s CSV export',
+      ACCOUNT_IBAN_MISMATCH:
+        'this file belongs to a different account — choose or create the matching account. IBAN in the file',
       HEADER_NOT_FOUND:
         'no header row recognised — supported are the Sparkasse CSV-CAMT export and the Deutsche Bank transactions export',
       REQUIRED_COLUMN_MISSING: 'required column missing',

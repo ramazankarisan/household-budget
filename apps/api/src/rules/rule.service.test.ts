@@ -562,11 +562,11 @@ describe('RuleService.applyAll', () => {
     // Rules are global. A per-account apply would leave the other accounts holding
     // categories from an older version of the rules, with nothing on screen saying so.
     const first = await imported();
-    const second = await accounts.create('DE02120300000000202051', 'Tagesgeld');
+    const second = await accounts.create('DE91100000000123456789', 'Deutsche Bank');
     await imports.importCsv({
       accountId: second.id,
-      fileName: 'sparkasse-camt-18.csv',
-      bytes: new Uint8Array(readFileSync(resolve(fixtures, 'sparkasse-camt-18.csv'))),
+      fileName: 'deutsche-bank.csv',
+      bytes: new Uint8Array(readFileSync(resolve(fixtures, 'deutsche-bank.csv'))),
       referenceYear,
     });
     const { categoryId } = await wohnenRule();

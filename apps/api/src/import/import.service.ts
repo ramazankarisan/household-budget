@@ -172,6 +172,7 @@ export class ImportService {
     );
 
     const { dialect, transactions, errors } = this.parse(text, request, encoding);
+    this.requireOwnIban(account.iban, transactions);
 
     const booked = transactions.filter((transaction) => transaction.status === 'booked');
     const pending = transactions.filter((transaction) => transaction.status === 'pending');
@@ -326,6 +327,31 @@ export class ImportService {
         throw new BadRequestException({ code });
       }
       throw error;
+    }
+  }
+
+  /**
+   * Every row must belong to the account the user picked. The pending set and the
+   * stale-export watermark are both per account, so a file from another account does not
+   * just add foreign rows: it wipes this account's pending rows, and its dates decide
+   * whether this account's next real export counts as older. Checked before anything is
+   * written, so a refused file changes nothing.
+   *
+   * Per row, not once per file: Sparkasse repeats the owner IBAN on every row, and one
+   * foreign row among many is still a foreign row. The file's IBANs go back masked, the
+   * way the account list shows them, so the user can tell which account the file is for.
+   */
+  private requireOwnIban(accountIban: string, transactions: readonly ParsedTransaction[]): void {
+    const foreign = new Set(
+      transactions
+        .map((transaction) => transaction.accountIban.toUpperCase())
+        .filter((iban) => iban !== accountIban),
+    );
+    if (foreign.size > 0) {
+      throw new BadRequestException({
+        code: 'ACCOUNT_IBAN_MISMATCH',
+        columns: [...foreign].map(maskIban),
+      });
     }
   }
 

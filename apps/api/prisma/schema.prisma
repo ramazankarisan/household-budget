@@ -60,7 +60,8 @@ model Transaction {
   /// NULL for pending rows — they are a replaceable snapshot and never fingerprinted.
   /// SQLite treats NULLs as distinct, so any number of them coexist under the unique index.
   dedupKey    String?
-  /// Auftragskonto. Provenance and cross-check; may differ from the chosen account's IBAN.
+  /// Auftragskonto. The import refuses a file whose rows name another IBAN than the
+  /// account's, so this matches `Account.iban` for every row imported since that check.
   accountIban String
   /// 'YYYY-MM-DD'. Never a DateTime: a booking date has no time and no zone.
   bookingDate String

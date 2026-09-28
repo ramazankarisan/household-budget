@@ -15,8 +15,11 @@ import {
   type RuleInputErrorCode,
 } from '@household-budget/core';
 
-/** Raised by the API before the parser sees the file, so not part of core's codes. */
-type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE';
+/**
+ * Raised by the API rather than by core: the upload check before the parser sees the file,
+ * and the check that the parsed rows belong to the chosen account.
+ */
+type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE' | 'ACCOUNT_IBAN_MISMATCH';
 
 /** The structural codes csv-parse raises that have wording of their own; the set is open. */
 type CsvErrorCode =
@@ -283,6 +286,8 @@ export const de = {
     file: {
       UNSUPPORTED_CONTENT_TYPE:
         'Dateityp nicht unterstützt — bitte den CSV-Export der Bank hochladen',
+      ACCOUNT_IBAN_MISMATCH:
+        'Die Datei gehört zu einem anderen Konto — bitte das passende Konto wählen oder anlegen. IBAN in der Datei',
       HEADER_NOT_FOUND:
         'Keine Kopfzeile erkannt — unterstützt sind der CSV-CAMT-Export der Sparkasse und der Umsatz-Export der Deutschen Bank',
       REQUIRED_COLUMN_MISSING: 'Pflichtspalte fehlt',
