@@ -368,6 +368,32 @@ describe('ImportDialog', () => {
     });
     expect(uploadImport).toHaveBeenCalledWith('acc-1', file);
   });
+
+  it('with several accounts, uploads a dropped file only into the one picked, and once', async () => {
+    accounts = [GIRO, TAGESGELD];
+    const file = new File(['x'], 'september.csv', { type: 'text/csv' });
+    dialog({ file });
+
+    const picker = await screen.findByRole('combobox', { name: 'Konto' });
+    expect(screen.getByText('In welches Konto gehört „september.csv“?')).toBeInTheDocument();
+    expect(uploadImport).not.toHaveBeenCalled();
+
+    const pick = (name: string) => {
+      fireEvent.mouseDown(picker);
+      fireEvent.click(screen.getByRole('option', { name: new RegExp(`^${name}`, 'u') }));
+    };
+    pick('Tagesgeld');
+    await waitFor(() => {
+      expect(uploadImport).toHaveBeenCalledOnce();
+    });
+    expect(uploadImport).toHaveBeenCalledWith('acc-2', file);
+
+    // Elsewhere and back again: an empty panel each time, never the same file again.
+    pick('Giro');
+    pick('Tagesgeld');
+    expect(await screen.findByLabelText('CSV-Datei auswählen')).toBeInTheDocument();
+    expect(uploadImport).toHaveBeenCalledOnce();
+  });
 });
 
 describe('ImportsPage', () => {

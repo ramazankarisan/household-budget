@@ -1,4 +1,3 @@
-import InboxRounded from '@mui/icons-material/InboxRounded';
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded';
 import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded';
 import TuneRounded from '@mui/icons-material/TuneRounded';
@@ -11,11 +10,7 @@ import { useHousehold } from '../household/context';
 export interface NavItem {
   readonly to: string;
   readonly labelKey:
-    | 'common.nav.overview'
-    | 'common.nav.transactions'
-    | 'common.nav.inbox'
-    | 'common.nav.rules'
-    | 'common.nav.imports';
+    'common.nav.overview' | 'common.nav.transactions' | 'common.nav.rules' | 'common.nav.imports';
   readonly Icon: SvgIconComponent;
   /** A number of things to do there; hidden at zero. */
   readonly badge?: number | undefined;
@@ -27,12 +22,17 @@ export interface NavItem {
  */
 export function useNavItems(): readonly NavItem[] {
   const { transactions } = useHousehold();
-  // The same function the list's chip and the Überblick callout count with.
-  const unsorted = uncategorizedRows(transactions ?? []).length;
+  // The same function the list's chip and the Überblick callout count with, over every
+  // month: the badge has no month of its own.
+  const uncategorized = uncategorizedRows(transactions ?? []).length;
   return [
     { to: '/', labelKey: 'common.nav.overview', Icon: SpaceDashboardRounded },
-    { to: '/transactions', labelKey: 'common.nav.transactions', Icon: ReceiptLongRounded },
-    { to: '/inbox', labelKey: 'common.nav.inbox', Icon: InboxRounded, badge: unsorted },
+    {
+      to: '/transactions',
+      labelKey: 'common.nav.transactions',
+      Icon: ReceiptLongRounded,
+      badge: uncategorized,
+    },
     { to: '/rules', labelKey: 'common.nav.rules', Icon: TuneRounded },
     { to: '/imports', labelKey: 'common.nav.imports', Icon: UploadFileRounded },
   ];

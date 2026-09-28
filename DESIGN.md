@@ -134,7 +134,7 @@ uppercase` is off globally. German compounds in capitals are unreadable.
 
 ## 3. Layout
 
-- **App shell.** ≥ 1024 px: fixed left sidebar (232 px) with nav, the Sortieren badge and
+- **App shell.** ≥ 1024 px: fixed left sidebar (232 px) with nav, the uncategorized badge on Umsätze and
   preferences at the bottom; a top bar with the month stepper, account scope and Import button.
   < 1024 px: sidebar collapses to icons. < 720 px: bottom navigation, top bar keeps the month.
 - **Content width.** Max 1200 px, 32 px gutters (16 px < 720 px). Pages MUST NOT use

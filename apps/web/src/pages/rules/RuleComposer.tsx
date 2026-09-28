@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { createRule } from '../../api/client';
-import { previewRule } from '../../inbox';
+import { previewRule } from '../../rulePreview';
 import { describeRulePreview, describeRuleErrors } from '../../locales/sentences';
 import { type RuleCondition, RuleSentenceEditor } from '../../ui/RuleSentence';
 import { ruleErrorsOf } from './ruleErrors';

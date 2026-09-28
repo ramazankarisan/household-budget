@@ -71,8 +71,8 @@ export function monthsOf(transactions: readonly TransactionPayload[]): readonly 
  * filtered list: a number that moves while the user narrows the list cannot answer "how
  * much is left". Vorgemerkt rows are not counted — the API refuses to categorize them
  * until they book (`TRANSACTION_PENDING`), so counting them would promise work that
- * cannot be done. The sidebar badge, the list's chip and the inbox all call this, which is
- * what keeps their numbers the same.
+ * cannot be done. The nav badge, the list's chip and its „Ohne Kategorie“ filter, and the
+ * Überblick card all follow this, which is what keeps their numbers the same.
  *
  * @param month `'YYYY-MM'` to count one month; omitted or `'all'` for every month
  */
@@ -127,7 +127,8 @@ function matchesCategory(row: TransactionPayload, categoryId: string): boolean {
     return true;
   }
   if (categoryId === UNCATEGORIZED) {
-    return row.categoryId === null;
+    // The rows the chip counts (`uncategorizedRows`): vorgemerkt ones wait until they book.
+    return row.categoryId === null && row.status === 'booked';
   }
   return row.categoryId === categoryId;
 }

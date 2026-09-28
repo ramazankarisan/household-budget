@@ -99,11 +99,8 @@ describe('filterTransactions, by category', () => {
     expect(visible([wohnen, other, none], { categoryId: 'cat-wohnen' })).toEqual(['wohnen']);
   });
 
-  it('shows pending rows under Ohne Kategorie, because they are on screen either way', () => {
-    expect(visible([wohnen, none, pendingNone], { categoryId: UNCATEGORIZED })).toEqual([
-      'none',
-      'pending',
-    ]);
+  it('shows under Ohne Kategorie exactly the rows the chip counts: vorgemerkt waits', () => {
+    expect(visible([wohnen, none, pendingNone], { categoryId: UNCATEGORIZED })).toEqual(['none']);
   });
 
   it('never mistakes the uncategorized marker for a category id', () => {

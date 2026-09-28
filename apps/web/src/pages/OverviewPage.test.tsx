@@ -87,7 +87,7 @@ const GIRO_ROWS = [
   row({ bookingDate: '2014-03-24', amountCents: -114341 }),
 ];
 
-/** Where a link to Sortieren lands, and with which search. */
+/** Where a link to the list lands, and with which search. */
 function ListProbe() {
   const location = useLocation();
   return <output aria-label="list search">{location.search}</output>;
@@ -98,7 +98,7 @@ const app = (entry = '/') => (
     <HouseholdProvider>
       <Routes>
         <Route path="/" element={<OverviewPage />} />
-        <Route path="/inbox" element={<ListProbe />} />
+        <Route path="/transactions" element={<ListProbe />} />
       </Routes>
     </HouseholdProvider>
   </MemoryRouter>
@@ -339,7 +339,7 @@ describe('OverviewPage', () => {
     expect(screen.getByRole('textbox', { name: 'Budget Lebensmittel' })).toHaveValue('45');
   });
 
-  it('leads „Ohne Kategorie“ to Sortieren, on this month', async () => {
+  it('leads „Ohne Kategorie“ to the list of those rows, on this month', async () => {
     await withGiro();
 
     const uncategorized = rowOf('Ohne Kategorie');
@@ -347,17 +347,17 @@ describe('OverviewPage', () => {
     fireEvent.click(within(uncategorized).getByRole('link', { name: 'Anzeigen' }));
 
     const search = await screen.findByRole('status', { name: 'list search' });
-    expect(search).toHaveTextContent('?m=2025-09');
+    expect(search).toHaveTextContent('?m=2025-09&c=uncategorized');
   });
 
-  it('counts what is left to sort, the same way everywhere', async () => {
+  it('counts what is left to categorize, the same way everywhere', async () => {
     // Giro: one booked uncategorized outflow and the salary this month, one in March 2014;
     // the vorgemerkt row cannot be sorted yet and is not counted.
     await withGiro();
 
-    const callout = screen.getByRole('link', { name: /Zu sortieren: 2/ });
+    const callout = screen.getByRole('link', { name: /Ohne Kategorie: 2/ });
     expect(callout).toHaveTextContent('im September 2025 · 3 insgesamt');
-    expect(callout).toHaveAttribute('href', '/inbox?m=2025-09');
+    expect(callout).toHaveAttribute('href', '/transactions?m=2025-09&c=uncategorized');
   });
 
   it('invites an import when no account has anything to report on', async () => {

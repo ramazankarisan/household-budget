@@ -64,10 +64,10 @@ test.describe.serial('the transactions list', () => {
     const counted = Number(/^\d+/.exec((await chip.innerText()).trim())?.[0] ?? '0');
     await chip.click();
 
-    // The chip counts what can be sorted: booked rows. The filter also shows vorgemerkt
-    // ones — on screen either way, and marked — so those are left out of the comparison.
+    // The chip counts what can be categorized — booked rows — and the filter shows exactly those.
     const rows = page.getByRole('main').getByRole('listitem');
-    await expect(rows.filter({ hasNotText: 'vorgemerkt' })).toHaveCount(counted);
+    await expect(rows).toHaveCount(counted);
+    await expect(rows.filter({ hasText: 'vorgemerkt' })).toHaveCount(0);
     // Every row on screen is one of them: nothing categorized slipped through.
     await expect(rows.filter({ hasText: 'Ohne Kategorie' })).toHaveCount(await rows.count());
   });

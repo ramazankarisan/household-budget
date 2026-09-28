@@ -11,7 +11,7 @@ export interface Categorize {
 }
 
 /**
- * Setting a category by hand, from wherever it is set — the list, the inbox.
+ * Setting a category by hand, from wherever it is set — the list.
  *
  * Written through the API and then replaced in place rather than reloading: the server
  * decides the lock timestamp, and re-fetching every row to learn one row's new state

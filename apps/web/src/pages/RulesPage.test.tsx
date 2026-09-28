@@ -261,6 +261,38 @@ describe('RulesPage', () => {
     expect(reordered).toHaveBeenCalledWith(['r-b', 'r-a']);
   });
 
+  it('keeps the latest move on screen when an earlier one answers late', async () => {
+    rules = [
+      rule({ id: 'r-a', value: 'erste', priority: 10 }),
+      rule({ id: 'r-b', value: 'zweite', priority: 20 }),
+      rule({ id: 'r-c', value: 'dritte', priority: 30 }),
+    ];
+    const answers: ((saved: RulePayload[]) => void)[] = [];
+    reordered.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    render(page());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nach oben: dritte' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Nach oben: dritte' }));
+    expect(reordered).toHaveBeenLastCalledWith(['r-c', 'r-a', 'r-b']);
+
+    const [a, b, c] = rules as [RulePayload, RulePayload, RulePayload];
+    await act(async () => {
+      answers[1]?.([c, a, b]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      answers[0]?.([a, c, b]);
+      await Promise.resolve();
+    });
+
+    expect(await shownOrder()).toEqual(['dritte', 'erste', 'zweite']);
+  });
+
   it('puts the old order back when the new one is refused', async () => {
     rules = [
       rule({ id: 'r-a', value: 'erste', priority: 10 }),

@@ -479,6 +479,8 @@ over strings before they are anything on screen.
   hand-off is replaced by search params (`?m`, `?c=uncategorized`, `?a`). The chip now counts
   booked rows only (`uncategorizedRows`) — vorgemerkt rows cannot be categorized until they
   book; the „Ohne Kategorie“ filter still shows them, marked. The list lives at `/transactions`.
+- 2026-09-28, plan 08 review: the „Ohne Kategorie“ filter no longer shows vorgemerkt rows, so
+  the chip opens exactly the rows it counts; the chip counts the chosen month too.
 
 ## References
 

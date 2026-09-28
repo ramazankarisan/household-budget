@@ -33,6 +33,14 @@ test.describe('the month in the URL', () => {
     await expect(page).toHaveURL(/\/transactions\?m=2014-03$/u);
     await expect(stepper(page)).toHaveText('März 2014');
   });
+
+  test('the old Sortieren address opens the uncategorized rows, month kept', async ({ page }) => {
+    await withFixture(page);
+    await page.goto('/inbox?m=2025-09');
+
+    await expect(page).toHaveURL(/\/transactions\?m=2025-09&c=uncategorized$/u);
+    await expect(stepper(page)).toHaveText('September 2025');
+  });
 });
 
 test.describe('on a phone', () => {

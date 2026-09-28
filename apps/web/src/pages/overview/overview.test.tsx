@@ -98,23 +98,33 @@ describe('SortCallout', () => {
   it('leads with the chosen month, and says the total beside it', () => {
     render(
       <MemoryRouter>
-        <SortCallout total={12} inMonth={7} month="2025-09" href="/inbox?m=2025-09" />
+        <SortCallout
+          total={12}
+          inMonth={7}
+          month="2025-09"
+          href="/transactions?m=2025-09&c=uncategorized"
+        />
       </MemoryRouter>,
     );
 
-    const callout = screen.getByRole('link', { name: /Zu sortieren: 7/ });
+    const callout = screen.getByRole('link', { name: /Ohne Kategorie: 7/ });
     expect(callout).toHaveTextContent('im September 2025 · 12 insgesamt');
   });
 
-  it('says a sorted month is sorted, and points at the others', () => {
+  it('says when a month is done, and points at the others', () => {
     render(
       <MemoryRouter>
-        <SortCallout total={5} inMonth={0} month="2025-09" href="/inbox?m=all" />
+        <SortCallout
+          total={5}
+          inMonth={0}
+          month="2025-09"
+          href="/transactions?m=all&c=uncategorized"
+        />
       </MemoryRouter>,
     );
 
-    const callout = screen.getByRole('link', { name: /September 2025 ist sortiert/ });
+    const callout = screen.getByRole('link', { name: /September 2025: alles kategorisiert/ });
     expect(callout).toHaveTextContent('noch 5 in anderen Monaten');
-    expect(callout).toHaveAttribute('href', '/inbox?m=all');
+    expect(callout).toHaveAttribute('href', '/transactions?m=all&c=uncategorized');
   });
 });

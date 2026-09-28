@@ -47,7 +47,7 @@ export function RuleSentence({ rule, categories }: RuleSentenceProps) {
       sx={{ alignItems: 'center', flexWrap: 'wrap', minWidth: 0 }}
     >
       <Typography component="span" color="text.secondary">
-        {t('inbox.ruleIf')}
+        {t('rulePreview.ruleIf')}
       </Typography>
       <Typography component="span" sx={{ fontWeight: 500 }}>
         {t(`rules.fields.${rule.field}`)}
@@ -106,7 +106,7 @@ export function RuleSentenceEditor({
       sx={{ alignItems: 'flex-start', flexWrap: 'wrap' }}
     >
       <Typography component="span" color="text.secondary" sx={{ lineHeight: '40px' }}>
-        {t('inbox.ruleIf')}
+        {t('rulePreview.ruleIf')}
       </Typography>
       <TextField
         select

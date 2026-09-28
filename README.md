@@ -75,13 +75,8 @@ it shows them.
 **Überblick** (`/`) shows one month for the whole household: the booked total against
 the limits, a bar per category (vorgemerkt hatched, never added in; „über“ past the
 limit), what is still unsorted, and a six-month trend. „Budgets bearbeiten“ turns the
-limits into fields.
-
-**Sortieren** (`/inbox`) shows the rows without a category one at a time: `1`–`9` put
-it in a category, `M` opens all of them, `S` skips, `Z` takes the last one back. After
-each one it offers the rule that would have sorted it — `Empfänger enthält paypal →
-Abos` — with how many rows that would reach, counted before anything is saved; `R`
-saves it and runs every rule once.
+limits into fields. Its „Ohne Kategorie“ links open Umsätze narrowed to exactly those rows,
+on the same month.
 
 ## Scripts
 

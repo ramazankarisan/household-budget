@@ -80,7 +80,7 @@ export function CategoryMenu({
         size="small"
         fullWidth
         value={query}
-        placeholder={t('inbox.searchCategory')}
+        placeholder={t('categoryMenu.search')}
         onChange={(event) => {
           setQuery(event.target.value);
         }}
@@ -100,7 +100,7 @@ export function CategoryMenu({
           }
         }}
         slotProps={{
-          htmlInput: { 'aria-label': t('inbox.searchCategory') },
+          htmlInput: { 'aria-label': t('categoryMenu.search') },
           input: {
             startAdornment: (
               <InputAdornment position="start">
@@ -112,7 +112,7 @@ export function CategoryMenu({
       />
       <MenuList
         ref={list}
-        aria-label={t('inbox.chooseCategory')}
+        aria-label={t('categoryMenu.choose')}
         dense
         onKeyDown={onListKey}
         sx={{ maxHeight: 320, overflowY: 'auto', mt: 0.5 }}
@@ -142,7 +142,7 @@ export function CategoryMenu({
             sx={{ gap: 1.25, borderRadius: 1, color: 'primary.main' }}
           >
             <AddRounded fontSize="small" />
-            {t('inbox.createNamed', { name: query.trim() })}
+            {t('categoryMenu.createNamed', { name: query.trim() })}
           </MenuItem>
         )}
         {currentId !== null && [

@@ -1,9 +1,10 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AmountText } from './AmountText';
 import { CategoryPill } from './CategoryPill';
 import { DelayedSkeleton, SKELETON_DELAY_MS } from './DelayedSkeleton';
+import { DropOverlay } from './DropOverlay';
 import { StatusIcon } from './StatusIcon';
 
 /** `Intl` puts U+00A0 between the amount and the €. */
@@ -90,5 +91,44 @@ describe('DelayedSkeleton', () => {
       vi.advanceTimersByTime(1);
     });
     expect(screen.getByRole('status', { name: 'Wird geladen' })).toBeInTheDocument();
+  });
+});
+
+describe('DropOverlay', () => {
+  const file = new File(['x'], 'september.csv', { type: 'text/csv' });
+  const files = { dataTransfer: { types: ['Files'], files: [file] } };
+
+  it('hands a file dropped anywhere on', () => {
+    const onDrop = vi.fn();
+    render(
+      <>
+        <DropOverlay onDrop={onDrop} />
+        <p>Seite</p>
+      </>,
+    );
+
+    fireEvent.drop(screen.getByText('Seite'), files);
+
+    expect(onDrop).toHaveBeenCalledExactlyOnceWith(file);
+  });
+
+  it('leaves a file alone that a drop zone inside the page already took', () => {
+    const onDrop = vi.fn();
+    render(
+      <>
+        <DropOverlay onDrop={onDrop} />
+        <div
+          onDrop={(event) => {
+            event.preventDefault();
+          }}
+        >
+          Ablage
+        </div>
+      </>,
+    );
+
+    fireEvent.drop(screen.getByText('Ablage'), files);
+
+    expect(onDrop).not.toHaveBeenCalled();
   });
 });

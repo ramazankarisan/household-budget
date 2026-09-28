@@ -38,8 +38,12 @@ export function HouseholdProvider({ children }: { readonly children: ReactNode }
     const controller = new AbortController();
     inFlight.current = controller;
     const { signal } = controller;
+    // Whether a request of *this* load has failed: the accounts answering must not wipe
+    // out a categories or rules failure that landed first.
+    let failed = false;
     const fail = (cause: unknown) => {
       if (!signal.aborted) {
+        failed = true;
         setError({ cause });
       }
     };
@@ -63,8 +67,11 @@ export function HouseholdProvider({ children }: { readonly children: ReactNode }
         if (signal.aborted) {
           return;
         }
-        // A load that got this far clears whatever the last one failed with.
-        setError(undefined);
+        // A load that got this far clears whatever the last one failed with — not what
+        // this one already did.
+        if (!failed) {
+          setError(undefined);
+        }
         setAccounts(loaded);
         // An account that is gone takes its rows with it; the others keep theirs on screen.
         const ids = new Set(loaded.map((account) => account.id));

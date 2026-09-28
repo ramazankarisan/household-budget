@@ -819,9 +819,25 @@ During implementation, document user feedback, problems, and decisions here.
 - After review (user feedback, 2026-09-28): with a month chosen, the counts followed every
   month, which read as wrong. The list's chip now counts the chosen accounts _and month_
   (still never the search or category filter), and the Überblick card leads with the month
-  („Zu sortieren: 7 · im September · 12 insgesamt“); a sorted month says so and links to
-  `/inbox?m=all`. The sidebar badge and the inbox's default stay all months: the badge has
-  no month of its own.
+  („Ohne Kategorie: 7 · im September · 12 insgesamt“); a finished month says so and links to
+  the other months. The nav badge stays all months: it has no month of its own.
+- After review (user feedback, 2026-09-28): **phase 3's Sortieren inbox is removed.** The
+  user did not like it. `InboxPage`, `pages/inbox/`, `inbox.ts` and `e2e/inbox.spec.ts` are
+  gone; `previewRule` moved to `rulePreview.ts` (the rule composer still counts a rule's
+  reach live); `/inbox` redirects to `/transactions?c=uncategorized`, month kept; the badge
+  moved to Umsätze; Überblick's „Ohne Kategorie“ links open that list. Phase 3's tasks below
+  stay ticked as a record of what was built.
+- After code review (2026-09-28):
+  - The „Ohne Kategorie“ filter shows booked rows only, so the chip opens exactly the rows it
+    counts (this reverses plan 03's "vorgemerkt shown under Ohne Kategorie").
+  - A file dropped on the import dialog's own zone is no longer handed on a second time by
+    the window's drop listener (`event.defaultPrevented`).
+  - A file dropped on the window with several accounts waits for the account to be picked,
+    and goes into one account only — switching accounts afterwards never re-uploads it.
+  - Rule reordering answers only the latest move; a refusal rolls back and reloads.
+  - One load's failure is no longer cleared by its own accounts request answering later.
+  - The ledger's weekday headings follow the language; CLAUDE.md now says numeric dates are
+    `de-DE` and spelled-out names are words.
 
 ## References
 

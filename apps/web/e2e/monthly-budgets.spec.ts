@@ -63,7 +63,7 @@ test.describe.serial('monthly budgets', () => {
     await expect(page.getByRole('img', { name: /^Wohnen: .*von 700,00\s€/u })).toBeVisible();
   });
 
-  test('„Ohne Kategorie“ leads to Sortieren, on the same month', async ({ page }) => {
+  test('„Ohne Kategorie“ leads to the list of those rows, on the same month', async ({ page }) => {
     await page.getByRole('link', { name: 'Überblick' }).click();
 
     await page
@@ -73,12 +73,14 @@ test.describe.serial('monthly budgets', () => {
       .getByRole('link', { name: 'Anzeigen' })
       .click();
 
-    await expect(page).toHaveURL(/\/inbox\?m=2025-09$/u);
-    await expect(page.getByRole('heading', { level: 1, name: 'Sortieren' })).toBeVisible();
+    await expect(page).toHaveURL(/\/transactions\?m=2025-09&c=uncategorized$/u);
+    await expect(page.getByRole('heading', { level: 1, name: 'Umsätze' })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Monat wählen/u })).toHaveText('September 2025');
-    // March 2014's stray row is another month: never the one on screen here.
-    await expect(page.getByRole('article')).toBeVisible();
-    await expect(page.getByRole('article', { name: 'Versicherung Nord AG' })).toHaveCount(0);
+    // March 2014's stray row is another month: never on screen here.
+    const rows = page.getByRole('main').getByRole('listitem');
+    await expect(rows.first()).toBeVisible();
+    await expect(rows.filter({ hasText: 'Versicherung Nord AG' })).toHaveCount(0);
+    await expect(rows.filter({ hasNotText: 'Ohne Kategorie' })).toHaveCount(0);
   });
 });
 

@@ -11,6 +11,8 @@ status: complete
 
 > Built by [plan 08](../plans/08-ui-redesign.md) (2026-09-28). The findings below describe the
 > UI before it; the proposal is what the plan implemented, with the changes its notes record.
+> The Sortieren inbox (`/inbox`) was built and then dropped after review (2026-09-28);
+> uncategorized rows are categorized on Umsätze.
 
 ## Research question
 

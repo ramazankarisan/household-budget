@@ -52,9 +52,14 @@ export function DropOverlay({ onDrop }: { readonly onDrop: (file: File) => void 
       if (!carriesFiles(event)) {
         return;
       }
-      event.preventDefault();
       depth.current = 0;
       setVisible(false);
+      // A drop zone inside the page (the import dialog's own) already took this file;
+      // handing it on again would upload it twice.
+      if (event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
       const file = event.dataTransfer?.files[0];
       if (file !== undefined) {
         latest.current(file);

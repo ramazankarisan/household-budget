@@ -8,7 +8,7 @@ import Stack from '@mui/material/Stack';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ApiError, applyRules, deleteRule, reorderRules, restoreRule } from '../api/client';
+import { applyRules, deleteRule, reorderRules, restoreRule } from '../api/client';
 import { useHousehold } from '../household/context';
 import { describeApplySummary, describeFailure, describeRuleDeleted } from '../locales/sentences';
 import { ruleWins } from '../ruleStats';
@@ -53,6 +53,7 @@ export function RulesPage() {
    */
   const [undoable, setUndoable] = useState<Undoable | undefined>(undefined);
   const undoSeq = useRef(0);
+  const moveSeq = useRef(0);
   const offerUndo = useCallback((describe: Describe, restore: () => Promise<unknown>) => {
     undoSeq.current += 1;
     setUndoable({ key: undoSeq.current, describe, restore });
@@ -98,23 +99,29 @@ export function RulesPage() {
   }
 
   /**
-   * A new order, shown at once and saved as one: on a refusal the old order goes back —
-   * and on a stale one, the list is reloaded, since another tab changed the rules.
+   * A new order, shown at once and saved as one. Only the latest move's answer counts: an
+   * earlier one landing late must not put its older order back on screen. On a refusal the
+   * order before it goes back, and the rules are reloaded — an earlier move may or may not
+   * have been saved, and another tab may have changed them (`RULE_ORDER_STALE`).
    */
   function move(ordered: readonly RulePayload[]): void {
     const before = rules;
+    const seq = ++moveSeq.current;
     setRules(() => ordered);
     setApply({ status: 'idle' });
     reorderRules(ordered.map((rule) => rule.id))
       .then((saved) => {
-        setRules(() => saved);
+        if (seq === moveSeq.current) {
+          setRules(() => saved);
+        }
       })
       .catch((cause: unknown) => {
+        if (seq !== moveSeq.current) {
+          return;
+        }
         setRules(() => before);
         fail(cause);
-        if (cause instanceof ApiError && cause.code === 'RULE_ORDER_STALE') {
-          reload();
-        }
+        reload();
       });
   }
 

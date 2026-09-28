@@ -8,11 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { clearBudget, listBudgets, setBudget } from '../api/client';
-import { monthOf, monthsOf, uncategorizedRows } from '../filter';
+import { monthOf, monthsOf, UNCATEGORIZED, uncategorizedRows } from '../filter';
 import { useHousehold } from '../household/context';
 import { describeFailure } from '../locales/sentences';
 import { TopBar } from '../shell/TopBar';
-import { MONTH_PARAM, useMonth } from '../shell/useMonth';
+import { CATEGORY_PARAM, MONTH_PARAM, useMonth } from '../shell/useMonth';
 import { monthTotals, trailingMonths } from '../trend';
 import { DelayedSkeleton } from '../ui/DelayedSkeleton';
 import { EmptyState } from '../ui/EmptyState';
@@ -214,10 +214,10 @@ export function OverviewPage() {
   const unsortedTotal = uncategorizedRows(transactions ?? []).length;
   const unsortedMonth = uncategorizedRows(transactions ?? [], { month }).length;
 
-  // „Ohne Kategorie“ leads to the inbox, on this month: sorting them is what it is for.
-  const inboxHref = `/inbox?${new URLSearchParams({ [MONTH_PARAM]: month }).toString()}`;
-  // With this month done, the callout leads to what is left in the others.
-  const allInboxHref = `/inbox?${new URLSearchParams({ [MONTH_PARAM]: 'all' }).toString()}`;
+  // „Ohne Kategorie“ leads to the list, narrowed to those rows, on this month.
+  const uncategorizedHref = (inMonth: string): string =>
+    `/transactions?${new URLSearchParams({ [MONTH_PARAM]: inMonth, [CATEGORY_PARAM]: UNCATEGORIZED }).toString()}`;
+  const monthHref = uncategorizedHref(month);
 
   const empty = transactions?.length === 0;
 
@@ -277,7 +277,7 @@ export function OverviewPage() {
               onClear={(categoryId) => {
                 write(categoryId, () => clearBudget(month, categoryId).then(() => null));
               }}
-              uncategorizedHref={inboxHref}
+              uncategorizedHref={monthHref}
             />
           </Stack>
           <Stack spacing={2.5} sx={{ minWidth: 0 }}>
@@ -285,7 +285,8 @@ export function OverviewPage() {
               total={unsortedTotal}
               inMonth={unsortedMonth}
               month={month}
-              href={unsortedMonth > 0 ? inboxHref : allInboxHref}
+              // With this month done, the callout leads to what is left in the others.
+              href={unsortedMonth > 0 ? monthHref : uncategorizedHref('all')}
             />
             <StatTiles
               incomeCents={incomeCents}

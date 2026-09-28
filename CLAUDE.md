@@ -26,10 +26,10 @@ responses and the UI that renders them.
 
 Status: import → categorize → report works end to end. Every page sits in one app shell
 ([DESIGN.md](DESIGN.md)); the month is `?m=` in the URL. `/` (Überblick) answers the month —
-spending against limits per category, what is still unsorted, a six-month trend;
-`/transactions` is the ledger of every account, narrowed by account, category and free text;
-`/inbox` (Sortieren) sorts the uncategorized rows one at a time and proposes the rule that would
-have; `/rules` shows rules as sentences in the order they are tried; `/imports` lists every
+spending against limits per category, what is still uncategorized, a six-month trend;
+`/transactions` is the ledger of every account, narrowed by account, category and free text,
+and where uncategorized rows are categorized (`/inbox` redirects to its „Ohne Kategorie“
+filter); `/rules` shows rules as sentences in the order they are tried; `/imports` lists every
 upload. Import happens in a dialog from any page, or by dropping a file on the window. All
 pages read one household copy of the data (`apps/web/src/household/`).
 
@@ -68,16 +68,18 @@ Each is deliberate; the link is the reason. Do not undo one without reading it.
   [research 03 §9](docs/research/03-transactions-list.md), [plan 08](docs/plans/08-ui-redesign.md)
 - „Ohne Kategorie“ is counted by one function, `uncategorizedRows` — booked rows, in or
   out, with no category — over the chosen accounts (all of them unless one is picked) and
-  the chosen month, never the search or category filter. The sidebar badge counts every month.
-  Vorgemerkt rows are not counted: they cannot be categorized until they book.
+  the chosen month, never the search or category filter. The nav badge counts every month.
+  Vorgemerkt rows are not counted, and the „Ohne Kategorie“ filter does not show them: they
+  cannot be categorized until they book, so the chip opens exactly the rows it counts.
 - Budgets are one limit per category per month, household-wide, measured against every
   account — Überblick has no account picker; `/budgets` redirects to it.
 - `monthlyReport` (core) counts money out only, keeps booked and vorgemerkt apart, and gives
   every category a row; the uncategorized bucket is `null` and never has a limit.
   [research 04 §4](docs/research/04-monthly-budgets.md)
 - UI text lives in `apps/web/src/locales/{de,en}.ts` and nowhere else; `en` is typed against
-  `de`, so a missing translation fails typecheck. Amounts and dates are `de-DE` in both
-  languages. [plan 07](docs/plans/07-language-and-theme-switch.md)
+  `de`, so a missing translation fails typecheck. Amounts and numeric dates (`22.09.2025`) are
+  `de-DE` in both languages; spelled-out month and weekday names are words and follow the
+  language (`formatMonth`, the ledger's day headings). [plan 07](docs/plans/07-language-and-theme-switch.md)
 
 ## HOW
 

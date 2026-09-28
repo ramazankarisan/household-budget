@@ -204,13 +204,13 @@ export function describeRulePreview(
   },
 ): string {
   const parts = [
-    t('inbox.preview', { matches: preview.matches, uncategorized: preview.uncategorized }),
+    t('rulePreview.preview', { matches: preview.matches, uncategorized: preview.uncategorized }),
   ];
   if (preview.locked > 0) {
-    parts.push(t('inbox.previewLocked', { count: preview.locked }));
+    parts.push(t('rulePreview.previewLocked', { count: preview.locked }));
   }
   if (preview.claimedEarlier > 0) {
-    parts.push(t('inbox.previewClaimed', { count: preview.claimedEarlier }));
+    parts.push(t('rulePreview.previewClaimed', { count: preview.claimedEarlier }));
   }
   return parts.join(' · ');
 }

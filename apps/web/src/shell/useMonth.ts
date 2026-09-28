@@ -13,7 +13,7 @@ export const CATEGORY_PARAM = 'c';
 interface UseMonthOptions {
   /**
    * What the page shows without a valid `?m`: the newest month with data (Überblick), or
-   * every month (the list, the inbox).
+   * every month (the list).
    */
   readonly defaultTo: 'newest' | 'all';
 }

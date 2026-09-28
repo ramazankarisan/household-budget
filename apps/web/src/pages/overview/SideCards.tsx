@@ -15,8 +15,8 @@ import { AmountText } from '../../ui/AmountText';
 import { CategoryDot } from '../../ui/CategoryPill';
 
 /**
- * „Zu sortieren: 7 · im September · 12 insgesamt“ — the work left in the chosen month first,
- * and where it leads. A sorted month says so and points at the rest.
+ * „Ohne Kategorie: 7 · im September · 12 insgesamt“ — the work left in the chosen month first,
+ * and where it leads. A finished month says so and points at the rest.
  */
 export function SortCallout({
   total,
