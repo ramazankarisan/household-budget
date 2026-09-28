@@ -157,3 +157,7 @@ consume its compiled `.d.ts` rather than its source.
 - **Prisma `^7.10.0` for both `prisma` and `@prisma/client`.** The `prisma` package's
   `latest` dist-tag currently points at an `8.0.0-rc`, so installing with `latest`
   would produce a mismatched pair.
+
+## License
+
+[MIT](LICENSE).

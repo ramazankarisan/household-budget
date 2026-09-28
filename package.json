@@ -2,6 +2,7 @@
   "name": "household-budget",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "commonjs",
   "packageManager": "pnpm@12.5.1",
   "engines": {
