@@ -9,6 +9,12 @@ status: implemented
 
 # PLAN: CSV import for Sparkasse CSV-CAMT V8 exports
 
+> **Outcome (2026-09-28):** implemented. The two unticked manual checks need a real
+> Sparkasse export and were never recorded as done. The byte path they guard is covered with
+> synthetic fixtures: Windows-1252 decoding in `apps/api/src/import/decode.test.ts`, the
+> upload end to end in `apps/web/e2e/import.spec.ts`. A second bank, Deutsche Bank, came later
+> ([plan 10](10-deutsche-bank-csv.md)).
+
 Deliver the first real feature: upload a Sparkasse CSV export, parse it, store the
 transactions, and show them. This is the "import" third of the app's purpose — import,
 categorize, report — and the schema it creates is what the other two build on.

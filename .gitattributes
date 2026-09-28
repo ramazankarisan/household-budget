@@ -1,4 +1,4 @@
-# Bank CSV fixtures are byte-exact test data: CRLF line endings and, for the primary
-# fixture, Windows-1252 bytes. `-text` stops git from normalizing line endings on
+# Bank CSV fixtures are byte-exact test data, as each bank ships them: Sparkasse CRLF (and
+# Windows-1252 bytes for the primary fixture), Deutsche Bank LF and UTF-8. `-text` stops git from normalizing line endings on
 # checkout or commit; `-diff` stops it from rendering an encoding-mangled diff.
 fixtures/*.csv -text -diff

@@ -1,8 +1,11 @@
 # The registry seam
 
-Read this when `packages/core/src/csv/dialects/` does not exist yet. It describes the
-one-time extraction that turns the Sparkasse-only parser into a registry the second bank
-plugs into.
+> **Done** in `8ea89bc` (`refactor(core): extract bank dialect registry from the Sparkasse
+parser`); Deutsche Bank was the second bank to plug in. Kept as the record of why the
+> descriptor has the shape it has. "Today" below means before that commit.
+
+It describes the one-time extraction that turned the Sparkasse-only parser into a registry
+the second bank plugs into.
 
 Do it as its own commit, before any new bank exists. The Sparkasse test file must be
 edited only where a symbol was renamed, and must stay green. If it needs new assertions to

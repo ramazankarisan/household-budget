@@ -9,6 +9,14 @@ status: implemented
 
 # PLAN: UI redesign „Kassenbuch“
 
+> **Outcome (2026-09-28):** implemented, except the Sortieren inbox of Phase 3, which was
+> built and then removed after review (Implementation Notes, end of this file); Phase 3's
+> keyboard-sorting check no longer applies. The manual walkthroughs across light/dark, DE/EN
+> and widths were not recorded as done. Automated: axe in both schemes on every page
+> (`e2e/wcag.spec.ts`), phone layouts without sideways scroll (`shell`, `overview`,
+> `transactions` specs), rule reorder by drag and `Alt+↑` (`rules.spec.ts`), a file dropped
+> on any page (`imports.spec.ts`).
+
 Rebuild `apps/web` around the three questions a household asks — _how is this month going_,
 _what still needs sorting_, _where did the money go_ — instead of around the three backend
 features. Five phases, each shippable on its own with `pnpm check:all` green.

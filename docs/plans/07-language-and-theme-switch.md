@@ -9,6 +9,12 @@ status: implemented
 
 # PLAN: Language switch (DE/EN) and light/dark switch
 
+> **Outcome (2026-09-28):** implemented. Dark-mode legibility (the acceptance criterion left
+> unticked below) is checked by axe — WCAG 2.1 AA, contrast included — on every page in both
+> schemes (`apps/web/e2e/wcag.spec.ts`); switching language and theme, and their persistence,
+> by `apps/web/e2e/preferences.spec.ts`. The remaining manual walkthroughs were not recorded
+> as done. `/budgets` is now a redirect to Überblick ([plan 08](08-ui-redesign.md)).
+
 Two controls in one shared header: `[DE|EN]` switches every word the UI shows between German and
 English, and a 🌙/☀ button switches the colour scheme. Both choices survive a reload. Only
 `apps/web` changes — no API, no core, no database.

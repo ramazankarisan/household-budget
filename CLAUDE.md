@@ -15,8 +15,9 @@ apps/api        NestJS 12 REST API. SQLite via Prisma 7 (driver adapter, no Rust
                 non-loopback Host/Origin (`src/security/loopback.ts`).
 apps/web        React 19 + Vite 8 + MUI 9 + react-router. Dev server on :5173,
                 proxies /api to :3000.
-fixtures/       Synthetic bank CSVs, byte-exact: CRLF, and Windows-1252 for the
-                primary one. .gitattributes and .editorconfig keep them that way.
+fixtures/       Synthetic bank CSVs, byte-exact as each bank ships them: Sparkasse CRLF
+                (Windows-1252 for the primary one), Deutsche Bank LF + UTF-8.
+                .gitattributes and .editorconfig keep them that way.
 ```
 
 Both apps depend on `@household-budget/core` as `workspace:*` and import its **built**
@@ -24,15 +25,11 @@ Both apps depend on `@household-budget/core` as `workspace:*` and import its **b
 `TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract between API
 responses and the UI that renders them.
 
-Status: import → categorize → report works end to end. Every page sits in one app shell
-([DESIGN.md](DESIGN.md)); the month is `?m=` in the URL. `/` (Überblick) answers the month —
-spending against limits per category, what is still uncategorized, a six-month trend;
-`/transactions` is the ledger of every account, narrowed by account, category and free text,
-and where uncategorized rows are categorized (`/inbox` redirects to its „Ohne Kategorie“
-filter); `/rules` shows rules as sentences in the order they are tried; `/imports` lists every
-upload and can remove one, with undo ([plan 11](docs/plans/11-import-undo.md)). Import
-happens in a dialog from any page, or by dropping a file on the window. All pages read one
-household copy of the data (`apps/web/src/household/`).
+Status: import → categorize → report works end to end. Routes: `/` (Überblick),
+`/transactions` (`/inbox` redirects to its „Ohne Kategorie“ filter), `/rules`, `/imports`
+(lists every upload and can remove one, with undo — [plan 11](docs/plans/11-import-undo.md));
+`/budgets` redirects to `/`. One app shell ([DESIGN.md](DESIGN.md)), the month in `?m=`, one
+household copy of the data (`apps/web/src/household/`). What each page does: [README](README.md).
 
 `POST /api/imports` takes a bank CSV upload scoped to an account — Sparkasse CSV-CAMT or
 Deutsche Bank ([research 07](docs/research/07-deutsche-bank-csv.md)), the format detected from
@@ -44,9 +41,8 @@ imports only what is new. Bad rows are reported with their line number while the
 the file imports; an unparseable file is a 4xx.
 
 Categorization is user-defined rules — one condition each, `priority ASC` then `createdAt`
-then `id`, first match wins — matched in `packages/core` over rows already loaded rather
-than in SQL, because SQLite folds case for ASCII only and `LIKE '%müller%'` misses
-`MÜLLER GmbH`. `POST /api/rules/apply` re-runs them over every account and writes `null`
+then `id`, first match wins — matched in `packages/core` over rows already loaded, never in
+SQL (see Invariants). `POST /api/rules/apply` re-runs them over every account and writes `null`
 as well as matches, so a category never outlives the rule that explains it. A category set
 by hand sets `Transaction.categoryLockedAt` and is never touched again until it is cleared.
 An import categorizes the rows it inserts inside its own transaction.
@@ -54,8 +50,9 @@ An import categorizes the rows it inserts inside its own transaction.
 Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
 [DESIGN.md](DESIGN.md) — the UI rulebook (tokens, layout, components, states); read it before
 touching `apps/web`.
-[docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the CSV
-format. `docs/plans/` holds one plan per feature: the decisions behind it and, where the build
+The authority on each CSV format is its research doc:
+[01](docs/research/01-csv-import.md) for Sparkasse CSV-CAMT,
+[07](docs/research/07-deutsche-bank-csv.md) for Deutsche Bank. `docs/plans/` holds one plan per feature: the decisions behind it and, where the build
 departed from them, what changed and why. Before changing a feature, read its plan — the code
 is the truth about _what_, the plan about _why_.
 
@@ -110,11 +107,11 @@ pnpm dev                                       # core watch + api :3000 + web :5
 | Format                | `pnpm format`      |
 
 `pnpm check` runs format → lint → deps → unused → typecheck → unit tests with coverage
-thresholds, printing one line per step and nothing else unless something fails. CI runs
-`pnpm check:all` plus gitleaks and `pnpm audit` on every PR, and mutation tests weekly. What
-each guardrail covers, and why coverage thresholds only go up:
-[plan 09](docs/plans/09-guardrails.md). `pnpm check:all` adds Playwright, which boots the API
-and the web server, so it is slower — that is what CI runs.
+thresholds, printing one line per step and nothing else unless something fails.
+`pnpm check:all` adds Playwright, which boots the API and the web server, so it is slower. CI
+runs `pnpm check:all` plus gitleaks and `pnpm audit` on every PR, and mutation tests weekly.
+What each guardrail covers, and why coverage thresholds only go up:
+[plan 09](docs/plans/09-guardrails.md).
 
 Single package, single file, single test:
 
@@ -124,8 +121,8 @@ pnpm --filter @household-budget/api exec vitest run src/import/import.service.te
 pnpm --filter @household-budget/core exec vitest run -t 'parses both date widths'
 ```
 
-Each package owns its `vitest.config.ts`; there is no root Vitest config, so Vitest must run
-inside a package.
+Each package owns its Vitest config — `vitest.config.ts` in core and api, the `test` block of
+`vite.config.ts` in web; there is no root Vitest config, so Vitest must run inside a package.
 
 `dev`, `test`, `typecheck` and `lint:deps` build `packages/core` first. This is not optional — the apps
 consume its `.d.ts`. A stale `packages/core/dist` shows up as bogus "has no exported member"
@@ -136,7 +133,7 @@ errors in both apps.
 **After every change, run `pnpm check` before saying you are done.**
 
 That is the whole rule. `pnpm check` is the fast set and covers formatting, lint, the
-architecture rules, typecheck and unit tests. For anything touching HTTP or UI, also run
+architecture rules, unused code, typecheck and unit tests. For anything touching HTTP or UI, also run
 `pnpm check:all` (or `pnpm dev` and exercise it at http://localhost:5173).
 
 Two things worth knowing about what `check` is checking:
@@ -188,6 +185,9 @@ Import → categorize → report is the whole product. Weigh new work against it
   `scripts/check-staged-data.mjs` blocks the rest at commit time. When a bug needs a real
   statement to reproduce, hand-write a synthetic fixture that reproduces it.
 - **Research goes in `docs/research/`, plans go in `docs/plans/`**, one Markdown file per
-  topic, committed. Check there before researching something twice.
+  topic, committed. Check there before researching something twice. Reviews and test
+  sessions go in `docs/reports/`, dated. Raw session output (`dogfood-output/`) stays local.
+  This overrides the vendored rpi-\* skills' `docs/agents/{research,plans}/YYYY-MM-DD-*.md`:
+  their output goes to `docs/research/` and `docs/plans/` as `NN-topic.md`, next number up.
 - **Link, do not inline.** When a topic needs more than a few lines here, write it under
   `docs/` and link it from this file. Keep CLAUDE.md short enough to stay read.

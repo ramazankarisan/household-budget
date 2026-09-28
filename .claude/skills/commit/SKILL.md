@@ -17,9 +17,9 @@ pnpm check
 
 **If it fails, stop.** Do not commit, do not `--no-verify`, do not "fix it in the next commit". Report which step failed and its output, then either fix the cause or hand it back to the user.
 
-`pnpm check` prints one line per step (`format`, `lint`, `deps`, `types`, `unit`) and dumps full output only for the step that failed, so the failure is already the only thing on screen. It takes ~20s and needs no servers.
+`pnpm check` prints one line per step (`format`, `lint`, `deps`, `unused`, `types`, `unit`) and dumps full output only for the step that failed, so the failure is already the only thing on screen. It takes ~20s and needs no servers.
 
-Do not substitute `pnpm check:all` here. That adds Playwright, which boots two servers — it is the pre-push gate, not the commit gate.
+Do not substitute `pnpm check:all` here. That adds Playwright, which boots two servers — it is what CI runs, not the commit gate.
 
 ## 2. Refuse forbidden paths
 
@@ -63,11 +63,14 @@ Format: `<type>[optional scope]: <subject>`
 | `refactor` | restructuring with no behaviour change                |
 | `test`     | adding or correcting tests only                       |
 | `docs`     | documentation only, including CLAUDE.md and README.md |
-| `chore`    | tooling, config, dependencies, CI, git hooks          |
+| `ci`       | CI workflows under `.github/workflows/`               |
+| `chore`    | tooling, config, dependencies, git hooks              |
+
+`commitlint.config.mjs` (the commit-msg hook) accepts every `@commitlint/config-conventional` type; `build`, `perf` and `style` are there when one fits better.
 
 Scope is optional and should be the package when it is clearly one: `feat(api):`, `fix(core):`, `chore(web):`.
 
-Subject line: imperative mood ("add", not "added"), lower case, no trailing period, under ~72 chars.
+Subject line: imperative mood ("add", not "added"), no trailing period, under ~72 chars. Start lower case, but keep the case of names and German UI terms (`Überblick`, `Umsätze`) — commitlint turns `subject-case` off for exactly that.
 
 Body: explain **why**, not what — the diff already says what. Wrap at ~72 chars. Include a body whenever the reason is not obvious from the subject; skip it for genuinely trivial changes. If the change fixes something subtle, say what broke and how it broke, so the next person reading `git log` does not have to reconstruct it.
 

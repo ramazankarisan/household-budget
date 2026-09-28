@@ -2,8 +2,9 @@
 
 A pnpm monorepo for a household budgeting app, for one person's own bank data on
 their own machine. All three product steps — import, categorize, report — are
-built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and listed, with
-duplicate detection that survives overlapping exports; user-defined rules assign each
+built: a Sparkasse CSV-CAMT or Deutsche Bank export can be uploaded, parsed, stored
+and listed — the format is detected from the file's header — with duplicate detection
+that survives overlapping exports; user-defined rules assign each
 transaction a category — with a category set by hand always winning; and each month's
 spending is shown per category against a limit, with a six-month trend.
 
@@ -17,9 +18,11 @@ apps/api        NestJS 12 REST API. SQLite via Prisma 7.
 apps/web        React 19 + Vite 8 + MUI 9 + react-router, inside one app shell
                 (sidebar ≥ 1024 px, icon rail ≥ 720 px, bottom bar below).
                 Look and rules: DESIGN.md.
-fixtures/       Synthetic bank CSVs. Byte-exact test data: CRLF endings and,
-                for the primary fixture, Windows-1252. Never real statements.
-docs/           research/ and plans/, one Markdown file per topic.
+fixtures/       Synthetic bank CSVs, byte-exact as each bank ships them: Sparkasse
+                CRLF (Windows-1252 for the primary fixture), Deutsche Bank LF and
+                UTF-8. Never real statements.
+docs/           research/ and plans/, one Markdown file per topic; reports/ for
+                reviews and test sessions (security review, dogfood session).
 ```
 
 Both apps depend on `@household-budget/core` as `workspace:*`. core has two entry
@@ -46,11 +49,11 @@ After pulling a change to `apps/api/prisma/schema.prisma`, run
 `pnpm --filter @household-budget/api prisma:generate` and `db:push` again — `db:push`
 adds new columns to your existing `budget.db` without touching its rows.
 
-Then open http://localhost:5173. Create an account, then drop a Sparkasse CSV export
-anywhere on the window — or press **Importieren** in the top bar — and the transactions
+Then open http://localhost:5173. Create an account, then drop a Sparkasse CSV-CAMT or
+Deutsche Bank CSV export anywhere on the window — or press **Importieren** in the top bar — and the transactions
 appear on every page. **Importe** lists every upload, the ones that brought nothing new
-included. `fixtures/sparkasse-camt-18.csv`
-is a synthetic export to try it with.
+included, and can remove one — with undo. `fixtures/sparkasse-camt-18.csv` and `fixtures/deutsche-bank.csv` are
+synthetic exports to try it with.
 
 Under **Regeln**, add a category and write a rule as the sentence it is —
 `Wenn Empfänger enthält müller → Wohnen`; the preview counts what it would reach before
@@ -81,19 +84,28 @@ on the same month.
 
 Run from the repo root:
 
-| Script           | What it does                                                               |
-| ---------------- | -------------------------------------------------------------------------- |
-| `pnpm check`     | format, lint, import boundaries, typecheck, unit tests — one line per step |
-| `pnpm check:all` | the above plus the Playwright suite (11 specs, real API and browser)       |
-| `pnpm dev`       | core in watch mode + api on :3000 + web on :5173, in parallel              |
-| `pnpm build`     | builds every package in dependency order                                   |
-| `pnpm typecheck` | `tsc --noEmit` across all three packages                                   |
-| `pnpm lint`      | ESLint over the whole workspace (one flat config at the root)              |
-| `pnpm lint:deps` | dependency-cruiser — keeps `packages/core` framework-free                  |
-| `pnpm test`      | Vitest in all three packages                                               |
-| `pnpm test:fast` | core + api only, dot reporter, stops at the first failure                  |
-| `pnpm test:e2e`  | Playwright, booting the API and web servers against a throwaway database   |
-| `pnpm format`    | Prettier write                                                             |
+| Script               | What it does                                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check`         | format, lint, architecture rules, unused code, typecheck, unit tests with coverage — one line per step                                                          |
+| `pnpm check:all`     | the above plus the Playwright suite (real API and browser) — what CI runs                                                                                       |
+| `pnpm dev`           | core in watch mode + api on :3000 + web on :5173, in parallel                                                                                                   |
+| `pnpm build`         | builds every package in dependency order                                                                                                                        |
+| `pnpm typecheck`     | `tsc --noEmit` across all three packages                                                                                                                        |
+| `pnpm lint`          | ESLint over the whole workspace (one flat config at the root)                                                                                                   |
+| `pnpm lint:deps`     | dependency-cruiser — core stays framework-free, apps import core's build only, api and web never import each other, no cycles, no Node/Prisma/`core/csv` in web |
+| `pnpm lint:unused`   | knip — unused files, exports and dependencies                                                                                                                   |
+| `pnpm test`          | Vitest in all three packages, plus the Claude Code hook tests                                                                                                   |
+| `pnpm test:coverage` | the same, failing below each package's coverage thresholds                                                                                                      |
+| `pnpm test:fast`     | core + api only, dot reporter, stops at the first failure                                                                                                       |
+| `pnpm test:e2e`      | Playwright, booting the API and web servers against a throwaway database                                                                                        |
+| `pnpm e2e:install`   | downloads the Chromium build Playwright needs (once)                                                                                                            |
+| `pnpm mutation`      | Stryker mutation tests over `packages/core` (slow; CI runs it weekly)                                                                                           |
+| `pnpm format`        | Prettier write                                                                                                                                                  |
+
+Hooks (lefthook, installed by `pnpm install`) run the data guard, gitleaks, Prettier and ESLint
+on staged files per commit, commitlint on the message, and `node scripts/check.mjs --push`
+before a push. CI runs `pnpm check:all`, gitleaks and `pnpm audit` on every PR. Why each
+guardrail exists: [plan 09](docs/plans/09-guardrails.md).
 
 `dev`, `typecheck`, and `test` build `packages/core` first, because the apps
 consume its compiled `.d.ts` rather than its source.
@@ -101,15 +113,15 @@ consume its compiled `.d.ts` rather than its source.
 ## How the pieces connect
 
 - **core → apps.** The response shapes (`AccountPayload`, `TransactionPayload`,
-  `ImportSummary`) are defined once in core; `apps/api` builds them and `apps/web`
+  `ImportSummary`, `BudgetPayload`) are defined once in core; `apps/api` builds them and `apps/web`
   renders them. A break in either import path fails `pnpm typecheck`.
 - **web → api.** The Vite dev server proxies `/api` to `127.0.0.1:3000`, so the
   browser only ever talks to one origin. There is no API base URL to configure. The API
   binds `127.0.0.1` only, sends no CORS headers, and answers `403` to a request whose
   `Host` or `Origin` is not loopback (`apps/api/src/security/loopback.ts`).
 - **api → SQLite.** Prisma 7 is driver-adapter based (`@prisma/adapter-better-sqlite3`),
-  so there is no Rust query engine at runtime. `Account`, `ImportBatch` and
-  `Transaction` live there; transactions are soft-deleted so a re-import can bring
+  so there is no Rust query engine at runtime. `Account`, `ImportBatch`, `Transaction`,
+  `Category`, `Rule` and `Budget` live there; transactions are soft-deleted so a re-import can bring
   them back.
 - **bytes → core.** `apps/api` decodes the upload (UTF-8, falling back to
   Windows-1252) and hashes it; core takes a `string` and returns transactions. That
@@ -145,3 +157,7 @@ consume its compiled `.d.ts` rather than its source.
 - **Prisma `^7.10.0` for both `prisma` and `@prisma/client`.** The `prisma` package's
   `latest` dist-tag currently points at an `8.0.0-rc`, so installing with `latest`
   would produce a mismatched pair.
+
+## License
+
+[MIT](LICENSE).

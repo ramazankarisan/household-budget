@@ -8,8 +8,8 @@
  * command is theirs to type — but the agent may not.
  *
  * Pattern matching over shell text makes accidents hard, not bypasses impossible: a command
- * built at runtime (`$(echo --no-ver)ify`) gets through. It is a guard rail, and the git hooks
- * and the pre-push `pnpm check:all` remain the gate.
+ * built at runtime (`$(echo --no-ver)ify`) gets through. It is a guard rail; the git hooks,
+ * and CI running `pnpm check:all` on every PR, remain the gate.
  *
  * Exit 2 blocks the call; stderr is the reason the agent sees.
  *
