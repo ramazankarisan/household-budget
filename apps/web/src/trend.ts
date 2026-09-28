@@ -60,7 +60,7 @@ export function monthTotals(
 export type BudgetTone = 'none' | 'ok' | 'near' | 'over';
 
 /** From 85 % of a limit on, a category is close enough to it to say so (DESIGN.md §2.1). */
-export const NEAR_SHARE = 0.85;
+const NEAR_SHARE = 0.85;
 
 /**
  * The tone of a category's row. Measured on booked **and** vorgemerkt against the limit —

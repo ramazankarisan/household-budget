@@ -187,3 +187,10 @@ apps/api/src/generated/
 # Throwaway git worktrees the agent harness creates. They are checkouts of this same
 # repo, so committing them would nest the repository inside itself.
 .claude/worktrees/
+
+# Stryker mutation testing (packages/core): sandbox copies and the HTML report.
+.stryker-tmp/
+packages/core/reports/
+
+# Written into the checkout by gitleaks-action in CI.
+results.sarif

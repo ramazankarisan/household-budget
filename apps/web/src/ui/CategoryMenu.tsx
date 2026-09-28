@@ -76,6 +76,7 @@ export function CategoryMenu({
       slotProps={{ paper: { sx: { width: 280, p: 1 } } }}
     >
       <TextField
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- the user just opened this menu; focus belongs in its search.
         autoFocus
         size="small"
         fullWidth

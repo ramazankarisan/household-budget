@@ -43,8 +43,19 @@ function stagedFiles() {
   return out.split('\0').filter(Boolean);
 }
 
+/**
+ * `--all` checks every tracked file instead of the staged set. CI runs it that way: a hook
+ * can be skipped with `LEFTHOOK=0` or beaten with `git add -f`, and what reached the
+ * repository is what matters there.
+ */
+function trackedFiles() {
+  return execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+}
+
+const files = process.argv.includes('--all') ? trackedFiles() : stagedFiles();
+
 const offenders = [];
-for (const file of stagedFiles()) {
+for (const file of files) {
   const rule = RULES.find((r) => r.test(file));
   if (rule) {
     offenders.push(`  ${file}\n    ${rule.reason}`);
@@ -52,7 +63,7 @@ for (const file of stagedFiles()) {
 }
 
 if (offenders.length > 0) {
-  console.error(`\nBlocked ${offenders.length} staged file(s):\n`);
+  console.error(`\nBlocked ${offenders.length} file(s):\n`);
   console.error(offenders.join('\n'));
   console.error('\nUnstage them with `git restore --staged <file>`.');
   console.error('If a file is genuinely synthetic test data, put it under fixtures/.');

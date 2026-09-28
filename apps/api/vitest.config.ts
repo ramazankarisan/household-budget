@@ -25,5 +25,13 @@ export default defineConfig({
      * mid-test. The suite is seconds long; serializing it costs nothing worth having.
      */
     fileParallelism: false,
+    // See packages/core/vitest.config.ts for how the thresholds are kept.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/test/**', 'src/generated/**', 'src/main.ts'],
+      reporter: ['text-summary'],
+      thresholds: { statements: 85, branches: 80, functions: 73, lines: 85 },
+    },
   },
 });

@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -28,6 +29,9 @@ export default tseslint.config(
       '**/test-results/**',
       '**/playwright-report/**',
       '**/blob-report/**',
+      // Stryker's sandbox copies: an interrupted `pnpm mutation` leaves instrumented source.
+      '**/.stryker-tmp/**',
+      '**/reports/mutation/**',
     ],
   },
 
@@ -87,6 +91,14 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
     },
+  },
+
+  // Accessibility, statically: a missing label or alt text, a click handler on a <div>.
+  // Only half the picture, because MUI renders the real elements at runtime — the axe
+  // pass in the Playwright specs checks what the browser actually got. docs/plans/09.
+  {
+    files: ['apps/web/src/**/*.tsx'],
+    ...jsxA11y.flatConfigs.recommended,
   },
 
   // Test files get the Vitest globals (`globals: true` in both vitest configs).

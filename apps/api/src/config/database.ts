@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /** Single source of truth for prisma.config.ts and PrismaService. */
-export const DEFAULT_DATABASE_URL = `file:${resolve(packageRoot, 'data', 'budget.db')}`;
+const DEFAULT_DATABASE_URL = `file:${resolve(packageRoot, 'data', 'budget.db')}`;
 
 /** An empty DATABASE_URL (a copied .env with a blank value) falls back to the default. */
 export function resolveDatabaseUrl(): string {

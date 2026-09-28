@@ -25,11 +25,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --reporter=dot",
     "test:fast": "vitest run --reporter=dot --bail=1",
+    "test:coverage": "vitest run --reporter=dot --coverage",
+    "mutation": "stryker run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@vitest/coverage-v8": "^5.0.2",
+    "fast-check": "^4.10.2",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "dependencies": {
     "csv-parse": "^7.0.2"

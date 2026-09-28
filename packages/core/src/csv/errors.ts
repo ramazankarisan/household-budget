@@ -28,7 +28,7 @@ export interface RowError {
   readonly value?: string;
 }
 
-export const MAX_ERROR_VALUE_LENGTH = 100;
+const MAX_ERROR_VALUE_LENGTH = 100;
 
 /**
  * The first `MAX_ERROR_VALUE_LENGTH` UTF-16 units plus `…` when longer, so the result is

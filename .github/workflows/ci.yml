@@ -1,0 +1,67 @@
+# The gate the git hooks are on a developer's machine, run where it cannot be skipped:
+# `LEFTHOOK=0` bypasses a hook, not this. docs/plans/09.
+#
+# The app is local-only and CI holds no secrets and no bank data: the fixtures are
+# synthetic and every database is created from scratch here.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # gitleaks scans the commits a PR adds, so it needs history.
+          fetch-depth: 0
+
+      # The pre-commit data guard, over every tracked file: no bank export, .env or database
+      # may be in the repository, however it got past the hook.
+      - run: node scripts/check-staged-data.mjs --all
+
+      # Same scanner as the pre-commit hook, over every commit in the push or PR.
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Version from package.json's packageManager field.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: cp apps/api/.env.example apps/api/.env
+
+      # Known advisories are ignored by id, with the reason, in pnpm-workspace.yaml.
+      - run: pnpm audit --audit-level high
+
+      - run: pnpm e2e:install --with-deps
+
+      # format → lint → deps → unused → types → unit with coverage → Playwright.
+      - run: pnpm check:all
+        env:
+          CI: 'true'
+
+      # CI runs Playwright with the dot reporter, so there is no HTML report: the traces,
+      # screenshots and error context of a failed spec are in test-results/.
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

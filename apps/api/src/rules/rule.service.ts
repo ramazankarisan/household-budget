@@ -82,7 +82,7 @@ interface RuleRow {
  * re-asserted on the way out. Nothing but `parseRuleInput` ever writes these columns,
  * which is what makes the assertion safe rather than hopeful.
  */
-export function toCoreRule(row: RuleRow): CoreRule {
+function toCoreRule(row: RuleRow): CoreRule {
   return {
     id: row.id,
     field: row.field as RuleField,
@@ -96,7 +96,7 @@ export function toCoreRule(row: RuleRow): CoreRule {
 }
 
 /** The gap between two neighbouring rules, left so a rule can be put between them. */
-export const PRIORITY_STEP = 10;
+const PRIORITY_STEP = 10;
 
 /** Whether the body names a priority at all — `undefined` is the same as leaving it out. */
 function hasPriority(body: unknown): boolean {
