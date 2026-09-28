@@ -43,6 +43,8 @@ by hand sets `Transaction.categoryLockedAt` and is never touched again until it 
 An import categorizes the rows it inserts inside its own transaction.
 
 Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
+[DESIGN.md](DESIGN.md) — the UI rulebook (tokens, layout, components, states); read it before
+touching `apps/web`.
 [docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the CSV
 format. `docs/plans/` holds one plan per feature: the decisions behind it and, where the build
 departed from them, what changed and why. Before changing a feature, read its plan — the code
