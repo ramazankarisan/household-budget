@@ -22,7 +22,7 @@ interface FilterBarProps {
   readonly filters: TransactionFilterState;
   readonly categories: readonly CategoryPayload[];
   readonly accounts: readonly AccountPayload[];
-  /** Rows without a category in the chosen accounts — never just the filtered view. */
+  /** Rows without a category in the chosen accounts and month — never just the filtered view. */
   readonly uncategorized: number;
   readonly onChange: (filters: TransactionFilterState) => void;
 }

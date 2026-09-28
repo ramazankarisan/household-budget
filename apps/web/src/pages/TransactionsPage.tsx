@@ -76,8 +76,9 @@ export function TransactionsPage() {
     () => filterTransactions(searchable, filters, month),
     [searchable, filters, month],
   );
-  // The chosen accounts, not the view: the number answers "how much is left to do".
-  const uncategorized = useMemo(() => uncategorizedRows(rows).length, [rows]);
+  // The chosen accounts and month, not the view: the number answers "how much is left to
+  // do" in what the user is looking at, and search or a category filter do not move it.
+  const uncategorized = useMemo(() => uncategorizedRows(rows, { month }).length, [rows, month]);
   const filtering = hasFilters({ ...filters, accountId });
 
   // Each row's account, said on the row only while more than one account is on screen.

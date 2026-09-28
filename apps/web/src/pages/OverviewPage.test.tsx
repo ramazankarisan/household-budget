@@ -355,8 +355,9 @@ describe('OverviewPage', () => {
     // the vorgemerkt row cannot be sorted yet and is not counted.
     await withGiro();
 
-    const callout = screen.getByRole('link', { name: /Zu sortieren: 3/ });
-    expect(callout).toHaveTextContent('davon 2 im September 2025');
+    const callout = screen.getByRole('link', { name: /Zu sortieren: 2/ });
+    expect(callout).toHaveTextContent('im September 2025 · 3 insgesamt');
+    expect(callout).toHaveAttribute('href', '/inbox?m=2025-09');
   });
 
   it('invites an import when no account has anything to report on', async () => {

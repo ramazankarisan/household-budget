@@ -2,12 +2,12 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { ledgerRow, pickCategory, withFixture, withWohnen } from './support';
 
-/** The number on the „Zu sortieren“ card. */
+/** The number on the „Zu sortieren“ card, for the shown month; 0 once that month is sorted. */
 async function toSort(page: Page): Promise<number> {
-  const card = page.getByRole('link', { name: /Zu sortieren: \d+/u });
+  const card = page.getByRole('link', { name: /Zu sortieren: \d+| ist sortiert/u });
   await expect(card).toBeVisible();
   const text = await card.innerText();
-  return Number(/Zu sortieren: (\d+)/u.exec(text)?.[1] ?? 'NaN');
+  return Number(/Zu sortieren: (\d+)/u.exec(text)?.[1] ?? '0');
 }
 
 test('a category set on the list is on Überblick without a reload', async ({ page }) => {

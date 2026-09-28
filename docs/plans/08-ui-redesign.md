@@ -816,6 +816,12 @@ During implementation, document user feedback, problems, and decisions here.
   `AppShell`, reached through `shell/importContext.ts`.
 - Phase 2, jsdom has no `ResizeObserver`; `src/test/setup.ts` stubs it so the self-sizing
   trend chart can mount in page tests.
+- After review (user feedback, 2026-09-28): with a month chosen, the counts followed every
+  month, which read as wrong. The list's chip now counts the chosen accounts _and month_
+  (still never the search or category filter), and the Überblick card leads with the month
+  („Zu sortieren: 7 · im September · 12 insgesamt“); a sorted month says so and links to
+  `/inbox?m=all`. The sidebar badge and the inbox's default stay all months: the badge has
+  no month of its own.
 
 ## References
 

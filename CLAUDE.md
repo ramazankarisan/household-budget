@@ -67,8 +67,8 @@ Each is deliberate; the link is the reason. Do not undo one without reading it.
   no endpoint; URL search params (`?m`, `?c`, `?a`) hold view state only.
   [research 03 §9](docs/research/03-transactions-list.md), [plan 08](docs/plans/08-ui-redesign.md)
 - „Ohne Kategorie“ is counted by one function, `uncategorizedRows` — booked rows, in or
-  out, with no category — over the chosen accounts (all of them unless one is picked), never
-  the filtered view.
+  out, with no category — over the chosen accounts (all of them unless one is picked) and
+  the chosen month, never the search or category filter. The sidebar badge counts every month.
   Vorgemerkt rows are not counted: they cannot be categorized until they book.
 - Budgets are one limit per category per month, household-wide, measured against every
   account — Überblick has no account picker; `/budgets` redirects to it.

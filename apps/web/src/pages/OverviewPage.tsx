@@ -216,6 +216,8 @@ export function OverviewPage() {
 
   // „Ohne Kategorie“ leads to the inbox, on this month: sorting them is what it is for.
   const inboxHref = `/inbox?${new URLSearchParams({ [MONTH_PARAM]: month }).toString()}`;
+  // With this month done, the callout leads to what is left in the others.
+  const allInboxHref = `/inbox?${new URLSearchParams({ [MONTH_PARAM]: 'all' }).toString()}`;
 
   const empty = transactions?.length === 0;
 
@@ -283,7 +285,7 @@ export function OverviewPage() {
               total={unsortedTotal}
               inMonth={unsortedMonth}
               month={month}
-              href={inboxHref}
+              href={unsortedMonth > 0 ? inboxHref : allInboxHref}
             />
             <StatTiles
               incomeCents={incomeCents}

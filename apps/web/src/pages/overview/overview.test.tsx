@@ -1,8 +1,10 @@
 import { type CategoryReport } from '@household-budget/core';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { BudgetBar } from '../../ui/BudgetBar';
+import { SortCallout } from './SideCards';
 import { TrendChart } from './TrendChart';
 
 function entry(overrides: Partial<CategoryReport>): CategoryReport {
@@ -89,5 +91,30 @@ describe('TrendChart', () => {
 
     rerender(<TrendChart totals={totals} limitCents={null} width={400} />);
     expect(container.querySelector('.MuiChartsReferenceLine-root')).toBeNull();
+  });
+});
+
+describe('SortCallout', () => {
+  it('leads with the chosen month, and says the total beside it', () => {
+    render(
+      <MemoryRouter>
+        <SortCallout total={12} inMonth={7} month="2025-09" href="/inbox?m=2025-09" />
+      </MemoryRouter>,
+    );
+
+    const callout = screen.getByRole('link', { name: /Zu sortieren: 7/ });
+    expect(callout).toHaveTextContent('im September 2025 · 12 insgesamt');
+  });
+
+  it('says a sorted month is sorted, and points at the others', () => {
+    render(
+      <MemoryRouter>
+        <SortCallout total={5} inMonth={0} month="2025-09" href="/inbox?m=all" />
+      </MemoryRouter>,
+    );
+
+    const callout = screen.getByRole('link', { name: /September 2025 ist sortiert/ });
+    expect(callout).toHaveTextContent('noch 5 in anderen Monaten');
+    expect(callout).toHaveAttribute('href', '/inbox?m=all');
   });
 });

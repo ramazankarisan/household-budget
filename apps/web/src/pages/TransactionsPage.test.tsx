@@ -227,13 +227,17 @@ describe('TransactionsPage, narrowing', () => {
     expect(rowOf('Müller GmbH')).not.toBeNull();
   });
 
-  it('counts the account, not the view, and only rows that can be sorted', async () => {
+  it('counts the account and month, not the view, and only rows that can be sorted', async () => {
     await withRows([SEPTEMBER, OLD, row('p', 'Vorgemerkt AG', { status: 'pending' })]);
     expect(screen.getByText('2 ohne Kategorie')).toBeInTheDocument();
 
     chooseMonth('September 2025');
+    expect(screen.getByText('1 ohne Kategorie')).toBeInTheDocument();
 
-    expect(screen.getByText('2 ohne Kategorie')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Suche' }), {
+      target: { value: 'nichts passt' },
+    });
+    expect(screen.getByText('1 ohne Kategorie')).toBeInTheDocument();
   });
 
   it('says a filter matched nothing rather than inviting another import', async () => {

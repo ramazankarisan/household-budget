@@ -69,7 +69,8 @@ The search runs in the browser over the rows
 already loaded, for the same case-folding reason — typing `müller` finds
 `MÜLLER GmbH`, and a grouped `DE89 3704 …` finds the IBAN as it is stored. **Umsätze** reads like a statement: grouped by day, every account at once unless one is
 chosen, each row's category a pill that opens a searchable menu. The chip on the right
-counts the booked transactions that still have no category, and clicking it shows them.
+counts the booked transactions in the chosen month that still have no category, and clicking
+it shows them.
 
 **Überblick** (`/`) shows one month for the whole household: the booked total against
 the limits, a bar per category (vorgemerkt hatched, never added in; „über“ past the

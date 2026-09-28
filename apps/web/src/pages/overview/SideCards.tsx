@@ -14,7 +14,10 @@ import { toLocale } from '../../locales/messages';
 import { AmountText } from '../../ui/AmountText';
 import { CategoryDot } from '../../ui/CategoryPill';
 
-/** „Zu sortieren: 12 · davon 7 im September“ — the work left, and where it leads. */
+/**
+ * „Zu sortieren: 7 · im September · 12 insgesamt“ — the work left in the chosen month first,
+ * and where it leads. A sorted month says so and points at the rest.
+ */
 export function SortCallout({
   total,
   inMonth,
@@ -27,6 +30,7 @@ export function SortCallout({
   readonly href: string;
 }) {
   const { t, i18n } = useTranslation();
+  const monthName = formatMonth(month, toLocale(i18n.resolvedLanguage));
 
   if (total === 0) {
     return (
@@ -60,13 +64,16 @@ export function SortCallout({
           </Box>
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h2" component="p">
-              {t('overview.toSort', { count: total })}
+              {inMonth > 0
+                ? t('overview.toSort', { count: inMonth })
+                : t('overview.monthSorted', { month: monthName })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {t('overview.toSortMonth', {
-                count: inMonth,
-                month: formatMonth(month, toLocale(i18n.resolvedLanguage)),
-              })}
+              {inMonth === 0
+                ? t('overview.toSortElsewhere', { count: total })
+                : total > inMonth
+                  ? t('overview.toSortMonthOfTotal', { month: monthName, total })
+                  : t('overview.toSortMonth', { month: monthName })}
             </Typography>
           </Box>
           <ArrowForwardRounded aria-hidden sx={{ color: 'primary.main' }} />
