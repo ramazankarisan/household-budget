@@ -10,10 +10,13 @@ export type {
   BudgetPayload,
   CategoryPayload,
   DeletedRulePayload,
+  ImportBatchPayload,
   ImportSummary,
+  RuleOrderInput,
   RulePayload,
   TransactionPayload,
 } from './api.js';
+export { CATEGORY_COLOR_COUNT } from './api.js';
 export type {
   Budget,
   BudgetInput,

@@ -1,10 +1,11 @@
-import { CategoryPayload, normalize } from '@household-budget/core';
+import { CATEGORY_COLOR_COUNT, CategoryPayload, normalize } from '@household-budget/core';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -12,21 +13,79 @@ import { PrismaService } from '../prisma/prisma.service.js';
 /** Prisma's code for a unique-constraint violation. `Category.name` is the only one here. */
 const UNIQUE_CONSTRAINT = 'P2002';
 
+/** What a rename or a recolour may carry; either field alone is a complete request. */
+export interface CategoryUpdate {
+  readonly name?: unknown;
+  readonly colorIndex?: unknown;
+}
+
+function toPayload(category: {
+  id: string;
+  name: string;
+  colorIndex: number | null;
+}): CategoryPayload {
+  // `null` never reaches the wire: `onModuleInit` fills the old rows in before a request can.
+  return { id: category.id, name: category.name, colorIndex: category.colorIndex ?? 0 };
+}
+
+function isColorIndex(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value < CATEGORY_COLOR_COUNT
+  );
+}
+
 /**
  * The categories a rule or a hand can assign.
  *
- * Deliberately thin: a category is a name and an id. What makes it interesting is what
+ * Deliberately thin: a category is a name, an id and a colour. What makes it interesting is what
  * points at it, which is why deletion is the one operation here with an opinion.
  */
 @Injectable()
-export class CategoryService {
+export class CategoryService implements OnModuleInit {
   private readonly logger = new Logger(CategoryService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Gives every category stored before `colorIndex` existed a colour, in the order they
+   * were created, by the same rule `create` uses — so an old database ends up exactly as
+   * if its categories had been made today. Idempotent: a second run finds nothing to do.
+   */
+  async onModuleInit(): Promise<void> {
+    const missing = await this.prisma.category.findMany({
+      where: { colorIndex: null },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+    if (missing.length === 0) {
+      return;
+    }
+    let next = await this.nextColorIndex();
+    for (const category of missing) {
+      await this.prisma.category.update({
+        where: { id: category.id },
+        data: { colorIndex: next },
+      });
+      next = (next + 1) % CATEGORY_COLOR_COUNT;
+    }
+    this.logger.log(`Assigned colours to ${String(missing.length)} categories without one`);
+  }
+
+  /**
+   * The colour a new category gets: the next one round the palette, counted over the
+   * categories that already have one. Deleting one does not reshuffle the others.
+   */
+  async nextColorIndex(): Promise<number> {
+    const coloured = await this.prisma.category.count({ where: { colorIndex: { not: null } } });
+    return coloured % CATEGORY_COLOR_COUNT;
+  }
+
   async list(): Promise<CategoryPayload[]> {
     const categories = await this.prisma.category.findMany({ orderBy: { name: 'asc' } });
-    return categories.map((category) => ({ id: category.id, name: category.name }));
+    return categories.map(toPayload);
   }
 
   async create(name: unknown): Promise<CategoryPayload> {
@@ -37,8 +96,10 @@ export class CategoryService {
     await this.assertNameFree('create', trimmed);
 
     try {
-      const created = await this.prisma.category.create({ data: { name: trimmed } });
-      return { id: created.id, name: created.name };
+      const created = await this.prisma.category.create({
+        data: { name: trimmed, colorIndex: await this.nextColorIndex() },
+      });
+      return toPayload(created);
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
         throw new ConflictException(`A category named ${trimmed} already exists`);
@@ -47,23 +108,41 @@ export class CategoryService {
     }
   }
 
-  async rename(categoryId: string, name: unknown): Promise<CategoryPayload> {
-    const trimmed = typeof name === 'string' ? name.trim() : '';
-    if (trimmed === '') {
-      throw new BadRequestException('name is required');
+  /**
+   * A rename, a recolour, or both. Each field present is validated; an absent one keeps
+   * what is stored.
+   */
+  async update(categoryId: string, body: CategoryUpdate): Promise<CategoryPayload> {
+    const data: { name?: string; colorIndex?: number } = {};
+
+    if (body.name !== undefined) {
+      const trimmed = typeof body.name === 'string' ? body.name.trim() : '';
+      if (trimmed === '') {
+        throw new BadRequestException('name is required');
+      }
+      data.name = trimmed;
     }
+    if (body.colorIndex !== undefined) {
+      if (!isColorIndex(body.colorIndex)) {
+        throw new BadRequestException({ code: 'CATEGORY_COLOR_INVALID' });
+      }
+      data.colorIndex = body.colorIndex;
+    }
+    if (data.name === undefined && data.colorIndex === undefined) {
+      throw new BadRequestException('name or colorIndex is required');
+    }
+
     await this.requireCategory(categoryId);
-    await this.assertNameFree('rename', trimmed, categoryId);
+    if (data.name !== undefined) {
+      await this.assertNameFree('rename', data.name, categoryId);
+    }
 
     try {
-      const renamed = await this.prisma.category.update({
-        where: { id: categoryId },
-        data: { name: trimmed },
-      });
-      return { id: renamed.id, name: renamed.name };
+      const updated = await this.prisma.category.update({ where: { id: categoryId }, data });
+      return toPayload(updated);
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
-        throw new ConflictException(`A category named ${trimmed} already exists`);
+        throw new ConflictException(`A category named ${data.name ?? ''} already exists`);
       }
       throw error;
     }

@@ -3,6 +3,7 @@ import {
   CsvFileError,
   dedupKeyInput,
   fingerprintInput,
+  ImportBatchPayload,
   ImportSummary,
   RowError,
   Transaction as ParsedTransaction,
@@ -117,6 +118,33 @@ export class ImportService {
     private readonly accounts: AccountService,
     private readonly rules: RuleService,
   ) {}
+
+  /** The most recent this many uploads are listed; older ones stay stored, unlisted. */
+  static readonly HISTORY_LIMIT = 200;
+
+  /**
+   * Every upload, newest first, across every account — the answer to "did I import August
+   * already?". A batch that brought no new rows is listed too: that is exactly the one
+   * worth seeing.
+   */
+  async listBatches(): Promise<ImportBatchPayload[]> {
+    const batches = await this.prisma.importBatch.findMany({
+      orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
+      take: ImportService.HISTORY_LIMIT,
+    });
+    return batches.map((batch) => ({
+      id: batch.id,
+      accountId: batch.accountId,
+      fileName: batch.fileName,
+      encoding: batch.encoding === 'utf-8' ? 'utf-8' : 'windows-1252',
+      importedAt: batch.importedAt.toISOString(),
+      rowsParsed: batch.rowsParsed,
+      rowsImported: batch.rowsImported,
+      rowsSkipped: batch.rowsSkipped,
+      rowsRestored: batch.rowsRestored,
+      rowsFailed: batch.rowsFailed,
+    }));
+  }
 
   async importCsv(request: ImportRequest): Promise<ImportSummary> {
     const account = await this.accounts.requireAccount(request.accountId);

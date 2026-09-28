@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -100,16 +100,18 @@ describe('CategoryService', () => {
   it('lets a rename change only the case of its own name', async () => {
     const wohnen = await categories.create('wohnen');
 
-    const renamed = await categories.rename(wohnen.id, 'Wohnen');
+    const renamed = await categories.update(wohnen.id, { name: 'Wohnen' });
 
-    expect(renamed).toEqual({ id: wohnen.id, name: 'Wohnen' });
+    expect(renamed).toEqual({ id: wohnen.id, name: 'Wohnen', colorIndex: wohnen.colorIndex });
   });
 
   it('refuses a rename onto another category under a different case', async () => {
     await categories.create('wohnen');
     const doctor = await categories.create('doctor');
 
-    await expect(categories.rename(doctor.id, 'WOHNEN')).rejects.toBeInstanceOf(ConflictException);
+    await expect(categories.update(doctor.id, { name: 'WOHNEN' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('leaves case duplicates stored before the check alone, and refuses a third', async () => {
@@ -193,9 +195,61 @@ describe('CategoryService', () => {
   it('renames a category', async () => {
     const created = await categories.create('Wohnnen');
 
-    const renamed = await categories.rename(created.id, 'Wohnen');
+    const renamed = await categories.update(created.id, { name: 'Wohnen' });
 
-    expect(renamed).toEqual({ id: created.id, name: 'Wohnen' });
+    expect(renamed).toEqual({ id: created.id, name: 'Wohnen', colorIndex: created.colorIndex });
+  });
+
+  it('gives each new category the next colour round the palette', async () => {
+    const made = [];
+    for (let index = 0; index < 9; index += 1) {
+      made.push(await categories.create(`Kategorie ${String(index)}`));
+    }
+
+    expect(made.map((category) => category.colorIndex)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 0]);
+  });
+
+  it('recolours a category and keeps its name', async () => {
+    const wohnen = await categories.create('Wohnen');
+
+    const recoloured = await categories.update(wohnen.id, { colorIndex: 5 });
+
+    expect(recoloured).toEqual({ id: wohnen.id, name: 'Wohnen', colorIndex: 5 });
+    expect(await categories.list()).toEqual([recoloured]);
+  });
+
+  it.each([8, -1, 1.5, '2', null])('refuses colorIndex %s', async (colorIndex) => {
+    const wohnen = await categories.create('Wohnen');
+
+    await expect(categories.update(wohnen.id, { colorIndex })).rejects.toMatchObject({
+      response: { code: 'CATEGORY_COLOR_INVALID' },
+    });
+  });
+
+  it('refuses an update that changes nothing', async () => {
+    const wohnen = await categories.create('Wohnen');
+
+    await expect(categories.update(wohnen.id, {})).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('colours categories stored without one, in creation order, once', async () => {
+    const first = await prisma.category.create({
+      data: { name: 'Alt', createdAt: new Date('2025-01-01T00:00:00Z') },
+    });
+    const second = await prisma.category.create({
+      data: { name: 'Älter', createdAt: new Date('2025-01-02T00:00:00Z') },
+    });
+    const coloured = await categories.create('Neu');
+
+    await categories.onModuleInit();
+    const once = await categories.list();
+    await categories.onModuleInit();
+
+    const colorOf = (id: string) => once.find((category) => category.id === id)?.colorIndex;
+    expect(coloured.colorIndex).toBe(0);
+    expect(colorOf(first.id)).toBe(1);
+    expect(colorOf(second.id)).toBe(2);
+    expect(await categories.list()).toEqual(once);
   });
 
   it('404s on an unknown category', async () => {

@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { describeBudgetError } from '../locales/sentences';
+import { StatusIcon } from '../ui/StatusIcon';
 
 interface BudgetFieldProps {
   /** The limit as stored, or `null` when this month has none for the category. */
@@ -172,7 +173,7 @@ export function BudgetField({
                     onClear();
                   }}
                 >
-                  ✕
+                  <StatusIcon kind="clear" />
                 </IconButton>
               </InputAdornment>
             ),

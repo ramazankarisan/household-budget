@@ -4,6 +4,7 @@ import {
   type BudgetPayload,
   type CategoryPayload,
   type DeletedRulePayload,
+  type ImportBatchPayload,
   type ImportSummary,
   type RuleInput,
   type RulePayload,
@@ -123,6 +124,11 @@ export function listTransactions(
   );
 }
 
+/** Every upload, newest first, across every account. */
+export function listImports(signal?: AbortSignal): Promise<ImportBatchPayload[]> {
+  return request<ImportBatchPayload[]>('/imports', signal === undefined ? {} : { signal });
+}
+
 /** Multipart, because the API decodes the bytes — the browser must not guess an encoding. */
 export function uploadImport(accountId: string, file: File): Promise<ImportSummary> {
   const form = new FormData();
@@ -156,6 +162,17 @@ export function createCategory(name: string): Promise<CategoryPayload> {
   return request<CategoryPayload>('/categories', json('POST', { name }));
 }
 
+/** A rename, a recolour, or both. `CATEGORY_COLOR_INVALID` for an index outside 0–7. */
+export function updateCategory(
+  categoryId: string,
+  update: { readonly name?: string; readonly colorIndex?: number },
+): Promise<CategoryPayload> {
+  return request<CategoryPayload>(
+    `/categories/${encodeURIComponent(categoryId)}`,
+    json('PATCH', update),
+  );
+}
+
 /** 409 while any rule, transaction or budget still points at it — see `CATEGORY_IN_USE`. */
 export function deleteCategory(categoryId: string): Promise<void> {
   return remove(`/categories/${encodeURIComponent(categoryId)}`);
@@ -165,13 +182,23 @@ export function listRules(signal?: AbortSignal): Promise<RulePayload[]> {
   return request<RulePayload[]>('/rules', signal === undefined ? {} : { signal });
 }
 
-export function createRule(input: RuleInput): Promise<RulePayload> {
+/** Without a `priority` the API appends the rule after every rule there is. */
+export function createRule(input: RuleInput | Omit<RuleInput, 'priority'>): Promise<RulePayload> {
   return request<RulePayload>('/rules', json('POST', input));
 }
 
 /** A whole rule, not a partial one: every field is on the form. */
 export function updateRule(ruleId: string, input: RuleInput): Promise<RulePayload> {
   return request<RulePayload>(`/rules/${encodeURIComponent(ruleId)}`, json('PATCH', input));
+}
+
+/**
+ * The whole order, first to last: the API renumbers every rule 10, 20, 30 … in one go and
+ * answers with the list in its new order. `RULE_ORDER_STALE` when the ids are not exactly
+ * the stored rules — another tab added or deleted one.
+ */
+export function reorderRules(ids: readonly string[]): Promise<RulePayload[]> {
+  return request<RulePayload[]>('/rules/order', json('PUT', { ids }));
 }
 
 /** Answers with the rule as it stood, which is what {@link restoreRule} takes back. */

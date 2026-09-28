@@ -626,6 +626,12 @@ Dependencies: Phase 4.
 - [ ] Import a second export and confirm the summary reports a categorized count and the new rows
       arrive already categorized.
 
+## Later changes
+
+- 2026-09-28, [plan 08](08-ui-redesign.md): a rule created without a `priority` is appended —
+  `max(priority) + 10`, or 100 for the first rule — instead of taking the parser's default of
+  100, so a new rule never lands in the middle of the order unseen.
+
 ## References
 
 - [`docs/research/02-categorization-rules.md`](../research/02-categorization-rules.md) — every
@@ -643,3 +649,6 @@ Dependencies: Phase 4.
 - `apps/web/src/pages/ImportPanel.tsx:19-23` — the discriminated-union panel state
 - `.dependency-cruiser.cjs:13-31,49` — why the matcher cannot import Prisma, type-only included
 - `CLAUDE.md` — RULES: core framework-free, never commit real bank data, `pnpm check` before done
+- 2026-09-28, [plan 08](08-ui-redesign.md): priority is no longer typed. The rules page shows the
+  order, and `PUT /api/rules/order` renumbers every rule 10, 20, 30 … in one transaction when
+  it changes (drag, ↑/↓, `Alt+↑`/`Alt+↓`). A restored rule keeps the priority it had.

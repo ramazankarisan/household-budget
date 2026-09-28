@@ -8,19 +8,22 @@ import { expect, test } from '@playwright/test';
  * exactly the class of break unit tests cannot see.
  */
 test('the page loads and reaches the API', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/transactions');
 
-  await expect(page.getByRole('heading', { name: 'Household Budget' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Umsätze' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByText('Haushaltsbuch')).toBeVisible();
 
   /*
-   * Either the create-account form or the import panel renders, and neither appears
-   * until GET /api/accounts came back — which of the two depends on whether the import
-   * spec has already run. The error alert is what renders if the request failed.
+   * Either the way to a first account or the list renders, and neither appears until
+   * GET /api/accounts came back — which of the two depends on whether the import spec has
+   * already run. The error alert is what renders if the request failed.
    */
+  const main = page.getByRole('main');
   await expect(
-    page
-      .getByRole('heading', { name: 'Konto anlegen' })
-      .or(page.getByRole('heading', { name: 'CSV importieren' })),
+    main
+      .getByRole('button', { name: 'Konto anlegen' })
+      .or(main.getByRole('combobox', { name: 'Kategorie filtern' }))
+      .or(main.getByText(/^Noch keine Umsätze/u)),
   ).toBeVisible();
   await expect(page.getByRole('alert')).toBeHidden();
 });

@@ -24,9 +24,14 @@ Both apps depend on `@household-budget/core` as `workspace:*` and import its **b
 `TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract between API
 responses and the UI that renders them.
 
-Status: import → categorize → report works end to end. The list can be narrowed by month,
-category and free text, and `/budgets` shows one month's spending per category against a
-limit.
+Status: import → categorize → report works end to end. Every page sits in one app shell
+([DESIGN.md](DESIGN.md)); the month is `?m=` in the URL. `/` (Überblick) answers the month —
+spending against limits per category, what is still uncategorized, a six-month trend;
+`/transactions` is the ledger of every account, narrowed by account, category and free text,
+and where uncategorized rows are categorized (`/inbox` redirects to its „Ohne Kategorie“
+filter); `/rules` shows rules as sentences in the order they are tried; `/imports` lists every
+upload. Import happens in a dialog from any page, or by dropping a file on the window. All
+pages read one household copy of the data (`apps/web/src/household/`).
 
 `POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
 (UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
@@ -43,6 +48,8 @@ by hand sets `Transaction.categoryLockedAt` and is never touched again until it 
 An import categorizes the rows it inserts inside its own transaction.
 
 Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
+[DESIGN.md](DESIGN.md) — the UI rulebook (tokens, layout, components, states); read it before
+touching `apps/web`.
 [docs/research/01-csv-import.md](docs/research/01-csv-import.md) is the authority on the CSV
 format. `docs/plans/` holds one plan per feature: the decisions behind it and, where the build
 departed from them, what changed and why. Before changing a feature, read its plan — the code
@@ -56,17 +63,23 @@ Each is deliberate; the link is the reason. Do not undo one without reading it.
   folds case for ASCII only, so `LIKE '%müller%'` misses `MÜLLER GmbH`.
   [research 02 §3](docs/research/02-categorization-rules.md),
   [03 §6](docs/research/03-transactions-list.md)
-- The transactions list filters in the browser (`apps/web/src/filter.ts`) — no query
-  parameter, no endpoint. [research 03 §9](docs/research/03-transactions-list.md)
-- The uncategorized count describes the whole account, not the filtered view.
+- The transactions list filters in the browser (`apps/web/src/filter.ts`) — no server query,
+  no endpoint; URL search params (`?m`, `?c`, `?a`) hold view state only.
+  [research 03 §9](docs/research/03-transactions-list.md), [plan 08](docs/plans/08-ui-redesign.md)
+- „Ohne Kategorie“ is counted by one function, `uncategorizedRows` — booked rows, in or
+  out, with no category — over the chosen accounts (all of them unless one is picked) and
+  the chosen month, never the search or category filter. The nav badge counts every month.
+  Vorgemerkt rows are not counted, and the „Ohne Kategorie“ filter does not show them: they
+  cannot be categorized until they book, so the chip opens exactly the rows it counts.
 - Budgets are one limit per category per month, household-wide, measured against every
-  account — `/budgets` has no account picker.
+  account — Überblick has no account picker; `/budgets` redirects to it.
 - `monthlyReport` (core) counts money out only, keeps booked and vorgemerkt apart, and gives
   every category a row; the uncategorized bucket is `null` and never has a limit.
   [research 04 §4](docs/research/04-monthly-budgets.md)
 - UI text lives in `apps/web/src/locales/{de,en}.ts` and nowhere else; `en` is typed against
-  `de`, so a missing translation fails typecheck. Amounts and dates are `de-DE` in both
-  languages. [plan 07](docs/plans/07-language-and-theme-switch.md)
+  `de`, so a missing translation fails typecheck. Amounts and numeric dates (`22.09.2025`) are
+  `de-DE` in both languages; spelled-out month and weekday names are words and follow the
+  language (`formatMonth`, the ledger's day headings). [plan 07](docs/plans/07-language-and-theme-switch.md)
 
 ## HOW
 

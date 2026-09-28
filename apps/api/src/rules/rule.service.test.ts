@@ -69,6 +69,76 @@ describe('RuleService', () => {
     });
   });
 
+  it('appends a rule created without a priority after every rule there is', async () => {
+    const wohnen = await categories.create('Wohnen');
+    const base = { field: 'counterpartyName', operator: 'contains', categoryId: wohnen.id };
+    await rules.create({ ...base, value: 'a', priority: 10 });
+    await rules.create({ ...base, value: 'b', priority: 30 });
+
+    const appended = await rules.create({ ...base, value: 'c' });
+
+    expect(appended.priority).toBe(40);
+    expect((await rules.list()).map((rule) => rule.value)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('gives the very first rule the default priority', async () => {
+    const wohnen = await categories.create('Wohnen');
+
+    const first = await rules.create({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'a',
+      categoryId: wohnen.id,
+    });
+
+    expect(first.priority).toBe(100);
+  });
+
+  describe('reorder', () => {
+    async function three() {
+      const wohnen = await categories.create('Wohnen');
+      const base = { field: 'counterpartyName', operator: 'contains', categoryId: wohnen.id };
+      const a = await rules.create({ ...base, value: 'a', priority: 100 });
+      const b = await rules.create({ ...base, value: 'b', priority: 100 });
+      const c = await rules.create({ ...base, value: 'c', priority: 5 });
+      return [a, b, c] as const;
+    }
+
+    it('renumbers every rule 10, 20, 30 in the order given', async () => {
+      const [a, b, c] = await three();
+
+      const ordered = await rules.reorder({ ids: [b.id, a.id, c.id] });
+
+      expect(ordered.map((rule) => [rule.value, rule.priority])).toEqual([
+        ['b', 10],
+        ['a', 20],
+        ['c', 30],
+      ]);
+      expect((await rules.list()).map((rule) => rule.value)).toEqual(['b', 'a', 'c']);
+    });
+
+    it('refuses an order that leaves a rule out, or names one that is gone', async () => {
+      const [a, b] = await three();
+
+      await expect(rules.reorder({ ids: [a.id, b.id] })).rejects.toMatchObject({
+        response: { code: 'RULE_ORDER_STALE' },
+      });
+      await expect(rules.reorder({ ids: [a.id, b.id, 'gone'] })).rejects.toMatchObject({
+        response: { code: 'RULE_ORDER_STALE' },
+      });
+    });
+
+    it('refuses a body that is not an order at all', async () => {
+      const [a] = await three();
+
+      for (const body of [null, {}, { ids: 'a' }, { ids: [a.id, a.id, a.id] }, { ids: [1] }]) {
+        await expect(rules.reorder(body)).rejects.toMatchObject({
+          response: { code: 'RULE_ORDER_INVALID' },
+        });
+      }
+    });
+  });
+
   it('rejects an empty keyword with the code the form marks a field by', async () => {
     const wohnen = await categories.create('Wohnen');
 

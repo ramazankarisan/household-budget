@@ -1,17 +1,11 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, type Page, test } from '@playwright/test';
 
-const FIXTURE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../fixtures/sparkasse-camt-18.csv',
-);
+import { withFixture } from './support';
 
 /**
- * `1.510,67 €` → 151067. The cents stay integers, the way the report keeps them. The
- * Gebucht column is money out as a positive figure, so there is no sign to read, and `\s`
- * already covers the U+00A0 between the amount and the €.
+ * The first amount in `text`, `1.510,67 €` → 151067. The cents stay integers, the way the
+ * report keeps them. A row's first figure is its booked money out as a positive amount, so
+ * there is no sign to read, and `\s` covers the U+00A0 between the amount and the €.
  */
 function centsOf(text: string): number {
   const match = /([\d.]+),(\d{2})\s€/u.exec(text);
@@ -24,7 +18,7 @@ function centsOf(text: string): number {
 
 /**
  * The fixture's totals on the dashboard: a file uploaded in the browser, then the month
- * headline on `/budgets` matched against sums worked out by hand from the CSV.
+ * headline on Überblick matched against sums worked out by hand from the CSV.
  *
  * September 2025, money out only: 832,90 + 2 × 42,17 + 1.150,00 + 128,50 + 190,00 =
  * 2.385,74 € booked, plus the 19,00 € vorgemerkt row kept apart. The 2.450,00 € salary is
@@ -38,10 +32,9 @@ function centsOf(text: string): number {
  */
 test.describe.serial('monthly totals', () => {
   test.beforeEach(async ({ page }) => {
-    await importFixture(page);
-    await page.getByRole('link', { name: 'Budgets' }).click();
-    // The list has a `Monat` select too: wait for this page's table before asking for one.
-    await expect(page.getByRole('columnheader', { name: 'Gebucht' })).toBeVisible();
+    await withFixture(page);
+    await page.getByRole('link', { name: 'Überblick' }).click();
+    await expect(page.getByRole('heading', { name: 'Budgets nach Kategorie' })).toBeVisible();
   });
 
   test('September 2025 adds up to what the fixture says', async ({ page }) => {
@@ -52,13 +45,13 @@ test.describe.serial('monthly totals', () => {
     await expect(headline).toHaveText(/19,00\s€ vorgemerkt$/u);
 
     // The rows are the headline split up: however the other specs categorized them, the
-    // Gebucht column still sums to the same figure. The headline above has already waited
-    // for this render.
+    // booked amount each row starts its figures with still sums to the same total. The
+    // headline above has already waited for this render.
     const booked = await page
-      .locator('tbody')
-      .getByRole('row')
-      .evaluateAll((rows) => rows.map((row) => row.children[1]?.textContent ?? ''));
-    expect(booked.reduce((sum, cell) => sum + centsOf(cell), 0)).toBe(238_574);
+      .getByRole('list', { name: 'Budgets nach Kategorie' })
+      .getByRole('listitem')
+      .allInnerTexts();
+    expect(booked.reduce((sum, text) => sum + centsOf(text), 0)).toBe(238_574);
   });
 
   test('March 2014 holds only the stray row', async ({ page }) => {
@@ -68,35 +61,9 @@ test.describe.serial('monthly totals', () => {
   });
 });
 
-/**
- * The account and the upload, each only when it is not already there — the other specs
- * share this database. A repeated upload is not a no-op: it replaces every pending row
- * with a fresh one, dropping any category set on it by hand, and restores booked rows the
- * user deleted. So the file goes up once, never on every test.
- */
-async function importFixture(page: Page): Promise<void> {
-  await page.goto('/');
-
-  const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
-  await expect(
-    createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
-  ).toBeVisible();
-
-  if (await createAccount.isVisible()) {
-    await page.getByLabel('IBAN').fill('DE89370400440532013000');
-    await page.getByLabel('Bezeichnung').fill('Giro');
-    await page.getByRole('button', { name: 'Anlegen' }).click();
-  }
-
-  if ((await page.getByRole('cell', { name: 'Müller GmbH' }).count()) === 0) {
-    await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
-    await expect(page.getByText(/importiert/)).toBeVisible();
-  }
-  await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toBeVisible();
-}
-
 async function chooseMonth(page: Page, name: string): Promise<void> {
-  await page.getByLabel('Monat').click();
-  await page.getByRole('option', { name }).click();
-  await expect(page.getByLabel('Monat')).toHaveText(name);
+  const stepper = page.getByRole('button', { name: /^Monat wählen/u });
+  await stepper.click();
+  await page.getByRole('menuitem', { name }).click();
+  await expect(stepper).toHaveText(name);
 }

@@ -1,15 +1,6 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { expect, type Page, test } from '@playwright/test';
 
-const FIXTURE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../fixtures/sparkasse-camt-18.csv',
-);
-
-/** `875,07 €` separates the amount from the € with U+00A0, not a space. */
-const plain = (text: string): string => text.replaceAll('\u00a0', ' ');
+import { categoryPill, ledgerRow, pickCategory, plain, withFixture, withWohnen } from './support';
 
 /**
  * The report end to end: rows imported and categorized through the real API, summed by
@@ -33,26 +24,29 @@ test.describe.serial('monthly budgets', () => {
   });
 
   test('September 2025 against a limit on Wohnen', async ({ page }) => {
-    await page.getByRole('link', { name: 'Budgets' }).click();
+    await page.getByRole('link', { name: 'Überblick' }).click();
 
-    await page.getByLabel('Monat').click();
-    await expect(page.getByRole('option', { name: 'März 2014' })).toBeVisible();
-    await page.getByRole('option', { name: 'September 2025' }).click();
+    await page.getByRole('button', { name: /^Monat wählen/u }).click();
+    await expect(page.getByRole('menuitem', { name: 'März 2014' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'September 2025' }).click();
 
-    const wohnen = page.getByRole('row').filter({ hasText: 'Wohnen' });
+    const rows = page.getByRole('list', { name: 'Budgets nach Kategorie' }).getByRole('listitem');
+    const wohnen = rows.filter({ hasText: 'Wohnen' });
     await expect(wohnen).toContainText('875,07');
 
+    await page.getByRole('button', { name: 'Budgets bearbeiten' }).click();
     const field = page.getByRole('textbox', { name: 'Budget Wohnen' });
     await field.fill('700');
     await field.press('Enter');
     await expect(field).toHaveValue('700,00');
+    await page.getByRole('button', { name: 'Fertig' }).click();
 
     // The word, not the colour: that is what reaches someone who cannot see the red.
-    await expect(wohnen).toHaveAccessibleName(/175,07\s€ über/);
+    await expect(page.getByRole('img', { name: /^Wohnen: .*175,07\s€ über$/u })).toBeVisible();
     expect(plain(await wohnen.innerText())).toContain('175,07 € über');
 
-    // The salary sits in this bucket and changes none of it.
-    const uncategorized = page.getByRole('row').filter({ hasText: 'Ohne Kategorie' });
+    // The salary is money in and changes none of the bucket.
+    const uncategorized = rows.filter({ hasText: 'Ohne Kategorie' });
     expect(plain(await uncategorized.innerText())).toContain('1.510,67 €');
     expect(plain(await uncategorized.innerText())).toContain('19,00 €');
     await expect(uncategorized.getByRole('textbox')).toHaveCount(0);
@@ -61,88 +55,66 @@ test.describe.serial('monthly budgets', () => {
       /^2\.385,74\s€ von 700,00\s€ · 1\.685,74\s€ über/,
     );
 
-    // The month drawn once, from the same report: present because September has spending.
-    const chart = page.getByRole('figure', { name: 'Ausgaben nach Kategorie' });
-    await expect(chart).toBeVisible();
-    await expect(chart.locator('rect.MuiBarChart-element').first()).toBeVisible();
+    // The trend reads the same months, and draws the limit as a line.
+    await expect(page.getByRole('figure', { name: 'Verlauf' })).toBeVisible();
 
     // The limit is stored, not only drawn: a reload reads it back from the API.
     await page.reload();
-    await expect(page.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
+    await expect(page.getByRole('img', { name: /^Wohnen: .*von 700,00\s€/u })).toBeVisible();
   });
 
-  test('the uncategorized row opens exactly the rows it summed', async ({ page }) => {
-    await page.getByRole('link', { name: 'Budgets' }).click();
+  test('„Ohne Kategorie“ leads to the list of those rows, on the same month', async ({ page }) => {
+    await page.getByRole('link', { name: 'Überblick' }).click();
 
     await page
-      .getByRole('row')
+      .getByRole('list', { name: 'Budgets nach Kategorie' })
+      .getByRole('listitem')
       .filter({ hasText: 'Ohne Kategorie' })
-      .getByRole('button', { name: 'Ohne Kategorie' })
+      .getByRole('link', { name: 'Anzeigen' })
       .click();
 
-    await expect(page).toHaveURL(/\/$/u);
-    await expect(page.getByLabel('Monat')).toHaveText('September 2025');
-    await expect(page.getByRole('cell', { name: 'Hausverwaltung Süd GmbH' })).toBeVisible();
-    // Another month, and a categorized row of this one: neither is in the bucket.
-    await expect(page.getByRole('cell', { name: 'Versicherung Nord AG' })).toHaveCount(0);
-    await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/transactions\?m=2025-09&c=uncategorized$/u);
+    await expect(page.getByRole('heading', { level: 1, name: 'Umsätze' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Monat wählen/u })).toHaveText('September 2025');
+    // March 2014's stray row is another month: never on screen here.
+    const rows = page.getByRole('main').getByRole('listitem');
+    await expect(rows.first()).toBeVisible();
+    await expect(rows.filter({ hasText: 'Versicherung Nord AG' })).toHaveCount(0);
+    await expect(rows.filter({ hasNotText: 'Ohne Kategorie' })).toHaveCount(0);
   });
 });
 
 /** The account, the fixture, `Wohnen`, the `müller` rule applied, and one REWE row by hand. */
 async function seed(page: Page): Promise<void> {
-  await page.goto('/');
+  await withFixture(page);
 
-  const createAccount = page.getByRole('heading', { name: 'Konto anlegen' });
-  await expect(
-    createAccount.or(page.getByRole('heading', { name: 'CSV importieren' })),
-  ).toBeVisible();
+  // Read off the row's pill rather than a menu: it names the category it shows.
+  const muellerRow = ledgerRow(page, 'Müller GmbH');
+  if ((await categoryPill(muellerRow).innerText()).trim() !== 'Wohnen') {
+    await withWohnen(page);
 
-  if (await createAccount.isVisible()) {
-    await page.getByLabel('IBAN').fill('DE89370400440532013000');
-    await page.getByLabel('Bezeichnung').fill('Giro');
-    await page.getByRole('button', { name: 'Anlegen' }).click();
-  }
-
-  if ((await page.getByRole('cell', { name: 'Müller GmbH' }).count()) === 0) {
-    await page.getByLabel('CSV-Datei auswählen').setInputFiles(FIXTURE);
-    await expect(page.getByText(/importiert/)).toBeVisible();
-  }
-  await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toBeVisible();
-
-  // Read off the row's text rather than its select: until a category exists, the cell is
-  // read-only text and there is no combobox to ask.
-  const muellerRow = page.getByRole('row').filter({ hasText: 'Müller GmbH' });
-  if ((await muellerRow.filter({ hasText: 'Wohnen' }).count()) === 0) {
-    await page.getByRole('link', { name: 'Regeln' }).click();
-    await expect(page.getByRole('heading', { name: 'Kategorien' })).toBeVisible();
-
-    const wohnen = page.getByText('Wohnen', { exact: true });
-    if (!(await wohnen.first().isVisible())) {
-      await page.getByLabel('Name').fill('Wohnen');
-      await page.getByRole('button', { name: 'Kategorie anlegen' }).click();
-    }
-    await expect(wohnen.first()).toBeVisible();
-
-    const keyword = page.getByRole('cell', { name: 'müller', exact: true });
+    const keyword = page
+      .getByRole('list', { name: 'Regeln' })
+      .getByText('„müller“', { exact: true });
     if ((await keyword.count()) === 0) {
-      await page.getByRole('button', { name: 'Regel anlegen' }).click();
-      await page.getByLabel('Suchbegriff').fill('müller');
-      await page.getByRole('button', { name: 'Speichern' }).click();
+      const composer = page.getByRole('region', { name: 'Neue Regel' });
+      await composer.getByLabel('Suchbegriff').fill('müller');
+      await composer.getByRole('combobox', { name: 'Kategorie' }).click();
+      await page.getByRole('option', { name: 'Wohnen' }).click();
+      await composer.getByRole('button', { name: 'Regel anlegen' }).click();
     }
     await expect(keyword).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Regeln anwenden' }).click();
     await expect(page.getByText(/zugeordnet/)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Umsätze' }).click();
-    await expect(muellerRow.getByRole('combobox')).toHaveText('Wohnen');
+    await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
+    await expect(categoryPill(muellerRow)).toHaveText('Wohnen');
   }
 
-  const reweRow = page.getByRole('row').filter({ hasText: 'REWE SAGT DANKE; FILIALE 42' }).first();
-  if ((await reweRow.filter({ hasText: 'Wohnen' }).count()) === 0) {
-    await reweRow.getByRole('combobox').click();
-    await page.getByRole('option', { name: 'Wohnen' }).click();
+  const reweRow = ledgerRow(page, 'REWE SAGT DANKE; FILIALE 42').first();
+  if ((await categoryPill(reweRow).innerText()).trim() !== 'Wohnen') {
+    await pickCategory(page, reweRow, 'Wohnen');
   }
   await expect(reweRow.getByLabel('von Hand gesetzt — Regeln ändern das nicht')).toBeVisible();
 }

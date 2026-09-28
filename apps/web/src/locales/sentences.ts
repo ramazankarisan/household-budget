@@ -168,6 +168,53 @@ export function describeRemaining(t: TFunction, remainingCents: number | null): 
   return remainingCents < 0 ? describeOverBy(t, -remainingCents) : describeLeft(t, remainingCents);
 }
 
+/**
+ * A category's bar, said out loud: `Wohnen: 875,07 € von 700,00 €, 175,07 € über`. The
+ * spent part is booked and vorgemerkt together — what the limit is measured against.
+ */
+export function describeBudgetBar(
+  t: TFunction,
+  name: string,
+  entry: {
+    readonly bookedCents: number;
+    readonly pendingCents: number;
+    readonly budgetCents: number | null;
+    readonly remainingCents: number | null;
+  },
+): string {
+  return t('overview.barLabel', {
+    name,
+    spent: formatAmount(entry.bookedCents + entry.pendingCents),
+    limit: entry.budgetCents === null ? '—' : formatAmount(entry.budgetCents),
+    remaining: describeRemaining(t, entry.remainingCents),
+  });
+}
+
+/**
+ * What a proposed rule would reach: `trifft 5 · 4 ohne Kategorie · 1 von Hand gesetzt,
+ * bleiben`. The last two parts only when they are not zero — a clause about nothing is noise.
+ */
+export function describeRulePreview(
+  t: TFunction,
+  preview: {
+    readonly matches: number;
+    readonly uncategorized: number;
+    readonly locked: number;
+    readonly claimedEarlier: number;
+  },
+): string {
+  const parts = [
+    t('rulePreview.preview', { matches: preview.matches, uncategorized: preview.uncategorized }),
+  ];
+  if (preview.locked > 0) {
+    parts.push(t('rulePreview.previewLocked', { count: preview.locked }));
+  }
+  if (preview.claimedEarlier > 0) {
+    parts.push(t('rulePreview.previewClaimed', { count: preview.claimedEarlier }));
+  }
+  return parts.join(' · ');
+}
+
 export interface MonthTotalOptions {
   /**
    * The month's limits have not arrived yet. The spending is known — the rows are already

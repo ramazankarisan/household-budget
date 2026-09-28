@@ -641,6 +641,14 @@ editing, the highlighting and the month total, with no new dependency yet.
   dev-only reselect warnings from inside `@mui/x-charts` appear when the tooltip opens; they are
   the library's and are absent from a production build.
 
+## Later changes
+
+- 2026-09-28, [plan 08](08-ui-redesign.md): `/budgets` redirects to Überblick (`/`). The table and
+  the grouped bar chart are replaced by one `BudgetBar` row per category and a six-month trend
+  with the limit as a line; limits are edited in „Budgets bearbeiten“. The arithmetic and every
+  decision above are unchanged: `monthlyReport` still reads booked and vorgemerkt apart, and a
+  row is „über“ on both together.
+
 ## References
 
 - [docs/research/04-monthly-budgets.md](../research/04-monthly-budgets.md) — §2 integer cents, §4

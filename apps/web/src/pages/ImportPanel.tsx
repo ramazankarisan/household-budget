@@ -6,7 +6,7 @@ import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { uploadImport } from '../api/client';
@@ -15,6 +15,8 @@ import { describeImportFailure, describeRowError } from '../locales/sentences';
 interface ImportPanelProps {
   readonly accountId: string;
   readonly onImported: () => void;
+  /** A file dropped before the panel existed: uploaded once, as soon as it mounts. */
+  readonly initialFile?: File | undefined;
 }
 
 type PanelState =
@@ -24,21 +26,19 @@ type PanelState =
   // The cause, not its sentence: worded at render, so it follows a language switch.
   | { readonly status: 'error'; readonly cause: unknown };
 
-export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
+export function ImportPanel({ accountId, onImported, initialFile }: ImportPanelProps) {
   const { t } = useTranslation();
-  const [state, setState] = useState<PanelState>({ status: 'idle' });
+  const [state, setState] = useState<PanelState>(
+    initialFile === undefined ? { status: 'idle' } : { status: 'uploading' },
+  );
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
 
   const uploading = state.status === 'uploading';
 
-  function upload(file: File | undefined): void {
-    if (file === undefined || uploading) {
-      return;
-    }
-    setState({ status: 'uploading' });
-
+  /** The request and its outcome. Asynchronous only: safe to start from an effect. */
+  function send(file: File): void {
     uploadImport(accountId, file)
       .then((summary) => {
         setState({ status: 'done', summary });
@@ -48,6 +48,27 @@ export function ImportPanel({ accountId, onImported }: ImportPanelProps) {
         setState({ status: 'error', cause: error });
       });
   }
+
+  function upload(file: File | undefined): void {
+    if (file === undefined || uploading) {
+      return;
+    }
+    setState({ status: 'uploading' });
+    send(file);
+  }
+
+  // A dropped file goes up once, on mount — the state already says "uploading" for it. The
+  // ref keeps StrictMode's second effect run from sending it twice.
+  const sentInitial = useRef(false);
+  useEffect(() => {
+    if (initialFile === undefined || sentInitial.current) {
+      return;
+    }
+    sentInitial.current = true;
+    send(initialFile);
+    // Once, for the file the panel was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Stack spacing={2}>

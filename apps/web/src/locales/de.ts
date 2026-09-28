@@ -23,19 +23,48 @@ type CsvErrorCode =
 
 /** Coded refusals from the API that are not a form's field errors or an import's. */
 type ApiRefusalCode =
-  'TRANSACTION_PENDING' | 'RULE_EXISTS' | 'RULE_RESTORE_INVALID' | 'FORBIDDEN_ORIGIN';
+  | 'TRANSACTION_PENDING'
+  | 'RULE_EXISTS'
+  | 'RULE_RESTORE_INVALID'
+  | 'FORBIDDEN_ORIGIN'
+  | 'CATEGORY_COLOR_INVALID'
+  | 'RULE_ORDER_STALE'
+  | 'RULE_ORDER_INVALID';
 
 export const de = {
   common: {
-    appTitle: 'Household Budget',
+    appTitle: 'Haushaltsbuch',
+    loading: 'Wird geladen',
+    navLabel: 'Hauptnavigation',
     /** A pending row or amount — one word on every page, the ⏳ marker's name included. */
     pending: 'vorgemerkt',
     /** The uncategorized bucket, wherever it is named. */
     uncategorized: 'Ohne Kategorie',
     nav: {
+      overview: 'Überblick',
       transactions: 'Umsätze',
       rules: 'Regeln',
+      imports: 'Importe',
       budgets: 'Budgets',
+      more: 'Mehr',
+    },
+    pages: {
+      overview: 'Überblick',
+      transactions: 'Umsätze',
+      rules: 'Regeln',
+      imports: 'Importe',
+      budgets: 'Budgets',
+    },
+    accounts: {
+      title: 'Konten',
+      add: 'Konto anlegen',
+      none: 'Noch kein Konto. Legen Sie eines an, dann importieren Sie seinen CSV-Export.',
+    },
+    month: {
+      previous: 'Vorheriger Monat',
+      next: 'Nächster Monat',
+      choose: 'Monat wählen',
+      all: 'Alle Monate',
     },
     theme: {
       toDark: 'Dunkles Design',
@@ -57,6 +86,12 @@ export const de = {
     },
     import: {
       title: 'CSV importieren',
+      open: 'Importieren',
+      dialogTitle: 'CSV importieren',
+      account: 'Konto',
+      chooseAccountFor: 'In welches Konto gehört „{{name}}“?',
+      dropHere: 'Datei loslassen zum Importieren',
+      close: 'Schließen',
       uploading: 'Import läuft…',
       dropHint: 'Sparkasse-Export hierher ziehen oder klicken zum Auswählen',
       chooseFile: 'CSV-Datei auswählen',
@@ -69,6 +104,11 @@ export const de = {
     },
   },
   transactions: {
+    allAccounts: 'Alle Konten',
+    filterAccount: 'Konto filtern',
+    dayTotal: 'Ausgaben {{amount}}',
+    categoryOf: 'Kategorie: {{name}}',
+    income: 'Einnahme',
     month: 'Monat',
     allMonths: 'Alle Monate',
     /** The filter select's accessible name — deliberately not `columns.category`. */
@@ -92,6 +132,18 @@ export const de = {
     },
   },
   rules: {
+    newRule: 'Neue Regel',
+    orderHint: 'Die erste passende Regel gewinnt — ziehen oder verschieben ändert die Reihenfolge.',
+    moveUp: 'Nach oben',
+    moveDown: 'Nach unten',
+    dragHandle: 'Ziehen, um zu verschieben',
+    wins: 'gewinnt {{count}}',
+    inactive: 'inaktiv',
+    willBeRule: 'wird Regel {{position}}',
+    colorLabel: 'Farbe',
+    colorN: 'Farbe {{n}}',
+    changeColor: 'Farbe ändern',
+    rowCount: '{{count}} Umsätze',
     categoriesTitle: 'Kategorien',
     categoryName: 'Name',
     addCategory: 'Kategorie anlegen',
@@ -134,6 +186,57 @@ export const de = {
     ruleDeleted: 'Regel „{{label}}“ gelöscht',
     applySummary:
       '{{evaluated}} geprüft · {{assigned}} zugeordnet · {{cleared}} gelöscht · {{locked}} manuell',
+  },
+  imports: {
+    empty: 'Noch nichts importiert.',
+    counts:
+      '{{imported}} neu · {{skipped}} übersprungen · {{restored}} wiederhergestellt · {{failed}} fehlerhaft',
+    listLabel: 'Bisherige Importe',
+  },
+  categoryMenu: {
+    search: 'Kategorie suchen',
+    choose: 'Kategorie wählen',
+    createNamed: 'Neue Kategorie „{{name}}“',
+  },
+  rulePreview: {
+    ruleIf: 'Wenn',
+    preview: 'trifft {{matches}} · {{uncategorized}} ohne Kategorie',
+    previewLocked: '{{count}} von Hand gesetzt, bleiben',
+    previewClaimed: '{{count}} gewinnt schon eine frühere Regel',
+  },
+  overview: {
+    allAccounts: 'Alle Konten',
+    spentIn: 'Ausgegeben im {{month}}',
+    of: 'von',
+    budget: 'Budget',
+    today: 'Heute · Tag {{day}} von {{days}}',
+    spentShare: '{{percent}} % ausgegeben',
+    pendingNotCounted: '{{amount}} vorgemerkt, nicht mitgezählt',
+    faster: 'Schneller als der Monat',
+    byCategory: 'Budgets nach Kategorie',
+    sortedByUse: 'nach Auslastung sortiert',
+    edit: 'Budgets bearbeiten',
+    done: 'Fertig',
+    noBudget: 'kein Budget',
+    income: 'Einnahmen',
+    surplus: 'Überschuss, gebucht',
+    withoutPending: 'ohne vorgemerkt',
+    trend: 'Verlauf',
+    average: 'Ø {{amount}}',
+    limitLine: 'Budget {{amount}}',
+    topSpends: 'Größte Ausgaben',
+    toSort: 'Ohne Kategorie: {{count}}',
+    toSortMonth: 'im {{month}}',
+    toSortMonthOfTotal: 'im {{month}} · {{total}} insgesamt',
+    monthSorted: '{{month}}: alles kategorisiert',
+    toSortElsewhere: 'noch {{count}} in anderen Monaten',
+    allSorted: 'Alles kategorisiert',
+    uncategorizedSpend: 'Ausgaben ohne Kategorie',
+    showUncategorized: 'Anzeigen',
+    legendBooked: 'gebucht',
+    legendPending: 'vorgemerkt',
+    legendLimit: 'Budget',
+    barLabel: '{{name}}: {{spent}} von {{limit}}, {{remaining}}',
   },
   budgets: {
     columns: {
@@ -189,6 +292,9 @@ export const de = {
       RULE_EXISTS: 'Diese Regel gibt es bereits.',
       RULE_RESTORE_INVALID: 'Diese Regel lässt sich nicht wiederherstellen.',
       FORBIDDEN_ORIGIN: 'Anfrage abgelehnt: sie kam nicht von dieser Seite.',
+      CATEGORY_COLOR_INVALID: 'Diese Farbe gibt es nicht.',
+      RULE_ORDER_STALE: 'Die Regeln haben sich inzwischen geändert — die Liste ist neu geladen.',
+      RULE_ORDER_INVALID: 'Diese Reihenfolge ist ungültig.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */
     unknownApi: 'Anfrage abgelehnt ({{code}})',

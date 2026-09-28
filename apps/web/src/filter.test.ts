@@ -4,14 +4,13 @@ import { describe, expect, it } from 'vitest';
 import {
   filterTransactions,
   hasFilters,
-  listEntryOf,
   monthOf,
   monthsOf,
   NO_FILTERS,
   searchableOf,
   type TransactionFilterState,
   UNCATEGORIZED,
-  uncategorizedCount,
+  uncategorizedRows,
 } from './filter';
 
 function transaction(overrides: Partial<TransactionPayload> = {}): TransactionPayload {
@@ -33,12 +32,15 @@ function transaction(overrides: Partial<TransactionPayload> = {}): TransactionPa
   };
 }
 
-/** The filter's whole input is the pairs, so every case goes through `searchableOf`. */
+/**
+ * The filter's whole input is the pairs, so every case goes through `searchableOf`. The
+ * month travels beside the filters (it is the URL's, not the toolbar's); `''` is every one.
+ */
 function visible(
   transactions: readonly TransactionPayload[],
-  filters: Partial<TransactionFilterState> = {},
+  { month = '', ...filters }: Partial<TransactionFilterState> & { readonly month?: string } = {},
 ): readonly string[] {
-  return filterTransactions(searchableOf(transactions), { ...NO_FILTERS, ...filters }).map(
+  return filterTransactions(searchableOf(transactions), { ...NO_FILTERS, ...filters }, month).map(
     (row) => row.id,
   );
 }
@@ -70,6 +72,10 @@ describe('filterTransactions, by month', () => {
     expect(visible([SEPTEMBER, OCTOBER, OLD], { month: '2025-09' })).toEqual(['sep']);
   });
 
+  it('keeps every row for "all"', () => {
+    expect(visible([SEPTEMBER, OCTOBER, OLD], { month: 'all' })).toEqual(['sep', 'oct', 'old']);
+  });
+
   it('keeps every row when no month is chosen', () => {
     expect(visible([SEPTEMBER, OCTOBER, OLD])).toEqual(['sep', 'oct', 'old']);
   });
@@ -93,11 +99,8 @@ describe('filterTransactions, by category', () => {
     expect(visible([wohnen, other, none], { categoryId: 'cat-wohnen' })).toEqual(['wohnen']);
   });
 
-  it('shows pending rows under Ohne Kategorie, because they are on screen either way', () => {
-    expect(visible([wohnen, none, pendingNone], { categoryId: UNCATEGORIZED })).toEqual([
-      'none',
-      'pending',
-    ]);
+  it('shows under Ohne Kategorie exactly the rows the chip counts: vorgemerkt waits', () => {
+    expect(visible([wohnen, none, pendingNone], { categoryId: UNCATEGORIZED })).toEqual(['none']);
   });
 
   it('never mistakes the uncategorized marker for a category id', () => {
@@ -125,20 +128,32 @@ describe('filterTransactions, combined', () => {
   });
 });
 
-describe('uncategorizedCount', () => {
-  it('counts every live row with no category, pending included', () => {
+describe('uncategorizedRows', () => {
+  const ids = (rows: readonly TransactionPayload[]) => rows.map((row) => row.id);
+
+  it('counts booked rows with no category, money in as well as out', () => {
     expect(
-      uncategorizedCount([
-        transaction({ id: 'a', categoryId: null }),
-        transaction({ id: 'b', status: 'pending', categoryId: null }),
-        transaction({ id: 'c', categoryId: 'cat-wohnen' }),
-      ]),
-    ).toBe(2);
+      ids(
+        uncategorizedRows([
+          transaction({ id: 'out', categoryId: null }),
+          transaction({ id: 'in', amountCents: 245000, categoryId: null }),
+          transaction({ id: 'pending', status: 'pending', categoryId: null }),
+          transaction({ id: 'done', categoryId: 'cat-wohnen' }),
+        ]),
+      ),
+    ).toEqual(['out', 'in']);
   });
 
-  it('is zero once everything is categorized', () => {
-    expect(uncategorizedCount([transaction({ categoryId: 'cat-wohnen' })])).toBe(0);
-    expect(uncategorizedCount([])).toBe(0);
+  it('narrows to a month, and "all" is every month', () => {
+    const rows = [SEPTEMBER, OCTOBER, OLD];
+
+    expect(ids(uncategorizedRows(rows, { month: '2025-09' }))).toEqual(['sep']);
+    expect(ids(uncategorizedRows(rows, { month: 'all' }))).toEqual(['sep', 'oct', 'old']);
+  });
+
+  it('is empty once everything is categorized', () => {
+    expect(uncategorizedRows([transaction({ categoryId: 'cat-wohnen' })])).toEqual([]);
+    expect(uncategorizedRows([])).toEqual([]);
   });
 });
 
@@ -168,27 +183,9 @@ describe('monthOf', () => {
   });
 });
 
-describe('listEntryOf', () => {
-  it('reads what the budgets page sends', () => {
-    const state = { accountId: 'acc-1', month: '2025-09', categoryId: UNCATEGORIZED };
-
-    expect(listEntryOf(state)).toEqual(state);
-  });
-
-  it('ignores anything that is not exactly that shape', () => {
-    // History state survives a reload, and whatever put it there may be an older build.
-    expect(listEntryOf(null)).toBeUndefined();
-    expect(listEntryOf(undefined)).toBeUndefined();
-    expect(listEntryOf('2025-09')).toBeUndefined();
-    expect(listEntryOf({ month: '2025-09', categoryId: UNCATEGORIZED })).toBeUndefined();
-    expect(listEntryOf({ accountId: 'acc-1', month: 202509, categoryId: '' })).toBeUndefined();
-  });
-});
-
 describe('hasFilters', () => {
   it('is false only when nothing is narrowing the list', () => {
     expect(hasFilters(NO_FILTERS)).toBe(false);
-    expect(hasFilters({ ...NO_FILTERS, month: '2025-09' })).toBe(true);
     expect(hasFilters({ ...NO_FILTERS, categoryId: UNCATEGORIZED })).toBe(true);
     expect(hasFilters({ ...NO_FILTERS, search: 'rewe' })).toBe(true);
   });

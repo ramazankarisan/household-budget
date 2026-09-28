@@ -1,10 +1,11 @@
 import { CategoryPayload } from '@household-budget/core';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 
-import { CategoryService } from './category.service.js';
+import { CategoryService, type CategoryUpdate } from './category.service.js';
 
 interface CategoryBody {
   readonly name?: unknown;
+  readonly colorIndex?: unknown;
 }
 
 /** Thin, like `account.controller.ts`: the service holds every rule about a category. */
@@ -24,10 +25,11 @@ export class CategoryController {
     return this.categories.create(body.name);
   }
 
-  /** PATCH /api/categories/:id */
+  /** PATCH /api/categories/:id — `{ name?, colorIndex? }`, at least one of them. */
   @Patch(':id')
-  rename(@Param('id') id: string, @Body() body: CategoryBody): Promise<CategoryPayload> {
-    return this.categories.rename(id, body.name);
+  update(@Param('id') id: string, @Body() body: CategoryBody): Promise<CategoryPayload> {
+    const update: CategoryUpdate = { name: body.name, colorIndex: body.colorIndex };
+    return this.categories.update(id, update);
   }
 
   /** DELETE /api/categories/:id — 409 while any rule or transaction still points at it. */

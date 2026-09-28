@@ -1,5 +1,5 @@
 import { ApplySummary, DeletedRulePayload, RulePayload } from '@household-budget/core';
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 
 import { RuleService } from './rule.service.js';
 
@@ -26,6 +26,15 @@ export class RuleController {
   @HttpCode(200)
   apply(): Promise<ApplySummary> {
     return this.rules.applyAll();
+  }
+
+  /**
+   * PUT /api/rules/order — `{ ids }`, every rule once, first to last. Position is priority:
+   * the rules are renumbered 10, 20, 30 … together.
+   */
+  @Put('order')
+  reorder(@Body() body: unknown): Promise<RulePayload[]> {
+    return this.rules.reorder(body);
   }
 
   /** POST /api/rules/restore — a rule `DELETE` returned, put back with its id and `createdAt`. */

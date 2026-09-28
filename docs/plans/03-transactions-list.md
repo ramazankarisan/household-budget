@@ -472,6 +472,16 @@ over strings before they are anything on screen.
 - [ ] Narrow the window to phone width and confirm the toolbar wraps and the table keeps its
       columns — the failure mode `fba54a2` and `19e7c81` were about.
 
+## Later changes
+
+- 2026-09-28, [plan 08](08-ui-redesign.md): the month left the toolbar for the app's month stepper
+  (`?m=` in the URL, „Alle Monate“ by default on the list). The budgets page's router-state
+  hand-off is replaced by search params (`?m`, `?c=uncategorized`, `?a`). The chip now counts
+  booked rows only (`uncategorizedRows`) — vorgemerkt rows cannot be categorized until they
+  book; the „Ohne Kategorie“ filter still shows them, marked. The list lives at `/transactions`.
+- 2026-09-28, plan 08 review: the „Ohne Kategorie“ filter no longer shows vorgemerkt rows, so
+  the chip opens exactly the rows it counts; the chip counts the chosen month too.
+
 ## References
 
 - [`docs/research/03-transactions-list.md`](../research/03-transactions-list.md) — the measurements

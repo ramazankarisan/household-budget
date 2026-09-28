@@ -15,9 +15,17 @@ export interface AccountPayload {
   readonly name: string;
 }
 
+/** How many category colours there are. `colorIndex` is `0` to `CATEGORY_COLOR_COUNT - 1`. */
+export const CATEGORY_COLOR_COUNT = 8;
+
 export interface CategoryPayload {
   readonly id: string;
   readonly name: string;
+  /**
+   * Which of the UI's category colours this category wears. An index, not a colour: the
+   * light and dark schemes each resolve it to their own shade.
+   */
+  readonly colorIndex: number;
 }
 
 /**
@@ -43,6 +51,14 @@ export interface RulePayload {
 export interface DeletedRulePayload extends RulePayload {
   /** ISO 8601, as stored. */
   readonly createdAt: string;
+}
+
+/**
+ * The whole rule order, first to last — what `PUT /api/rules/order` takes. Every stored
+ * rule's id exactly once: an order that leaves one out is not an order.
+ */
+export interface RuleOrderInput {
+  readonly ids: readonly string[];
 }
 
 /** What one run of the rules engine changed. */
@@ -90,6 +106,24 @@ export interface TransactionPayload {
    * on screen means, and what keeps the rules engine off this row.
    */
   readonly categoryLockedAt: string | null;
+}
+
+/**
+ * One upload as the history lists it — what `GET /api/imports` returns, newest first.
+ * The file's hash stays in the database: it is for recognising a repeat, not for reading.
+ */
+export interface ImportBatchPayload {
+  readonly id: string;
+  readonly accountId: string;
+  readonly fileName: string;
+  readonly encoding: BankFileEncoding;
+  /** ISO 8601. */
+  readonly importedAt: string;
+  readonly rowsParsed: number;
+  readonly rowsImported: number;
+  readonly rowsSkipped: number;
+  readonly rowsRestored: number;
+  readonly rowsFailed: number;
 }
 
 export interface ImportSummary {
