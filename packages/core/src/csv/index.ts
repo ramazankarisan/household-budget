@@ -10,7 +10,12 @@
  * Verified: building `apps/web` with a forced reference to the root entry emits a
  * bundle with no `Buffer` reference.
  */
+export type { DetectedDialect } from './dialects/index.js';
+export { detectDialect, DIALECTS } from './dialects/index.js';
+export { deutscheBank } from './dialects/deutsche-bank.js';
+export { sparkasseCamt } from './dialects/sparkasse-camt.js';
+export type { BankDialect, BankDialectId, ColumnBindings } from './dialects/types.js';
 export type { ColumnMap } from './header.js';
-export { findHeaderLine, mapColumns, normalizeHeaderToken, REQUIRED_COLUMNS } from './header.js';
-export type { ParseSparkasseCsvContext, ParseSparkasseCsvResult } from './parse.js';
-export { parseSparkasseCsv } from './parse.js';
+export { findHeaderLine, mapColumns, normalizeHeaderToken } from './header.js';
+export type { ParseBankCsvContext, ParseBankCsvResult } from './parse.js';
+export { parseBankCsv } from './parse.js';

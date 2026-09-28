@@ -40,6 +40,7 @@ export type { ParseGermanDateOptions } from './csv/fields.js';
 export { parseGermanAmount, parseGermanDate } from './csv/fields.js';
 export { assignOccurrences, dedupKeyInput, fingerprintInput } from './csv/fingerprint.js';
 export type {
+  BankDialectId,
   BankFileEncoding,
   BookingStatus,
   Cents,

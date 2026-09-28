@@ -1,5 +1,6 @@
 import {
   assignOccurrences,
+  BankDialectId,
   CsvFileError,
   dedupKeyInput,
   fingerprintInput,
@@ -8,7 +9,7 @@ import {
   RowError,
   Transaction as ParsedTransaction,
 } from '@household-budget/core';
-import { parseSparkasseCsv } from '@household-budget/core/csv';
+import { detectDialect, parseBankCsv } from '@household-budget/core/csv';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
 import { AccountService } from '../accounts/account.service.js';
@@ -52,6 +53,14 @@ function csvErrorCode(error: unknown): string | undefined {
     }
   }
   return undefined;
+}
+
+/**
+ * A stored batch's dialect. Null predates the column, when Sparkasse CSV-CAMT was the only
+ * format; anything else was written by `importCsv` from a registered id.
+ */
+function storedDialect(value: string | null): BankDialectId {
+  return value === null ? 'sparkasse-camt' : (value as BankDialectId);
 }
 
 type TransactionRow = {
@@ -137,6 +146,7 @@ export class ImportService {
       accountId: batch.accountId,
       fileName: batch.fileName,
       encoding: batch.encoding === 'utf-8' ? 'utf-8' : 'windows-1252',
+      dialect: storedDialect(batch.dialect),
       importedAt: batch.importedAt.toISOString(),
       rowsParsed: batch.rowsParsed,
       rowsImported: batch.rowsImported,
@@ -161,12 +171,12 @@ export class ImportService {
       `import account=${maskIban(account.iban)} file="${sanitizeForLog(request.fileName)}" encoding=${encoding}`,
     );
 
-    const { transactions, errors } = this.parse(text, request, encoding);
+    const { dialect, transactions, errors } = this.parse(text, request, encoding);
 
     const booked = transactions.filter((transaction) => transaction.status === 'booked');
     const pending = transactions.filter((transaction) => transaction.status === 'pending');
     this.logger.log(
-      `import parsed=${String(transactions.length)} booked=${String(booked.length)} ` +
+      `import dialect=${dialect} parsed=${String(transactions.length)} booked=${String(booked.length)} ` +
         `pending=${String(pending.length)} errors=${String(errors.length)}`,
     );
     const reported = errors.slice(0, MAX_REPORTED_ROW_ERRORS);
@@ -207,6 +217,7 @@ export class ImportService {
           fileName: request.fileName,
           fileHash,
           encoding,
+          dialect,
           rowsParsed: transactions.length,
           rowsImported: toInsert.length,
           rowsSkipped: skipped,
@@ -275,6 +286,7 @@ export class ImportService {
       failed: reported,
       failedCount: errors.length,
       encoding,
+      dialect,
       ...(priorBatch === null ? {} : { duplicateOfBatchId: priorBatch.id }),
     };
   }
@@ -284,13 +296,27 @@ export class ImportService {
     text: string,
     request: ImportRequest,
     encoding: 'utf-8' | 'windows-1252',
-  ): { transactions: readonly ParsedTransaction[]; errors: readonly RowError[] } {
+  ): {
+    dialect: BankDialectId;
+    transactions: readonly ParsedTransaction[];
+    errors: readonly RowError[];
+  } {
     try {
-      return parseSparkasseCsv(text, {
-        fileName: request.fileName,
-        encoding,
-        referenceYear: request.referenceYear ?? new Date().getUTCFullYear(),
-      });
+      // Detected from the header, never asked of the user: a wrong answer would parse a
+      // real file into wrong numbers instead of failing.
+      const detected = detectDialect(text);
+      if (detected === undefined) {
+        throw new CsvFileError('HEADER_NOT_FOUND');
+      }
+      const { dialect } = detected;
+      return {
+        dialect: dialect.id,
+        ...parseBankCsv(text, dialect, {
+          fileName: request.fileName,
+          encoding,
+          referenceYear: request.referenceYear ?? new Date().getUTCFullYear(),
+        }),
+      };
     } catch (error) {
       if (error instanceof CsvFileError) {
         throw new BadRequestException({ code: error.code, columns: error.columns });

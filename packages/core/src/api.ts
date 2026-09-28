@@ -5,7 +5,7 @@
  * lives in one of them is a contract only one of them can change. Browser-safe — plain
  * data, no `Date`, amounts in integer cents.
  */
-import type { BankFileEncoding, BookingStatus } from './csv/transaction.js';
+import type { BankDialectId, BankFileEncoding, BookingStatus } from './csv/transaction.js';
 import type { RowError } from './csv/errors.js';
 import type { RuleField, RuleOperator } from './rules/rule.js';
 
@@ -117,6 +117,8 @@ export interface ImportBatchPayload {
   readonly accountId: string;
   readonly fileName: string;
   readonly encoding: BankFileEncoding;
+  /** The bank format the header was recognised as. */
+  readonly dialect: BankDialectId;
   /** ISO 8601. */
   readonly importedAt: string;
   readonly rowsParsed: number;
@@ -144,6 +146,8 @@ export interface ImportSummary {
   /** True total of failed rows; `failed` is capped. */
   readonly failedCount: number;
   readonly encoding: BankFileEncoding;
+  /** The bank format the header was recognised as — the user's check that the right parser ran. */
+  readonly dialect: BankDialectId;
   /** Set when this exact file was uploaded to this account before. */
   readonly duplicateOfBatchId?: string;
 }

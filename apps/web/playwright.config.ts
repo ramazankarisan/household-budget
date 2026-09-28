@@ -50,7 +50,24 @@ export default defineConfig({
   },
 
   // Chromium only. This is a smoke test for wiring, not a cross-browser matrix.
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: 'deutsche-bank.spec.ts',
+    },
+    /*
+     * After every other spec, via `dependencies`: it adds a second account and rows the
+     * Sparkasse specs do not expect, and with two accounts the import dialog asks which
+     * one a file belongs to.
+     */
+    {
+      name: 'second-bank',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: 'deutsche-bank.spec.ts',
+      dependencies: ['chromium'],
+    },
+  ],
 
   webServer: [
     {

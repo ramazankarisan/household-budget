@@ -1,0 +1,17 @@
+﻿Umsätze
+Konto;Filial-/Kontonummer;IBAN;Währung
+AktivKonto;100 1234567 00;DE91100000000123456789;EUR
+
+1.9.2026 - 30.9.2026
+Letzter Kontostand;;;;2.500,00;EUR
+Vorgemerkte und noch nicht gebuchte Umsätze sind nicht Bestandteil dieser Übersicht.
+Buchungstag;Wert;Umsatzart;Begünstigter / Auftraggeber;Verwendungszweck;IBAN / Kontonummer;BIC;Kundenreferenz;Mandatsreferenz;Gläubiger ID;Fremde Gebühren;Betrag;Abweichender Empfänger;Anzahl der Aufträge;Anzahl der Schecks;Soll;Haben;Währung
+29.9.2026;29.9.2026;SEPA Lastschrift;Müller GmbH;Rechnung 4711 Möbel für die Küche;DE02120300000000202051;BYLADEM1001;E2E-4711;M-0815;DE98ZZZ09999999999;;-832,9;;;;-832,9;;EUR
+28.9.2026;26.9.2026;Kartenzahlung;REWE Markt GmbH;Einkauf Lebensmittel / Filiale 42, Musterstadt;DE35500105174205498273;INGDDEFF;;;;;-42,17;;;;-42,17;;EUR
+28.9.2026;26.9.2026;Kartenzahlung;REWE Markt GmbH;Einkauf Lebensmittel / Filiale 42, Musterstadt;DE35500105174205498273;INGDDEFF;;;;;-42,17;;;;-42,17;;EUR
+25.9.2026;25.9.2026;SEPA Überweisung (Dauerauftrag);Hausverwaltung Süd GmbH;Miete Oktober Hauptstraße 12;DE44500105175407324931;COBADEFFXXX;NOTPROVIDED;;;;-1.150,00;;;;-1.150,00;;EUR
+18.9.2026;18.9.2026;SEPA Überweisung;Hotel "Nord" GmbH;"Rechnung Übernachtung;DE12500105170648489890;PBNKDEFF;"R-2026-18";;;;-128,5;;;;-128,5;;EUR
+15.9.2026;15.9.2026;SEPA Gutschrift;Beispiel AG;Gehalt September;DE75512108001245126199;SOLADEST600;;;;;2.450,00;;;;;2.450,00;EUR
+1.9.2026;31.8.2026;Kartenzahlung;Ärzte GmbH;Zuzahlung Praxisbesuch 10 €;DE22500105175487654321;MALADE51MNZ;;;;;-19;;;;-19;;EUR
+1.9.2026;1.9.2026;Entgelt;;Kontoführungsentgelt AktivKonto 08/2026;;;;;;;-190;;;;-190;;EUR
+Kontostand;30.9.2026;;;2.545,26;EUR

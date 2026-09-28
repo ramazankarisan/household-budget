@@ -33,8 +33,11 @@ filter); `/rules` shows rules as sentences in the order they are tried; `/import
 upload. Import happens in a dialog from any page, or by dropping a file on the window. All
 pages read one household copy of the data (`apps/web/src/household/`).
 
-`POST /api/imports` takes a Sparkasse CSV-CAMT upload scoped to an account, decodes it
-(UTF-8, falling back to Windows-1252), parses it by column **name**, and stores the rows —
+`POST /api/imports` takes a bank CSV upload scoped to an account — Sparkasse CSV-CAMT or
+Deutsche Bank ([research 07](docs/research/07-deutsche-bank-csv.md)), the format detected from
+the header, never asked — decodes it (UTF-8, falling back to Windows-1252), parses it by
+column **name** through one descriptor per bank (`packages/core/src/csv/dialects/`), and
+stores the rows —
 deduplicated by a content fingerprint plus an occurrence index, so an overlapping export
 imports only what is new. Bad rows are reported with their line number while the rest of
 the file imports; an unparseable file is a 4xx.

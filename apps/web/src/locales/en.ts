@@ -62,7 +62,7 @@ export const en: Messages<typeof de> = {
       dropHere: 'Drop the file to import it',
       close: 'Close',
       uploading: 'Importing…',
-      dropHint: 'Drag a Sparkasse export here or click to choose',
+      dropHint: 'Drag a CSV export (Sparkasse, Deutsche Bank) here or click to choose',
       chooseFile: 'Choose CSV file',
       failed: 'Import failed',
       alreadyUploaded: 'This file has already been uploaded.',
@@ -70,6 +70,10 @@ export const en: Messages<typeof de> = {
       summary:
         '{{imported}} imported · {{skipped}} duplicates skipped · {{restored}} restored · {{failed}} failed',
       notListed: '… and {{notListed}} more',
+      dialect: {
+        'sparkasse-camt': 'Sparkasse',
+        'deutsche-bank': 'Deutsche Bank',
+      },
     },
   },
   transactions: {
@@ -236,8 +240,9 @@ export const en: Messages<typeof de> = {
       FIELD_COUNT_MISMATCH: 'row has the wrong number of columns',
     },
     file: {
-      UNSUPPORTED_CONTENT_TYPE: 'unsupported file type — upload the Sparkasse CSV export',
-      HEADER_NOT_FOUND: 'no header row found — is this a Sparkasse CSV-CAMT export?',
+      UNSUPPORTED_CONTENT_TYPE: 'unsupported file type — upload the bank’s CSV export',
+      HEADER_NOT_FOUND:
+        'no header row recognised — supported are the Sparkasse CSV-CAMT export and the Deutsche Bank transactions export',
       REQUIRED_COLUMN_MISSING: 'required column missing',
       CSV_QUOTE_NOT_CLOSED: 'a quoted value in the file is never closed',
       CSV_INVALID_CLOSING_QUOTE: 'invalid closing quote',

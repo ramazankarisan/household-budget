@@ -103,7 +103,12 @@ export function ImportsPage() {
                     })}
                   </Typography>
                 </Box>
-                {/* A surprise utf-8 here means the bank changed its export format. */}
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={t(`common.import.dialect.${batch.dialect}`)}
+                />
+                {/* A surprise encoding here means the bank changed its export format. */}
                 <Chip size="small" variant="outlined" label={batch.encoding} />
               </Stack>
             ))}

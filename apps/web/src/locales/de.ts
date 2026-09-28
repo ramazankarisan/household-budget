@@ -8,6 +8,7 @@
  * they read `-832,90 €` in both languages (plan 07, decision 1).
  */
 import {
+  type BankDialectId,
   type BudgetInputErrorCode,
   type ImportErrorCode,
   type ImportFileErrorCode,
@@ -93,7 +94,7 @@ export const de = {
       dropHere: 'Datei loslassen zum Importieren',
       close: 'Schließen',
       uploading: 'Import läuft…',
-      dropHint: 'Sparkasse-Export hierher ziehen oder klicken zum Auswählen',
+      dropHint: 'CSV-Export (Sparkasse, Deutsche Bank) hierher ziehen oder klicken zum Auswählen',
       chooseFile: 'CSV-Datei auswählen',
       failed: 'Import fehlgeschlagen',
       alreadyUploaded: 'Diese Datei wurde bereits einmal hochgeladen.',
@@ -101,6 +102,11 @@ export const de = {
       summary:
         '{{imported}} importiert · {{skipped}} Duplikate übersprungen · {{restored}} wiederhergestellt · {{failed}} fehlerhaft',
       notListed: '… und {{notListed}} weitere',
+      /** The format the header was recognised as — shown so the user sees which parser ran. */
+      dialect: {
+        'sparkasse-camt': 'Sparkasse',
+        'deutsche-bank': 'Deutsche Bank',
+      } satisfies Record<BankDialectId, string>,
     },
   },
   transactions: {
@@ -276,8 +282,9 @@ export const de = {
     } satisfies Record<ImportErrorCode, string>,
     file: {
       UNSUPPORTED_CONTENT_TYPE:
-        'Dateityp nicht unterstützt — bitte den CSV-Export der Sparkasse hochladen',
-      HEADER_NOT_FOUND: 'Keine Kopfzeile gefunden — ist das ein CSV-CAMT-Export der Sparkasse?',
+        'Dateityp nicht unterstützt — bitte den CSV-Export der Bank hochladen',
+      HEADER_NOT_FOUND:
+        'Keine Kopfzeile erkannt — unterstützt sind der CSV-CAMT-Export der Sparkasse und der Umsatz-Export der Deutschen Bank',
       REQUIRED_COLUMN_MISSING: 'Pflichtspalte fehlt',
       CSV_QUOTE_NOT_CLOSED: 'Ein Anführungszeichen in der Datei wird nie geschlossen',
       CSV_INVALID_CLOSING_QUOTE: 'Ungültiges schließendes Anführungszeichen',
