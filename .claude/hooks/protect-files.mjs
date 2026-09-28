@@ -86,10 +86,14 @@ const READ_RULES = [
 /** The path a tool call touches, per tool. */
 function targetPath(input) {
   const tool = input.tool_input ?? {};
-  if (input.tool_name === 'NotebookEdit') return tool.notebook_path;
+  if (input.tool_name === 'NotebookEdit') {
+    return tool.notebook_path;
+  }
   // A search without a path searches the cwd, where apps/api/data is git-ignored and so not
   // searched; the rules only care when the path points at data.
-  if (input.tool_name === 'Grep') return tool.path;
+  if (input.tool_name === 'Grep') {
+    return tool.path;
+  }
   if (input.tool_name === 'Glob') {
     // A Glob pattern is itself a path (`apps/api/data/*`, `**/*.db`); Grep's is a regex.
     return [tool.path, tool.pattern].filter((v) => typeof v === 'string').join('/');
@@ -100,13 +104,17 @@ function targetPath(input) {
 const input = JSON.parse((await text(process.stdin)) || '{}');
 const tool = input.tool_name;
 const filePath = targetPath(input);
-if (typeof filePath !== 'string' || filePath === '') process.exit(0);
+if (typeof filePath !== 'string' || filePath === '') {
+  process.exit(0);
+}
 
 const root = process.env['CLAUDE_PROJECT_DIR'] ?? input.cwd ?? process.cwd();
 const absolute = isAbsolute(filePath) ? filePath : resolve(input.cwd ?? root, filePath);
 const rel = relative(root, absolute).split('\\').join('/');
 // Outside the project is not this hook's business.
-if (rel.startsWith('../')) process.exit(0);
+if (rel.startsWith('../')) {
+  process.exit(0);
+}
 
 const rules = WRITE_TOOLS.has(tool) ? WRITE_RULES : READ_TOOLS.has(tool) ? READ_RULES : [];
 const hit = rules.find((rule) => rule.test(rel));

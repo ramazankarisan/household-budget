@@ -19,7 +19,9 @@ import { text } from 'node:stream/consumers';
 
 const input = JSON.parse((await text(process.stdin)) || '{}');
 const file = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
-if (typeof file !== 'string' || file === '') process.exit(0);
+if (typeof file !== 'string' || file === '') {
+  process.exit(0);
+}
 
 // Which checkout the file is in. GIT_* is dropped so an outer git cannot redirect the answer.
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
@@ -29,7 +31,9 @@ const top = spawnSync('git', ['-C', dirname(file), 'rev-parse', '--show-toplevel
 });
 const root = top.status === 0 ? top.stdout.trim() : '';
 // Only a checkout of this repo has `pnpm check`; a scratch file or another repo does not.
-if (root === '' || !existsSync(join(root, 'scripts', 'check.mjs'))) process.exit(0);
+if (root === '' || !existsSync(join(root, 'scripts', 'check.mjs'))) {
+  process.exit(0);
+}
 
 const dir = join(tmpdir(), 'claude-hooks');
 mkdirSync(dir, { recursive: true });

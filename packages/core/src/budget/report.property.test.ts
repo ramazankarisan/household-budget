@@ -86,7 +86,9 @@ describe('monthlyReport (properties)', () => {
     fc.assert(
       fc.property(fc.array(row), fc.array(budget), (rows, budgets) => {
         for (const c of monthlyReport(rows, budgets, categories, MONTH).categories) {
-          if (c.budgetCents === null) continue;
+          if (c.budgetCents === null) {
+            continue;
+          }
           expect(c.isOver).toBe(c.bookedCents + c.pendingCents > c.budgetCents);
           expect(c.remainingCents).toBe(c.budgetCents - c.bookedCents - c.pendingCents);
         }

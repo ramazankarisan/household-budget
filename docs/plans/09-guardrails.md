@@ -22,15 +22,17 @@ check` stays fast enough to run after every change.
 | Coverage thresholds             |  ✓   |  ✓  |  ✓  | `pnpm check` (`unit` step)           |
 | Unused code/deps (knip)         |  ✓   |  ✓  |  ✓  | `pnpm check` (`unused` step)         |
 | Architecture rules              |  ✓   |  ✓  |  ✓  | `pnpm check` (`deps` step)           |
+| Copy-paste detection (jscpd)    |  ✓   |  ✓  |  ✓  | `pnpm check` (`dupes` step)          |
 | Property tests (fast-check)     |  ✓   |     |     | `pnpm check` (ordinary unit tests)   |
 | Mutation tests (Stryker)        |  ✓   |     |     | CI weekly (Mon), and `pnpm mutation` |
+| Braces on every block (`curly`) |  ✓   |  ✓  |  ✓  | `pnpm check` (`lint` step)           |
 | a11y lint (jsx-a11y)            |      |     |  ✓  | `pnpm check` (`lint` step)           |
 | a11y in the browser (axe)       |      |     |  ✓  | `pnpm check:all` (`wcag.spec.ts`)    |
 | Commit messages (commitlint)    |  —   |  —  |  —  | `commit-msg` hook                    |
 | `pnpm audit --audit-level high` |  —   |  —  |  —  | CI                                   |
 
 The hooks run each check once. pre-commit: data guard, gitleaks, format and lint on the
-staged files. pre-push: `check.mjs --push` — deps, unused, types, unit with coverage, the
+staged files. pre-push: `check.mjs --push` — deps, unused, dupes, types, unit with coverage, the
 checks that are whole-project by nature. Playwright runs in CI only; CI is the gate that
 cannot be skipped, so the hooks exist to catch the common mistake early, not to repeat it.
 
@@ -98,6 +100,15 @@ wiring that example tests and Playwright already cover.
     runner — it opened the month menu before Überblick had replaced Umsätze, so the click
     landed on the old page's menu. Reproduced locally at 6× CPU throttling and fixed in the
     spec by waiting for the Überblick heading.
+12. **`curly: all`, enabled after `eslint-config-prettier`.** That config switches `curly` off
+    because some of its options fight Prettier; `all` does not, so it is turned back on in the
+    last block of `eslint.config.mjs`. A braceless `if` is the shape where a second statement
+    added later silently runs unconditionally. The 30 existing violations were autofixed.
+13. **jscpd is a ratchet on duplicated source, like coverage.** `.jscpd.json` scans `src/` of
+    all three packages plus `scripts/`, with tests excluded: repeated arrange blocks in tests
+    are deliberate, and pulling them into helpers makes a test harder to read on its own.
+    Baseline 0.31% (4 clones, 38 lines, all under 15 lines), threshold 0.5%. Lower it when
+    the baseline drops; never raise it to let a change through — extract the shared code.
 
 ## Not done
 

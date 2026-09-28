@@ -150,6 +150,15 @@ export default tseslint.config(
     },
   },
 
-  // Must stay last: turns off every rule that fights Prettier.
+  // Must come after the rule overrides: turns off every rule that fights Prettier.
   prettier,
+
+  // Braces on every if/else/for/while body, one-liners included. After `prettier` on
+  // purpose: eslint-config-prettier switches `curly` off, but "all" never conflicts with
+  // Prettier's output, so it is safe to turn back on here.
+  {
+    rules: {
+      curly: ['error', 'all'],
+    },
+  },
 );
