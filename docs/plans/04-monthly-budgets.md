@@ -9,6 +9,13 @@ status: implemented
 
 # PLAN: Monthly budgets per category
 
+> **Commit order (recorded 2026-09-28):** the research (`date` 12:18Z) and this plan (13:05Z) were
+> written before the code, but nothing was committed until the build was done: the three feature
+> commits and this plan landed within one minute of each other (`4170cff`, `0ccd874`, `4bb2a9e`,
+> then `464da62` at 13:50Z), and this file was updated "as built" in that commit. Git therefore
+> cannot show the plan ahead of the code; the `date` fields, written by the rpi skills when each
+> document was created, are the only record of the order.
+
 The third of import → categorize → **report**. A category gets a limit for a month, the dashboard
 shows what was actually spent against it, says which categories are over, and draws the month once
 as a chart. `apps/web` gains its third page and `apps/api` its fourth resource; the arithmetic is a

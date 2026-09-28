@@ -1,14 +1,8 @@
 # Review prep — household-budget
 
-Prepared 2026-09-28 from the repo as it stands on `feat/ui-redesign` at `4db7dcb`. Every claim
-below points at a file, a commit or a command. Where something could not be verified, it says
-so.
-
-> **Heads-up:** while this was being written, uncommitted changes appeared in the working tree
-> that delete the Sortieren/Inbox page (`InboxPage.tsx`, `inbox.ts`, `e2e/inbox.spec.ts` staged
-> as deleted) and add `src/rulePreview.ts`. This document describes the **committed** state, with
-> `/inbox`. If you keep those changes, update §2, §5 (plan 08 row) and the README before the
-> meeting.
+Prepared 2026-09-28 from `main` after PR #18 (`4bc0ad7`), which merged the UI redesign and
+removed the Sortieren inbox (`af89fe5`). Every claim below points at a file, a commit or a
+command. Where something could not be verified, it says so.
 
 ---
 
@@ -21,7 +15,7 @@ bytes, German number and date formats, overlapping exports, umlauts that SQLite 
 case-fold) and a hard privacy constraint: bank data never leaves the machine. It demonstrates
 agentic coding with a Research → Plan → Implement cycle for every feature (14 docs in
 `docs/research/` and `docs/plans/`) held in check by mechanical backpressure: strict
-TypeScript, an architecture linter, ~460 unit tests, 34 Playwright tests, and git hooks that
+TypeScript, an architecture linter, ~450 unit tests, 33 Playwright tests, and git hooks that
 block commits and pushes.
 
 ---
@@ -46,10 +40,10 @@ apps/api          NestJS 12 REST API, SQLite via Prisma 7 (better-sqlite3 driver
 apps/web          React 19 + Vite 8 + MUI 9 + react-router 7 + i18next
   src/household/    HouseholdProvider: one shared copy of all data
   src/shell/        app shell, month stepper (?m=), nav, shortcuts
-  src/pages/        Überblick (/), Umsätze, Sortieren (/inbox), Regeln, Importe
+  src/pages/        Überblick (/), Umsätze (/transactions), Regeln, Importe
   src/filter.ts     browser-side filtering + uncategorizedRows()
   src/locales/      de.ts / en.ts — all UI text
-  e2e/              12 Playwright specs
+  e2e/              11 Playwright specs
 fixtures/         7 synthetic Sparkasse CSVs, byte-exact (CRLF, cp1252)
 scripts/          check.mjs, check-staged-data.mjs, gitleaks.sh, reset-e2e-db.mjs
 docs/             research/ (6), plans/ (8), reports/ (security review)
@@ -310,16 +304,16 @@ Pattern for each feature: research doc → user answers the open questions ("Dec
 section) → plan with numbered decisions, phases and success criteria → implementation commits →
 fix commits from review/dogfooding → plan updated with "Implementation Notes" / "Later changes".
 
-| #   | Feature                                                               | Research found                                                                                                                                                                              | Plan decided                                                                                                                                                                                              | What changed during/after build                                                                                                                                                                                                                                                                                                                     |
-| --- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 01  | CSV import (`36b2823`…`e45bcda`, PRs #5–#6)                           | Core can't decode or hash (`"types": []`); `Kategorie` column optional → 17 and 18 cols; dates `DD.MM.YY`; truncated amounts `832,9`; UTF-8 → cp1252 never latin1; csv-parse over papaparse | 10 decisions: vertical slice, match by name, partial success, cents + string dates, pending replaceable, soft-delete restore, occurrence index **per file** (simplified from research's multiset framing) | Parser moved behind `core/csv` after `Buffer` leaked into the web bundle ("Gate 3 failed"); line numbers hand-computed; `ImportBatch` written before rows (FK). Fixes: `07c3548` older export deleted pending rows; `c97d72c` future-dated pending row pinned the staleness watermark; `f819a10` account-switch race; `6243cc7` e2e wrote to dev DB |
-| 02  | Categorization rules (`c9961e0`…`83359c6`, PR #8)                     | SQLite ASCII-only case folding (measured); 6 ms for 50k×20 in JS; regex exponential; "nobody does pure first-match-wins"                                                                    | 12 decisions: match in core, one condition, `(priority, createdAt, id)`, shared normalizer, `categoryLockedAt`, apply writes null, global apply                                                           | "No rules ⇒ return zeros" struck: deleting the last rule must clear. Three fix commits closing 13 category-loss bugs (e.g. RuleForm without `key` saved over another rule; partial PATCH re-enabled a disabled rule / reset priority; `applyAll` inherited Prisma's 5 s timeout; apply overwrote a lock set mid-run)                                |
-| 03  | Transactions list (`9abeb91`…`adab39b`, PRs #9–#10)                   | `LIKE` misses `MÜLLER`; every row already in the browser; 0.99 ms per keystroke at 50k                                                                                                      | Browser-side filtering in pure `filter.ts`, no API change, component state (not URL)                                                                                                                      | `adab39b` fixed three review holes (month format for `'2025-'`, `de` matching every IBAN, chip aria-label hid the count). Component-state decision later reversed by plan 08 (URL params)                                                                                                                                                           |
-| 04  | Monthly budgets (`4170cff`…`4c783fa`, PRs #11–#12)                    | No budget model; fixture uncategorized sums to `+920,33 €` (salary); `GROUP BY` drops empty categories                                                                                      | Household-wide limits, money out only, booked/pending apart, computed in browser by `monthlyReport`, `PUT` upsert, x-charts                                                                               | `94c377e`: per-account view against household limits was wrong ("400 € on each of two cards … read 'übrig' on both while the household was 100 € over") → all accounts, no picker. Research + plan committed **after** the feature commits "as built" (`464da62`)                                                                                   |
-| 05  | Dogfood fixes (PRs #13, #16)                                          | Input: `dogfood-output/report.md`, 10 issues (4 medium, 6 low)                                                                                                                              | Fix 5, defer 5                                                                                                                                                                                            | Two more found by the user (rule delete without undo, refusal flicker) → `447200d`, `478d5fc` (restore race 500 → 409)                                                                                                                                                                                                                              |
-| 06  | Security hardening (`be5f8ff`, PR #14)                                | Input: `docs/reports/2026-09-24-security-review.html`. HIGH: API bound all interfaces + `enableCors({ origin: true })` → CSRF / DNS rebinding                                               | Bind 127.0.0.1, drop CORS, loopback Host/Origin guard, multer limits, MIME allowlist, capped row errors, log sanitizing                                                                                   | E2E added for 2nd file → 400 and 11 MB → 413 after review                                                                                                                                                                                                                                                                                           |
-| 07  | Language + theme (`7ff5def`, `954054b`, PR #17)                       | No locale state anywhere; ~15 inline German literals                                                                                                                                        | i18next with TS resources typed against `de`; amounts/dates always `de-DE`                                                                                                                                | Review reversed decision 11: messages are stored as causes and worded at render so they follow a language switch                                                                                                                                                                                                                                    |
-| 08  | UI redesign "Kassenbuch" (`303f2fc`…`4db7dcb`, branch **not merged**) | Research 06: "correct and careful, but visually unauthored"; pages mirror backend features, not user questions                                                                              | 18 decisions: 5 routes, month in `?m=`, `HouseholdProvider`, one `uncategorizedRows`, `Category.colorIndex`, position = priority (`PUT /api/rules/order`)                                                 | Decision 15 (`usePageChrome`) not built (re-render loop); palette replaced after failing a validator; trend draws only the shown month's limit; `4db7dcb` re-scoped the uncategorized count to the chosen month after user feedback                                                                                                                 |
+| #   | Feature                                                | Research found                                                                                                                                                                              | Plan decided                                                                                                                                                                                              | What changed during/after build                                                                                                                                                                                                                                                                                                                                         |
+| --- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | CSV import (`36b2823`…`e45bcda`, PRs #5–#6)            | Core can't decode or hash (`"types": []`); `Kategorie` column optional → 17 and 18 cols; dates `DD.MM.YY`; truncated amounts `832,9`; UTF-8 → cp1252 never latin1; csv-parse over papaparse | 10 decisions: vertical slice, match by name, partial success, cents + string dates, pending replaceable, soft-delete restore, occurrence index **per file** (simplified from research's multiset framing) | Parser moved behind `core/csv` after `Buffer` leaked into the web bundle ("Gate 3 failed"); line numbers hand-computed; `ImportBatch` written before rows (FK). Fixes: `07c3548` older export deleted pending rows; `c97d72c` future-dated pending row pinned the staleness watermark; `f819a10` account-switch race; `6243cc7` e2e wrote to dev DB                     |
+| 02  | Categorization rules (`c9961e0`…`83359c6`, PR #8)      | SQLite ASCII-only case folding (measured); 6 ms for 50k×20 in JS; regex exponential; "nobody does pure first-match-wins"                                                                    | 12 decisions: match in core, one condition, `(priority, createdAt, id)`, shared normalizer, `categoryLockedAt`, apply writes null, global apply                                                           | "No rules ⇒ return zeros" struck: deleting the last rule must clear. Three fix commits closing 13 category-loss bugs (e.g. RuleForm without `key` saved over another rule; partial PATCH re-enabled a disabled rule / reset priority; `applyAll` inherited Prisma's 5 s timeout; apply overwrote a lock set mid-run)                                                    |
+| 03  | Transactions list (`9abeb91`…`adab39b`, PRs #9–#10)    | `LIKE` misses `MÜLLER`; every row already in the browser; 0.99 ms per keystroke at 50k                                                                                                      | Browser-side filtering in pure `filter.ts`, no API change, component state (not URL)                                                                                                                      | `adab39b` fixed three review holes (month format for `'2025-'`, `de` matching every IBAN, chip aria-label hid the count). Component-state decision later reversed by plan 08 (URL params)                                                                                                                                                                               |
+| 04  | Monthly budgets (`4170cff`…`4c783fa`, PRs #11–#12)     | No budget model; fixture uncategorized sums to `+920,33 €` (salary); `GROUP BY` drops empty categories                                                                                      | Household-wide limits, money out only, booked/pending apart, computed in browser by `monthlyReport`, `PUT` upsert, x-charts                                                                               | `94c377e`: per-account view against household limits was wrong ("400 € on each of two cards … read 'übrig' on both while the household was 100 € over") → all accounts, no picker. Research + plan committed **after** the feature commits "as built" (`464da62`)                                                                                                       |
+| 05  | Dogfood fixes (PRs #13, #16)                           | Input: `dogfood-output/report.md`, 10 issues (4 medium, 6 low)                                                                                                                              | Fix 5, defer 5                                                                                                                                                                                            | Two more found by the user (rule delete without undo, refusal flicker) → `447200d`, `478d5fc` (restore race 500 → 409)                                                                                                                                                                                                                                                  |
+| 06  | Security hardening (`be5f8ff`, PR #14)                 | Input: `docs/reports/2026-09-24-security-review.html`. HIGH: API bound all interfaces + `enableCors({ origin: true })` → CSRF / DNS rebinding                                               | Bind 127.0.0.1, drop CORS, loopback Host/Origin guard, multer limits, MIME allowlist, capped row errors, log sanitizing                                                                                   | E2E added for 2nd file → 400 and 11 MB → 413 after review                                                                                                                                                                                                                                                                                                               |
+| 07  | Language + theme (`7ff5def`, `954054b`, PR #17)        | No locale state anywhere; ~15 inline German literals                                                                                                                                        | i18next with TS resources typed against `de`; amounts/dates always `de-DE`                                                                                                                                | Review reversed decision 11: messages are stored as causes and worded at render so they follow a language switch                                                                                                                                                                                                                                                        |
+| 08  | UI redesign "Kassenbuch" (`303f2fc`…`af89fe5`, PR #18) | Research 06: "correct and careful, but visually unauthored"; pages mirror backend features, not user questions                                                                              | 18 decisions: 5 routes, month in `?m=`, `HouseholdProvider`, one `uncategorizedRows`, `Category.colorIndex`, position = priority (`PUT /api/rules/order`)                                                 | Decision 15 (`usePageChrome`) not built (re-render loop); palette replaced after failing a validator; trend draws only the shown month's limit; `4db7dcb` re-scoped the uncategorized count to the chosen month after user feedback; `af89fe5` **removed the whole Sortieren inbox (phase 3)** after review — `/inbox` now redirects to `/transactions?c=uncategorized` |
 
 Numbering note: plans 05/06 have no research doc (their input was the dogfood report and the
 security review); research 05 → plan 07, research 06 → plan 08.
@@ -338,8 +332,8 @@ build, and I recorded the departures in the plan rather than silently diverging.
 | Lint         | `pnpm lint`                          | `pnpm check`, pre-commit (staged `.ts/.tsx`) | Unawaited promises (`no-floating-promises`, incl. Playwright `expect` without `await`); `react-hooks/refs` rejected `budgetsRef.current = …` during render (plan 05 Phase 4) |
 | Architecture | `pnpm lint:deps`                     | `pnpm check` (not pre-commit)                | Framework import in core, including type-only; unresolvable imports. Tripped during plan 01 on `csv-parse/sync` until `exportsFields` was configured ("Gate 1 failed")       |
 | Typecheck    | `pnpm typecheck`                     | `pnpm check`, pre-commit (whole project)     | Strict TS in 3 packages + web's node and e2e tsconfigs; missing English translation (`en` typed against `de`); stale core `dist`                                             |
-| Unit tests   | `pnpm test` (`pnpm test:fast` bails) | `pnpm check`; pre-commit runs **core only**  | ~110 core, ~118 api (real SQLite), ~235 web cases (regex count, approximate)                                                                                                 |
-| E2E          | `pnpm test:e2e`                      | `pnpm check:all`, **pre-push**               | 34 tests in 12 specs; import → rules → budgets through the real proxy                                                                                                        |
+| Unit tests   | `pnpm test` (`pnpm test:fast` bails) | `pnpm check`; pre-commit runs **core only**  | ~110 core, ~118 api (real SQLite), ~224 web cases (regex count, approximate)                                                                                                 |
+| E2E          | `pnpm test:e2e`                      | `pnpm check:all`, **pre-push**               | 33 tests in 11 specs; import → rules → budgets through the real proxy                                                                                                        |
 | Data guard   | `node scripts/check-staged-data.mjs` | pre-commit, first                            | CSV/OFX/XLS outside `fixtures/`, `.env*`, `*.db*`                                                                                                                            |
 | Secret scan  | `./scripts/gitleaks.sh`              | pre-commit                                   | Secrets in staged diff; fails if gitleaks isn't installed                                                                                                                    |
 | Commit skill | `/commit`                            | when Claude commits                          | Runs `pnpm check`, refuses forbidden paths, writes Conventional Commits                                                                                                      |
@@ -347,14 +341,10 @@ build, and I recorded the departures in the plan rather than silently diverging.
 Also: the web build (`vite build`) was used as a manual gate in plan 01 to prove no `Buffer` in the
 bundle — it is **not** part of `pnpm check`.
 
-**Verified today (2026-09-28):** `pnpm check` on a clean tree at `4db7dcb` → all five steps
-green in ~18 s (format 1.5 s, lint 6.1 s, deps 0.4 s, types 3.6 s, unit 6.4 s).
-
-`pnpm check:all` → **inconclusive**: 8 of 34 Playwright tests failed (inbox, monthly-budgets,
-monthly-totals, overview, preferences/theme), but the working tree was being edited while the run
-was in flight (uncommitted changes deleting the Inbox page and editing `filter.ts`, timestamped
-17:40–17:41, not made by this review). **Re-run `pnpm check:all` on a clean checkout before the
-meeting** — the pre-push hook runs it, so a red E2E means you cannot push.
+**Verified today (2026-09-28)** on `main` + the docs-only fixes: `pnpm check:all` → all six
+steps green — format 1.6 s, lint 5.9 s, deps 0.4 s, types 3.5 s, unit 6.3 s, e2e 22.9 s (33
+Playwright tests). An earlier run failed 8 E2E tests only because the working tree was being
+edited mid-run; on a clean tree it passes.
 
 Both "trip it" demos below were run and behave as described: `lint:deps` reports
 `core-stays-framework-free` and `not-to-unresolvable`; the data guard prints
@@ -462,15 +452,15 @@ id)` makes it reproducible.
   supported, `packages/core/src/csv/dialects/` does not exist, and the skill's own step 0 says the
   registry seam still has to be extracted first. It has an `evals/evals.json`; I found no
   recorded eval results.
-- **The `commit` skill was not used for the last commit**: `4db7dcb` has no Conventional Commits
-  prefix — the only one of 77 commits without one (merges and the initial commit aside). Nothing
-  mechanical enforces commit message format (no commitlint).
+- **The `commit` skill was not used for the last two feature commits**: `4db7dcb` and `af89fe5`
+  have no Conventional Commits prefix — the only two of 79 commits without one (merges and the
+  initial commit aside). Nothing mechanical enforces commit message format (no commitlint).
 
 ### Verification gaps
 
 - **No manual check against a real bank export was ever done.** Plans 01, 02, 03, 05, 07, 08 all
   have unchecked Manual Verification boxes; plan 01 explains it needs a real export, which may not
-  be committed. Plan 04's ticked manual checks were run "in a browser through Playwright against a
+  be committed. §9 is a 10-minute checklist to close this yourself. Plan 04's ticked manual checks were run "in a browser through Playwright against a
   throwaway database", not by a person.
 - **Dark mode legibility unverified** (plan 07 criterion unchecked; plan 08 then replaced the
   theme). Plan 08's "light + dark, DE + EN, at 390/1024/1440 px" criterion is marked `[-]` partial.
@@ -480,20 +470,23 @@ id)` makes it reproducible.
   bundle-size warning (870 kB) and `lazy()` "not done".
 - No coverage measurement is configured.
 
-### Docs that disagree with the code
+### Docs that disagreed with the code — fixed on 2026-09-28 (`docs/review-fixes`)
 
-- **README is stale:** "Two of the three product steps … are built" (all three are), and the
-  scripts table calls `check:all` "the Playwright smoke test" (it's 12 specs).
-- **Plan status fields are wrong:** plan 02 `status: draft`, plans 05/06 `status: ready` — all
-  implemented. Plan 08 says `implemented` while unmerged, with a `[-]` criterion.
-- **Plan 08 contradicts itself after `4db7dcb`:** decision 5 and an acceptance criterion still say
-  badge = chip = inbox; the chip now follows the month. Decision 15 (`usePageChrome`) and the trend
-  "summed limit" line describe things not built as written.
-- **Plan 01 omits the staleness rule** (`07c3548`, `c97d72c`); plan 02 omits the `compareRules`
-  vs `orderRules` listing change that commit `c9961e0` says is "recorded in docs/plans"; plan 03
-  omits all three `adab39b` fixes.
-- **Plan 04's research and plan were committed after the code** (`464da62`, "as built"). A trainer
-  may ask whether that cycle was really research-first.
+Fixed in one docs-only PR, so be ready to say they were found in this review and corrected:
+
+- README said "Two of the three product steps … are built" and called `check:all` "the
+  Playwright smoke test" → now all three steps, and "the Playwright suite (11 specs …)".
+- Plan statuses: plan 02 `draft`, plans 05/06 `ready` → `implemented`. Plan 05 now also says
+  Phase 5 fixed two more findings, and that PR #15 was reopened as #16.
+- Plan 08: acceptance criteria and decisions 5 and 15 annotated in place (struck through +
+  _Changed_) — the badge/chip scope, the removed inbox, the trend's limit line, and
+  `usePageChrome`, which was never built.
+- Plans 01/02/03 gained the missing post-build changes: the stale-export rule (`07c3548`,
+  `c97d72c`), `list` sorting with `compareRules` (`c9961e0`), and the three `adab39b` fixes.
+- **Plan 04's order** is now stated in the plan. The research (`date` 12:18Z) and plan (13:05Z)
+  predate the code, but everything was committed within one minute (13:49–13:50Z), so git alone
+  cannot prove research-first — only the `date` fields the rpi skills write do. Say that plainly
+  if asked; don't claim more.
 
 ### Design questions I'd ask as a grader
 
@@ -518,9 +511,39 @@ id)` makes it reproducible.
 
 ### Housekeeping to do before the meeting
 
-- **Merge or PR `feat/ui-redesign`** — 7 commits ahead of `main`, pushed, no PR.
-- A 60 MB **`core` file at the repo root** is a Linux core dump of `pnpm-native` (git-ignored via
-  `/core`, not tracked). Delete it so it doesn't show up in a live `ls`.
+- ~~Merge or PR `feat/ui-redesign`~~ — done: PR #18 (`4bc0ad7`).
 - `dogfood-output/report.md` and 11 screenshots are tracked; the screenshots folder is now
   git-ignored but the old files remain (plan 06 notes this as "left to the user").
-- Fix the README's first paragraph and the plan status fields — cheap, and trainers will read them.
+- Do §9 with your own export, and tick the plans' Manual Verification boxes with the date.
+
+---
+
+## 9. Manual check with your own Sparkasse export (≈10 min)
+
+The one gap only you can close. Use a **real** export on your machine — never copy it into the
+repo; the data guard would block it at commit, but don't rely on that.
+
+```bash
+pnpm dev                     # http://localhost:5173, your own apps/api/data/budget.db
+```
+
+1. **Import:** create the account with your IBAN, drop the CSV on the window. Note the
+   encoding shown in the import summary (a Sparkasse download is usually `windows-1252`) and that
+   umlauts in payees read correctly (`Müller`, not `MÃ¼ller`). → plan 01 manual items.
+2. **Re-import the same file:** `0` imported, everything skipped; `/imports` lists both uploads.
+3. **Overlapping export:** import a second export that overlaps the first by a few days — only
+   the new days import.
+4. **Rules with umlauts:** add a rule `Empfänger enthält müller` (or any payee with ä/ö/ü/ß in
+   your data), check the live preview count, apply. → plan 02.
+5. **Hand-set wins:** set one row's category by hand, press „Regeln anwenden“ — it keeps its
+   category and shows the lock. → plan 02.
+6. **List:** search a lower-case payee that the bank wrote in capitals — it matches. Clear the
+   search, then filter by „Ohne Kategorie“; the chip count matches the rows shown. → plan 03.
+7. **Budgets:** set a limit on one category for the month, check the bar and „über“ past it. →
+   plan 04.
+8. **Theme + language + width:** switch dark/light and DE/EN; narrow the window to phone width —
+   no sideways scroll. → plans 07, 08.
+
+Then tick the matching boxes in each plan's _Manual Verification_ section with the date, e.g.
+`- [x] … (2026-09-29, own export, 1 243 rows)`. That turns the biggest weak spot into a talking
+point.

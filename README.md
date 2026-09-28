@@ -1,12 +1,11 @@
 # household-budget
 
 A pnpm monorepo for a household budgeting app, for one person's own bank data on
-their own machine. Two of the three product steps — import, categorize, report —
-are built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and listed,
-with duplicate detection that survives overlapping exports, and user-defined rules
-assign each transaction a category — with a category set by hand always winning.
-The list can be narrowed by month, by category and by free text, and says how many
-transactions still have no category.
+their own machine. All three product steps — import, categorize, report — are
+built: a Sparkasse CSV-CAMT export can be uploaded, parsed, stored and listed, with
+duplicate detection that survives overlapping exports; user-defined rules assign each
+transaction a category — with a category set by hand always winning; and each month's
+spending is shown per category against a limit, with a six-month trend.
 
 ## Layout
 
@@ -85,7 +84,7 @@ Run from the repo root:
 | Script           | What it does                                                               |
 | ---------------- | -------------------------------------------------------------------------- |
 | `pnpm check`     | format, lint, import boundaries, typecheck, unit tests — one line per step |
-| `pnpm check:all` | the above plus the Playwright smoke test                                   |
+| `pnpm check:all` | the above plus the Playwright suite (11 specs, real API and browser)       |
 | `pnpm dev`       | core in watch mode + api on :3000 + web on :5173, in parallel              |
 | `pnpm build`     | builds every package in dependency order                                   |
 | `pnpm typecheck` | `tsc --noEmit` across all three packages                                   |

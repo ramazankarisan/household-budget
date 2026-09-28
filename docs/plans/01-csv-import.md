@@ -72,6 +72,8 @@ taken from documentation. Do not re-derive them.
      `Verwendungszweck`, so no fingerprint can match it to its own booked form.
    - Impact: on every import, delete all stored pending rows for the account and re-insert from
      the file. `dedupKey` is `NULL` for them, which SQLite treats as distinct — verified.
+   - _Changed after the build (`07c3548`, `c97d72c`): only when the file is not older than what is
+     stored — see Later changes._
 9. **Soft-deleted rows are restored on re-import, not re-inserted.**
    - Why: `@@unique([accountId, dedupKey])` covers soft-deleted rows too, so a plain insert hits
      `UNIQUE constraint failed`. Verified against this repo's `better-sqlite3@12.11.1`.
@@ -758,6 +760,19 @@ failed: []` says the file held nine rows and one of them was the pending snapsho
 - The two `MANUAL VERIFICATION` items are the only ones left unchecked. They need a real
   Sparkasse export, which cannot be committed and is not something this implementation can
   produce.
+
+## Later changes
+
+- 2026-09-22, `07c3548`: re-importing an **older** export no longer replaces the pending set.
+  An export is a snapshot as of its newest booked date; an older file would delete pending rows
+  it never saw and bring back ones that have since booked. `ImportService.isStaleExport()`
+  compares the file's newest booked date with the newest stored booked row; a stale file's
+  booked rows still import (dedup handles them), its pending rows are ignored.
+- 2026-09-22, `c97d72c`: that comparison uses **booked rows only**, on both sides. A pending
+  standing order carries a future date, and counting it parked the watermark ahead of every
+  later export, freezing the pending set until that date passed.
+- 2026-09-22, `e45bcda`: a deleted _pending_ row comes back as a new row on re-import, not a
+  restored one — it has no `dedupKey` to match (see the Phase 4 notes).
 
 ## References
 
