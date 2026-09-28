@@ -151,6 +151,18 @@ than skips when it is missing, so the gate cannot quietly pass.
 Bypass only in a real emergency: `LEFTHOOK=0 git commit ...`, or skip one job with
 `LEFTHOOK_EXCLUDE=gitleaks git commit ...`.
 
+### Claude Code hooks
+
+`.claude/settings.json` gates the agent itself, earlier than any git hook
+(`.claude/hooks/*.mjs`, each file says why):
+
+- **PreToolUse `Edit|Write|Read`** — no edits to `fixtures/*.csv` (byte-exact), the generated
+  Prisma client, `.env` or bank exports; no reads of `apps/api/data/`.
+- **PreToolUse `Bash`** — no `--no-verify`, `LEFTHOOK=0`, `core.hooksPath`, `git add -f` of
+  data, and nothing that names `budget.db`. The emergency bypass above is for a human.
+- **Stop** — runs `pnpm check` when the tree changed since the last pass; a failure keeps the
+  agent working. The rule "run `pnpm check` before saying you are done" is this hook.
+
 ## WHY
 
 A **local** household budget app. It imports bank CSV exports, applies user-defined rules to

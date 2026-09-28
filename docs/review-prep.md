@@ -326,17 +326,20 @@ build, and I recorded the departures in the plan rather than silently diverging.
 
 ## 6. Backpressure story
 
-| Check        | Command                              | When it runs                                 | What it catches / caught                                                                                                                                                     |
-| ------------ | ------------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Format       | `pnpm format:check`                  | `pnpm check`, pre-commit (staged files)      | Formatting drift                                                                                                                                                             |
-| Lint         | `pnpm lint`                          | `pnpm check`, pre-commit (staged `.ts/.tsx`) | Unawaited promises (`no-floating-promises`, incl. Playwright `expect` without `await`); `react-hooks/refs` rejected `budgetsRef.current = …` during render (plan 05 Phase 4) |
-| Architecture | `pnpm lint:deps`                     | `pnpm check` (not pre-commit)                | Framework import in core, including type-only; unresolvable imports. Tripped during plan 01 on `csv-parse/sync` until `exportsFields` was configured ("Gate 1 failed")       |
-| Typecheck    | `pnpm typecheck`                     | `pnpm check`, pre-commit (whole project)     | Strict TS in 3 packages + web's node and e2e tsconfigs; missing English translation (`en` typed against `de`); stale core `dist`                                             |
-| Unit tests   | `pnpm test` (`pnpm test:fast` bails) | `pnpm check`; pre-commit runs **core only**  | ~110 core, ~118 api (real SQLite), ~224 web cases (regex count, approximate)                                                                                                 |
-| E2E          | `pnpm test:e2e`                      | `pnpm check:all`, **pre-push**               | 33 tests in 11 specs; import → rules → budgets through the real proxy                                                                                                        |
-| Data guard   | `node scripts/check-staged-data.mjs` | pre-commit, first                            | CSV/OFX/XLS outside `fixtures/`, `.env*`, `*.db*`                                                                                                                            |
-| Secret scan  | `./scripts/gitleaks.sh`              | pre-commit                                   | Secrets in staged diff; fails if gitleaks isn't installed                                                                                                                    |
-| Commit skill | `/commit`                            | when Claude commits                          | Runs `pnpm check`, refuses forbidden paths, writes Conventional Commits                                                                                                      |
+| Check         | Command                              | When it runs                                 | What it catches / caught                                                                                                                                                     |
+| ------------- | ------------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format        | `pnpm format:check`                  | `pnpm check`, pre-commit (staged files)      | Formatting drift                                                                                                                                                             |
+| Lint          | `pnpm lint`                          | `pnpm check`, pre-commit (staged `.ts/.tsx`) | Unawaited promises (`no-floating-promises`, incl. Playwright `expect` without `await`); `react-hooks/refs` rejected `budgetsRef.current = …` during render (plan 05 Phase 4) |
+| Architecture  | `pnpm lint:deps`                     | `pnpm check` (not pre-commit)                | Framework import in core, including type-only; unresolvable imports. Tripped during plan 01 on `csv-parse/sync` until `exportsFields` was configured ("Gate 1 failed")       |
+| Typecheck     | `pnpm typecheck`                     | `pnpm check`, pre-commit (whole project)     | Strict TS in 3 packages + web's node and e2e tsconfigs; missing English translation (`en` typed against `de`); stale core `dist`                                             |
+| Unit tests    | `pnpm test` (`pnpm test:fast` bails) | `pnpm check`; pre-commit runs **core only**  | ~110 core, ~118 api (real SQLite), ~224 web cases (regex count, approximate)                                                                                                 |
+| E2E           | `pnpm test:e2e`                      | `pnpm check:all`, **pre-push**               | 33 tests in 11 specs; import → rules → budgets through the real proxy                                                                                                        |
+| Data guard    | `node scripts/check-staged-data.mjs` | pre-commit, first                            | CSV/OFX/XLS outside `fixtures/`, `.env*`, `*.db*`                                                                                                                            |
+| Secret scan   | `./scripts/gitleaks.sh`              | pre-commit                                   | Secrets in staged diff; fails if gitleaks isn't installed                                                                                                                    |
+| Commit skill  | `/commit`                            | when Claude commits                          | Runs `pnpm check`, refuses forbidden paths, writes Conventional Commits                                                                                                      |
+| Claude: files | `.claude/hooks/protect-files.mjs`    | PreToolUse `Edit\|Write\|Read`               | Blocks edits to byte-exact fixtures, generated Prisma client, `.env`, bank exports; reads of `apps/api/data/`                                                                |
+| Claude: shell | `.claude/hooks/guard-bash.mjs`       | PreToolUse `Bash`                            | Blocks `--no-verify`, `LEFTHOOK=0`, `core.hooksPath`, `git add -f` of data, anything naming `budget.db`                                                                      |
+| Claude: done  | `.claude/hooks/check-on-stop.mjs`    | Stop                                         | Runs `pnpm check` if the tree changed since the last pass; a failure keeps the agent working                                                                                 |
 
 Also: the web build (`vite build`) was used as a manual gate in plan 01 to prove no `Buffer` in the
 bundle — it is **not** part of `pnpm check`.
@@ -443,9 +446,8 @@ id)` makes it reproducible.
 
 - **`docs/learnings.md` does not exist.** Not in the tree, not in git history.
 - **`DEBUG.md` does not exist.** Same.
-- **No Claude Code hooks.** There is no `.claude/settings.json`; the only Claude setting is
-  `.claude/settings.local.json` (git-ignored, a statusline). All "hooks" in this repo are **git
-  hooks via lefthook**. Say it that way.
+- ~~**No Claude Code hooks.**~~ Added 2026-09-28 (`chore/claude-hooks`): `.claude/settings.json`
+  with three hooks in `.claude/hooks/` — see §6. Before that, every "hook" was a git hook.
 - **No CI.** No `.github/` directory. The only enforcement is local hooks, which can be bypassed
   with `LEFTHOOK=0` or `--no-verify`. The pre-push hook is the last line of defence.
 - **The `add-bank-format` skill has never been exercised** in this repo: only Sparkasse is
