@@ -171,23 +171,23 @@ in `apps/web/src/shell/`. A page SHOULD NOT restyle an MUI primitive inline when
 exists. The last column says where each one lives, or that it is a pattern rather than a
 component.
 
-| Component         | Contract                                                                                                  | Lives in                                               |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `AppShell`        | Sidebar + top bar + content slot. Owns the month stepper and global drop target.                          | `shell/AppShell.tsx`                                   |
-| `MonthStepper`    | `‹ September 2025 ›` with a menu on the label. `[` and `]` step months. Reads/writes `?m=`.               | `shell/MonthStepper.tsx`                               |
-| `AmountText`      | Formats cents, tabular, nowrap; `tone="auto"` colours income; `size` from the type scale.                 | `ui/`                                                  |
-| `CategoryPill`    | Colour dot + name. Clickable variant opens `CategoryMenu`. Uncategorized = dashed outline.                | `ui/`                                                  |
-| `CategoryMenu`    | Searchable list, number-key shortcuts, "Neue Kategorie…" at the end.                                      | `ui/`                                                  |
-| `BudgetBar`       | Solid booked, hatched vorgemerkt, tick at the limit, `ok/near/over` tone, label with „übrig"/„über".      | `ui/`                                                  |
-| `StatTiles`       | Label, big value, one-line context. At most four in a row.                                                | `pages/overview/SideCards.tsx` (Überblick only)        |
-| `RuleSentence`    | „Wenn _Feld_ _Operator_ ‚Wert' → Kategorie" with match count. Editable in place.                          | `ui/`                                                  |
-| `StatusIcon`      | `pending` (schedule), `locked` (lock), `over` (warning), `income` (south-west arrow). Replaces all emoji. | `ui/`                                                  |
-| `EmptyState`      | One sentence, one primary action. No illustrations.                                                       | `ui/`                                                  |
-| `DelayedSkeleton` | Skeleton rows that appear only if loading outlasts a short delay, with an accessible label.               | `ui/`                                                  |
-| Inline alert      | MUI `Alert`, placed next to the thing that failed, worded by `describeFailure`.                           | pattern — used inline on each page                     |
-| Undo snackbar     | Every destructive action: act immediately, offer „Rückgängig" for 6 s.                                    | pattern — today only on Regeln (`pages/RulesPage.tsx`) |
-| `DropOverlay`     | Full-window overlay while a file is dragged over the app; asks for the account if more than one.          | `ui/`                                                  |
-| `KeyHint`         | Small `kbd` showing a shortcut next to its action.                                                        | `ui/`                                                  |
+| Component         | Contract                                                                                                  | Lives in                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `AppShell`        | Sidebar + top bar + content slot. Owns the month stepper and global drop target.                          | `shell/AppShell.tsx`                                                             |
+| `MonthStepper`    | `‹ September 2025 ›` with a menu on the label. `[` and `]` step months. Reads/writes `?m=`.               | `shell/MonthStepper.tsx`                                                         |
+| `AmountText`      | Formats cents, tabular, nowrap; `tone="auto"` colours income; `size` from the type scale.                 | `ui/`                                                                            |
+| `CategoryPill`    | Colour dot + name. Clickable variant opens `CategoryMenu`. Uncategorized = dashed outline.                | `ui/`                                                                            |
+| `CategoryMenu`    | Searchable list, number-key shortcuts, "Neue Kategorie…" at the end.                                      | `ui/`                                                                            |
+| `BudgetBar`       | Solid booked, hatched vorgemerkt, tick at the limit, `ok/near/over` tone, label with „übrig"/„über".      | `ui/`                                                                            |
+| `StatTiles`       | Label, big value, one-line context. At most four in a row.                                                | `pages/overview/SideCards.tsx` (Überblick only)                                  |
+| `RuleSentence`    | „Wenn _Feld_ _Operator_ ‚Wert' → Kategorie" with match count. Editable in place.                          | `ui/`                                                                            |
+| `StatusIcon`      | `pending` (schedule), `locked` (lock), `over` (warning), `income` (south-west arrow). Replaces all emoji. | `ui/`                                                                            |
+| `EmptyState`      | One sentence, one primary action. No illustrations.                                                       | `ui/`                                                                            |
+| `DelayedSkeleton` | Skeleton rows that appear only if loading outlasts a short delay, with an accessible label.               | `ui/`                                                                            |
+| Inline alert      | MUI `Alert`, placed next to the thing that failed, worded by `describeFailure`.                           | pattern — used inline on each page                                               |
+| Undo snackbar     | Every destructive action: act immediately, offer „Rückgängig" for 6 s.                                    | pattern — on Regeln and Importe (`pages/RulesPage.tsx`, `pages/ImportsPage.tsx`) |
+| `DropOverlay`     | Full-window overlay while a file is dragged over the app; asks for the account if more than one.          | `ui/`                                                                            |
+| `KeyHint`         | Small `kbd` showing a shortcut next to its action.                                                        | `ui/`                                                                            |
 
 - **No emoji as UI.** `⏳ 🔒 ⚠ ✕` are replaced by `@mui/icons-material` Rounded icons at
   `1.125em`, `aria-hidden` when a word next to them already says it, labelled otherwise.

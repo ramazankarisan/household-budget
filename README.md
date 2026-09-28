@@ -52,7 +52,7 @@ adds new columns to your existing `budget.db` without touching its rows.
 Then open http://localhost:5173. Create an account, then drop a Sparkasse CSV-CAMT or
 Deutsche Bank CSV export anywhere on the window — or press **Importieren** in the top bar — and the transactions
 appear on every page. **Importe** lists every upload, the ones that brought nothing new
-included. `fixtures/sparkasse-camt-18.csv` and `fixtures/deutsche-bank.csv` are
+included, and can remove one — with undo. `fixtures/sparkasse-camt-18.csv` and `fixtures/deutsche-bank.csv` are
 synthetic exports to try it with.
 
 Under **Regeln**, add a category and write a rule as the sentence it is —
