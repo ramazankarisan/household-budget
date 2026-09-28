@@ -1,0 +1,42 @@
+# Mutation testing for packages/core, weekly. Stryker changes core's source one small edit at
+# a time and reruns the tests; a mutant the tests still pass on is behaviour nobody asserts.
+#
+# Scheduled rather than per PR: ~3 minutes of CPU for a signal that only moves when core or
+# its tests change. The run fails below the `break` threshold in stryker.config.mjs, and
+# GitHub emails a failed scheduled run to whoever last changed this file. docs/plans/09.
+name: Mutation
+
+on:
+  schedule:
+    # Mondays 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version from package.json's packageManager field.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm mutation
+
+      # The survivors, file by file: the tests worth writing next.
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: packages/core/reports/mutation/
+          if-no-files-found: ignore
+          retention-days: 30

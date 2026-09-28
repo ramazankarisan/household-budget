@@ -15,19 +15,19 @@ check` stays fast enough to run after every change.
 
 ## Where each guardrail runs
 
-| Guardrail                       | core | api | web | Runs in                             |
-| ------------------------------- | :--: | :-: | :-: | ----------------------------------- |
-| CI (`pnpm check:all`)           |  ✓   |  ✓  |  ✓  | GitHub Actions, every PR and `main` |
-| Bank-data guard, gitleaks       |  —   |  —  |  —  | pre-commit (staged) and CI (all)    |
-| Coverage thresholds             |  ✓   |  ✓  |  ✓  | `pnpm check` (`unit` step)          |
-| Unused code/deps (knip)         |  ✓   |  ✓  |  ✓  | `pnpm check` (`unused` step)        |
-| Architecture rules              |  ✓   |  ✓  |  ✓  | `pnpm check` (`deps` step)          |
-| Property tests (fast-check)     |  ✓   |     |     | `pnpm check` (ordinary unit tests)  |
-| Mutation tests (Stryker)        |  ✓   |     |     | `pnpm mutation`, by hand            |
-| a11y lint (jsx-a11y)            |      |     |  ✓  | `pnpm check` (`lint` step)          |
-| a11y in the browser (axe)       |      |     |  ✓  | `pnpm check:all` (`wcag.spec.ts`)   |
-| Commit messages (commitlint)    |  —   |  —  |  —  | `commit-msg` hook                   |
-| `pnpm audit --audit-level high` |  —   |  —  |  —  | CI                                  |
+| Guardrail                       | core | api | web | Runs in                              |
+| ------------------------------- | :--: | :-: | :-: | ------------------------------------ |
+| CI (`pnpm check:all`)           |  ✓   |  ✓  |  ✓  | GitHub Actions, every PR and `main`  |
+| Bank-data guard, gitleaks       |  —   |  —  |  —  | pre-commit (staged) and CI (all)     |
+| Coverage thresholds             |  ✓   |  ✓  |  ✓  | `pnpm check` (`unit` step)           |
+| Unused code/deps (knip)         |  ✓   |  ✓  |  ✓  | `pnpm check` (`unused` step)         |
+| Architecture rules              |  ✓   |  ✓  |  ✓  | `pnpm check` (`deps` step)           |
+| Property tests (fast-check)     |  ✓   |     |     | `pnpm check` (ordinary unit tests)   |
+| Mutation tests (Stryker)        |  ✓   |     |     | CI weekly (Mon), and `pnpm mutation` |
+| a11y lint (jsx-a11y)            |      |     |  ✓  | `pnpm check` (`lint` step)           |
+| a11y in the browser (axe)       |      |     |  ✓  | `pnpm check:all` (`wcag.spec.ts`)    |
+| Commit messages (commitlint)    |  —   |  —  |  —  | `commit-msg` hook                    |
+| `pnpm audit --audit-level high` |  —   |  —  |  —  | CI                                   |
 
 The hooks run each check once. pre-commit: data guard, gitleaks, format and lint on the
 staged files. pre-push: `check.mjs --push` — deps, unused, types, unit with coverage, the
@@ -59,7 +59,10 @@ wiring that example tests and Playwright already cover.
    miss; `vitest.config.ts` aliases every fixtures import to `FIXTURES_DIR`, which Stryker
    sets. Baseline 81.6% after the Deutsche Bank rewrite (78.4% before it), break at 81.
    Weakest: `csv/errors.ts` 57%, `csv/header.ts` 65%, `csv/parse.ts` 70%. Those survivors
-   are the next tests worth writing.
+   are the next tests worth writing. It runs weekly in CI (`mutation.yml`, Mondays, and on
+   demand from the Actions tab) rather than per PR: ~3 minutes for a signal that only moves
+   when core or its tests change. A drop below the break fails that run and GitHub emails
+   it; the HTML report of the survivors is kept as an artifact for 30 days.
 4. **dependency-cruiser covers all three packages.** New rules: core never imports the apps;
    the apps import core's built package, never `packages/core/src`; api and web never import
    each other; web never imports NestJS, Prisma, Node built-ins or `@household-budget/core/csv`
@@ -100,8 +103,6 @@ wiring that example tests and Playwright already cover.
 
 - Dependabot or Renovate: dependency updates stay manual, by choice. `pnpm audit` in CI
   still fails on a new high advisory.
-- Mutation testing in CI: 2.5 minutes of CPU on every push, for a signal that changes only
-  when core's tests do. Run `pnpm mutation` when changing the parser or the budget math.
 - Type-aware lint beyond the floating-promise overlay: tsc strict already covers it (see
   `eslint.config.mjs`).
 - Building core once per `pnpm check` instead of in each of deps, types and unit: about a

@@ -110,10 +110,10 @@ pnpm dev                                       # core watch + api :3000 + web :5
 
 `pnpm check` runs format → lint → deps → unused → typecheck → unit tests with coverage
 thresholds, printing one line per step and nothing else unless something fails. CI runs
-`pnpm check:all` plus gitleaks and `pnpm audit` on every PR. What each guardrail covers, and
-why coverage thresholds only go up: [plan 09](docs/plans/09-guardrails.md).
-`pnpm check:all` adds Playwright, which boots the API and the web server, so it is slower —
-that is what CI runs.
+`pnpm check:all` plus gitleaks and `pnpm audit` on every PR, and mutation tests weekly. What
+each guardrail covers, and why coverage thresholds only go up:
+[plan 09](docs/plans/09-guardrails.md). `pnpm check:all` adds Playwright, which boots the API
+and the web server, so it is slower — that is what CI runs.
 
 Single package, single file, single test:
 
