@@ -1,8 +1,19 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/record-turn-start.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|Read",
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Read|Grep|Glob",
         "hooks": [
           {
             "type": "command",

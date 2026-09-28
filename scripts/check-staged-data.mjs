@@ -11,23 +11,22 @@
  */
 import { execFileSync } from 'node:child_process';
 
-/** fixtures/ at any depth, not just the repo root. */
-const isFixture = (p) => /(^|\/)fixtures\//.test(p);
+import { isBankExport, isDatabaseFile, isEnvFile } from './data-patterns.mjs';
 
 /** Each rule explains itself, because a hook that just says "blocked" gets bypassed. */
 const RULES = [
   {
     // Banks export OFX/QFX/QIF and spreadsheets as readily as CSV.
-    test: (p) => /\.(csv|ofx|qfx|qif|xls|xlsx)$/i.test(p) && !isFixture(p),
+    test: isBankExport,
     reason:
       'bank export outside fixtures/ — real statements never get committed. Synthetic test data goes in fixtures/.',
   },
   {
-    test: (p) => /(^|\/)\.env$/.test(p) || (/(^|\/)\.env\./.test(p) && !p.endsWith('.env.example')),
+    test: isEnvFile,
     reason: 'environment file — only .env.example belongs in git.',
   },
   {
-    test: (p) => /\.(db|db-journal|db-wal|db-shm|sqlite|sqlite3)$/i.test(p),
+    test: isDatabaseFile,
     reason: 'database file — the SQLite budget database stays local.',
   },
 ];
