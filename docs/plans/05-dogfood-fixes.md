@@ -13,7 +13,9 @@ status: implemented
 > `dogfood-output/report.md`, was removed before review; its findings and what became of each
 > are summarised in [docs/reports/2026-09-23-dogfood.md](../reports/2026-09-23-dogfood.md).
 > Pages named below (`BudgetsPage`, `CategoryCell`) were later replaced by the UI redesign
-> ([plan 08](08-ui-redesign.md)).
+> ([plan 08](08-ui-redesign.md)), so the unticked manual checks on `/budgets` and the lock
+> column describe pages that no longer exist; each fix shipped with unit tests
+> (`BudgetField.test.tsx`, `RulesPage.test.tsx`, `category.service.test.ts`).
 
 This plan fixes five findings from the exploratory test session recorded in
 [`dogfood-output/report.md`](../../dogfood-output/report.md), and Phase 5 two more the user found

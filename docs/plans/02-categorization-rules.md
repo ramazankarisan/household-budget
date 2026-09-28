@@ -9,6 +9,13 @@ status: implemented
 
 # PLAN: Categorization rules
 
+> **Outcome (2026-09-28):** implemented. The three manual checks at the end were not recorded
+> as done; what they check is covered by automated tests: umlaut matching in
+> `apps/api/src/rules/rule.service.test.ts`, a hand-set category surviving an apply in
+> `apps/web/e2e/rules.spec.ts`, an import categorizing the rows it inserts in
+> `apps/api/src/import/import.service.test.ts`. The UI no longer asks for a numeric priority:
+> a rule's position in the list is its priority ([plan 08](08-ui-redesign.md)).
+
 Deliver the second third of the product: a transaction acquires a category, either because a
 rule said so or because the user said so — and the user always wins. This is what turns a list
 of bank rows into something a monthly report can group by, which is the third step.

@@ -9,6 +9,12 @@ status: implemented
 
 # PLAN: The transactions list
 
+> **Outcome (2026-09-28):** implemented, then reshaped into the day-grouped ledger by
+> [plan 08](08-ui-redesign.md). The three manual checks were not recorded as done; their
+> substance is covered in `apps/web/e2e/transactions.spec.ts` — `müller` finds `MÜLLER GmbH`,
+> the count chip opens exactly the rows it counts, the ledger fits a phone without scrolling
+> sideways — with synthetic fixtures rather than the author's own export.
+
 Make the list usable once it holds more than a screenful. Filter by month, by category and by free
 text; show how many rows still have no category, and make that number the way into them. The
 inline override already exists — this is what lets a user find the row to override.
