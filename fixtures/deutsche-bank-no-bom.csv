@@ -10,7 +10,7 @@ Buchungstag;Wert;Umsatzart;Begünstigter / Auftraggeber;Verwendungszweck;IBAN / 
 28.9.2026;26.9.2026;Kartenzahlung;REWE Markt GmbH;Einkauf Lebensmittel / Filiale 42, Musterstadt;DE35500105174205498273;INGDDEFF;;;;;-42,17;;;;-42,17;;EUR
 28.9.2026;26.9.2026;Kartenzahlung;REWE Markt GmbH;Einkauf Lebensmittel / Filiale 42, Musterstadt;DE35500105174205498273;INGDDEFF;;;;;-42,17;;;;-42,17;;EUR
 25.9.2026;25.9.2026;SEPA Überweisung (Dauerauftrag);Hausverwaltung Süd GmbH;Miete Oktober Hauptstraße 12;DE44500105175407324931;COBADEFFXXX;NOTPROVIDED;;;;-1.150,00;;;;-1.150,00;;EUR
-18.9.2026;18.9.2026;SEPA Überweisung;Hotel "Nord" GmbH;Rechnung Übernachtung;DE12500105170648489890;PBNKDEFF;;;;;-128,5;;;;-128,5;;EUR
+18.9.2026;18.9.2026;SEPA Überweisung;Hotel "Nord" GmbH;"Rechnung Übernachtung;DE12500105170648489890;PBNKDEFF;"R-2026-18";;;;-128,5;;;;-128,5;;EUR
 15.9.2026;15.9.2026;SEPA Gutschrift;Beispiel AG;Gehalt September;DE75512108001245126199;SOLADEST600;;;;;2.450,00;;;;;2.450,00;EUR
 1.9.2026;31.8.2026;Kartenzahlung;Ärzte GmbH;Zuzahlung Praxisbesuch 10 €;DE22500105175487654321;MALADE51MNZ;;;;;-19;;;;-19;;EUR
 1.9.2026;1.9.2026;Entgelt;;Kontoführungsentgelt AktivKonto 08/2026;;;;;;;-190;;;;-190;;EUR

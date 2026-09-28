@@ -64,10 +64,11 @@ export interface BankDialect {
   readonly footerMarker?: string;
   readonly delimiter: string;
   /**
-   * For exports that never quote: a `"` inside a field is then a literal character, and
-   * csv-parse must not read `Hotel "Nord" GmbH` as a malformed quoted field.
+   * For exports that never quote: every `"` is then a literal character. Quoting is turned
+   * off rather than relaxed — `relax_quotes` still reads a field that *starts* with `"` as
+   * quoted, so a purpose like `"Rechnung` would fail the whole file as an unclosed quote.
    */
-  readonly relaxQuotes?: boolean;
+  readonly neverQuoted?: boolean;
   readonly parseAmount: (raw: string) => Cents | undefined;
   readonly parseDate: (raw: string, options: ParseGermanDateOptions) => string | undefined;
 }

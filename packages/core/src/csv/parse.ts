@@ -291,7 +291,7 @@ export function parseBankCsv(
 
   const records = parse(text, {
     delimiter: dialect.delimiter,
-    relax_quotes: dialect.relaxQuotes ?? false,
+    quote: dialect.neverQuoted === true ? false : '"',
     // TextDecoder already strips a UTF-8 BOM, but a file handed here as a string from
     // anywhere else may still carry one, and then the first column name is U+FEFF glued
     // to "Auftragskonto", which makes every row read as missing its own account number.

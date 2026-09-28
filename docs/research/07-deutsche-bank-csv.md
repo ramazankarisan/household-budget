@@ -92,7 +92,9 @@ the Firefly README before commit 3e04d63ad7,
    turn spending into income.
 6. **Footer dropped as the last non-blank line only**, and blanked rather than removed, so
    line numbers still match the file. A ragged line anywhere else still fails the file.
-7. **`relax_quotes`** because the bank never quotes: `Hotel "Nord" GmbH` is data, not a broken
-   quoted field. A field that _opens_ with `"` and never closes still throws.
+7. **Quoting off** (`quote: false`), because the bank never quotes: every `"` is data.
+   `relax_quotes` was the first choice and was wrong — it still reads a field that _opens_
+   with `"` as quoted, so a purpose like `"Rechnung` failed the whole file as an unclosed
+   quote. A stray delimiter is still caught, as a wrong field count.
 8. **Postbank** shares the header byte for byte and would be detected as `deutsche-bank`.
    Not claimed as supported until a Postbank file is checked against the fixture.

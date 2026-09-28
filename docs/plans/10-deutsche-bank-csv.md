@@ -38,6 +38,9 @@ Second bank format. Research: [`docs/research/07-deutsche-bank-csv.md`](../resea
 - **The e2e database is shared and counted.** A second account makes the import dialog ask
   which account a file belongs to, and rows in another month shift what other specs see — so
   the spec runs in a dependent project, after all of them.
+- **`relax_quotes` is not "never quoted".** It keeps a `"` inside a field but still treats
+  one at the _start_ as opening a quoted field; review caught it. The dialect turns quoting
+  off instead, and the fixture now has a purpose opening with an unclosed `"`.
 - The fixture tooling gained `quote: "none"`, `lineEnding` and `footer` in
   `make_fixture.py` and `--lf` in `check_fixture_bytes.py`.
 

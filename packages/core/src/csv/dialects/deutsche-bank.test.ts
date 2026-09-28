@@ -45,8 +45,11 @@ describe('Deutsche Bank', () => {
     expect(transactions[6]?.purpose).toBe('Zuzahlung Praxisbesuch 10 €');
   });
 
-  it('reads a bare quote character as data, since the bank never quotes', () => {
+  it('reads every quote character as data, since the bank never quotes', () => {
     expect(transactions[4]?.counterpartyName).toBe('Hotel "Nord" GmbH');
+    // A field opening with a quote that never closes, and one wrapped in quotes whole.
+    expect(transactions[4]?.purpose).toBe('"Rechnung Übernachtung');
+    expect(transactions[4]?.endToEndRef).toBe('"R-2026-18"');
   });
 
   it('reads the signed Betrag, truncated decimals included, as integer cents', () => {
@@ -111,9 +114,10 @@ describe('Deutsche Bank, bad rows', () => {
 });
 
 describe('Deutsche Bank, file-level failures', () => {
-  it('throws on an unterminated quote instead of swallowing the rest of the file', () => {
+  it('throws on a ragged row instead of shifting its columns', () => {
+    // Without quoting, a stray delimiter is a wrong field count — still loud, never silent.
     expect(() => parse(malformedCsv)).toThrowError(
-      expect.objectContaining({ code: 'CSV_QUOTE_NOT_CLOSED' }),
+      expect.objectContaining({ code: 'CSV_RECORD_INCONSISTENT_FIELDS_LENGTH' }),
     );
   });
 

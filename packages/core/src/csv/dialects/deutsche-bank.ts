@@ -34,7 +34,7 @@ export const deutscheBank: BankDialect = {
   },
   footerMarker: 'Kontostand',
   delimiter: ';',
-  relaxQuotes: true,
+  neverQuoted: true,
   // `D.M.YYYY` without leading zeros, and trailing-zero truncation (`750`, `-100,8`) —
   // both already what the Sparkasse parsers accept.
   parseAmount: parseGermanAmount,
