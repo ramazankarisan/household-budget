@@ -3,11 +3,11 @@
  * exit 2 to block. Run by `pnpm test` (and so by `pnpm check`) with `node --test`, because
  * there is no root Vitest and these scripts belong to no package.
  *
- * The Stop hook runs against a throwaway git repository with HB_STOP_CHECK standing in for
+ * The Stop hook runs against a throwaway git checkout with HB_STOP_CHECK standing in for
  * `pnpm check`, so each case costs milliseconds and records whether the check ran at all.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
@@ -132,97 +132,74 @@ describe('guard-bash', () => {
   }
 });
 
-describe('record-turn-start + check-on-stop', () => {
+describe('mark-edited + check-on-stop', () => {
   let repo;
+  let outside;
   let log;
-  const git = (...args) => {
-    const r = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', env: cleanEnv });
-    assert.equal(r.status, 0, r.stderr);
-  };
-  const session = 'test-session';
-  const startTurn = () => {
-    const r = run('record-turn-start.mjs', { session_id: session, cwd: repo });
+  // Unique per run, so a note left by a real session can never be read here.
+  const session = `test-${String(process.pid)}-${String(Date.now())}`;
+
+  const edit = (file) => {
+    const r = run('mark-edited.mjs', {
+      session_id: session,
+      tool_name: 'Edit',
+      tool_input: { file_path: file },
+    });
     assert.equal(r.code, 0, r.stderr);
-    assert.equal(r.stdout, '', 'a UserPromptSubmit hook must stay silent: stdout joins the prompt');
   };
   /** Stops with a check that exits `checkExit`; returns the hook's exit and whether it ran. */
   const stop = (checkExit, extra = {}) => {
     writeFileSync(log, '');
     const r = run(
       'check-on-stop.mjs',
-      { session_id: session, cwd: repo, ...extra },
+      { session_id: session, ...extra },
       { HB_STOP_CHECK: `echo ran >> "${log}"; exit ${String(checkExit)}` },
     );
     return { code: r.code, ran: readFileSync(log, 'utf8').includes('ran') };
   };
 
   before(() => {
+    // A throwaway checkout that looks like this repo: a git tree with scripts/check.mjs.
     repo = mkdtempSync(join(tmpdir(), 'hb-stop-hook-'));
-    log = join(repo, '..', `${repo.split('/').pop()}.log`);
-    git('init', '-q');
-    // Must be the throwaway repo, or nothing below may run.
-    const top = spawnSync('git', ['-C', repo, 'rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-      env: cleanEnv,
-    });
-    assert.equal(realpathSync(top.stdout.trim()), realpathSync(repo));
-    writeFileSync(join(repo, '.gitattributes'), '*.csv -text -diff\n');
+    outside = mkdtempSync(join(tmpdir(), 'hb-not-a-repo-'));
+    log = join(outside, 'check.log');
+    const init = spawnSync('git', ['init', '-q', repo], { encoding: 'utf8', env: cleanEnv });
+    assert.equal(init.status, 0, init.stderr);
+    mkdirSync(join(repo, 'scripts'));
+    writeFileSync(join(repo, 'scripts', 'check.mjs'), '');
     writeFileSync(join(repo, 'a.ts'), 'export const a = 1;\n');
-    writeFileSync(join(repo, 'f.csv'), 'x;y\r\n1;2\r\n');
-    git('add', '.');
-    // Identity per command, never written to any config.
-    git('-c', 'user.email=test@example.invalid', '-c', 'user.name=test', 'commit', '-qm', 'init');
   });
   after(() => {
     rmSync(repo, { recursive: true, force: true });
-    rmSync(log, { force: true });
+    rmSync(outside, { recursive: true, force: true });
   });
 
-  test('clean tree: nothing to check', () => {
-    startTurn();
+  test('no edits (a question, or only the user’s own work): no check', () => {
     assert.deepEqual(stop(1), { code: 0, ran: false });
   });
 
-  test('the user’s own uncommitted work, untouched this turn: not the agent’s problem', () => {
-    writeFileSync(join(repo, 'a.ts'), 'export const a = 2; // user WIP, failing\n');
-    startTurn();
-    assert.deepEqual(stop(1), { code: 0, ran: false });
-  });
-
-  test('a change during the turn is checked; a failure keeps the agent working', () => {
-    startTurn();
-    writeFileSync(join(repo, 'b.ts'), 'export const b = 1;\n');
+  test('an edit in the repo is checked; a failure keeps the agent working', () => {
+    edit(join(repo, 'a.ts'));
     assert.deepEqual(stop(1), { code: 2, ran: true });
   });
 
-  test('sent back, changed nothing: may stop and report instead of looping', () => {
+  test('blocked, then stops without editing again: may stop and report, no loop', () => {
     assert.deepEqual(stop(1, { stop_hook_active: true }), { code: 0, ran: false });
   });
 
-  test('sent back, changed something: checked again, so a wrong fix cannot slip through', () => {
-    writeFileSync(join(repo, 'b.ts'), 'export const b = 2; // still wrong\n');
+  test('blocked, then edits again: the fix is checked again', () => {
+    edit(join(repo, 'a.ts'));
     assert.deepEqual(stop(1, { stop_hook_active: true }), { code: 2, ran: true });
+    edit(join(repo, 'b.ts'));
+    assert.deepEqual(stop(0), { code: 0, ran: true });
   });
 
-  test('a passing tree is stamped, and the same tree is not checked twice', () => {
-    writeFileSync(join(repo, 'b.ts'), 'export const b = 3;\n');
-    assert.deepEqual(stop(0), { code: 0, ran: true });
+  test('a passing check is not repeated until the next edit', () => {
     assert.deepEqual(stop(1), { code: 0, ran: false });
   });
 
-  test('an untracked file edited after a pass is checked again', () => {
-    startTurn();
-    writeFileSync(join(repo, 'b.ts'), 'export const b = 4;\n');
-    assert.deepEqual(stop(1), { code: 2, ran: true });
-    writeFileSync(join(repo, 'b.ts'), 'export const b = 5;\n');
-    assert.deepEqual(stop(0), { code: 0, ran: true });
-  });
-
-  test('a -diff fixture whose bytes change after a pass is checked again', () => {
-    startTurn();
-    writeFileSync(join(repo, 'f.csv'), 'x;y\r\n1;3\r\n');
-    assert.deepEqual(stop(0), { code: 0, ran: true });
-    writeFileSync(join(repo, 'f.csv'), 'x;y\r\n1;4\r\n');
-    assert.deepEqual(stop(1), { code: 2, ran: true });
+  test('an edit outside any checkout of this repo is not this hook’s business', () => {
+    edit(join(outside, 'notes.md'));
+    assert.deepEqual(stop(1), { code: 0, ran: false });
   });
 });

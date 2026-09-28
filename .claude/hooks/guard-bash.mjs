@@ -16,9 +16,9 @@
  * .mjs because the root package is "type": "commonjs" while the workspace packages are ESM.
  */
 import process from 'node:process';
+import { text } from 'node:stream/consumers';
 
 import { BANK_EXPORT_EXTENSIONS } from '../../scripts/data-patterns.mjs';
-import { readHookInput } from './tree.mjs';
 
 /** One shell command up to the next separator. */
 const SEGMENT = String.raw`[^;&|\n]*`;
@@ -120,7 +120,7 @@ function visibleCommand(command) {
   return kept.join('\n');
 }
 
-const input = await readHookInput();
+const input = JSON.parse((await text(process.stdin)) || '{}');
 const command = input.tool_input?.command;
 if (typeof command !== 'string') process.exit(0);
 

@@ -17,6 +17,7 @@
  */
 import { isAbsolute, relative, resolve } from 'node:path';
 import process from 'node:process';
+import { text } from 'node:stream/consumers';
 
 import {
   isBankExport,
@@ -26,7 +27,6 @@ import {
   isLocalDataPath,
   isThrowawayDatabase,
 } from '../../scripts/data-patterns.mjs';
-import { readHookInput } from './tree.mjs';
 
 const WRITE_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob']);
@@ -97,7 +97,7 @@ function targetPath(input) {
   return tool.file_path;
 }
 
-const input = await readHookInput();
+const input = JSON.parse((await text(process.stdin)) || '{}');
 const tool = input.tool_name;
 const filePath = targetPath(input);
 if (typeof filePath !== 'string' || filePath === '') process.exit(0);
