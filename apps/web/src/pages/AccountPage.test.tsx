@@ -28,7 +28,7 @@ vi.mock('../api/client', () => ({
   listAccounts: () => Promise.resolve(ACCOUNTS),
   createAccount: () => Promise.reject(new Error('not used here')),
   uploadImport: () => Promise.reject(new Error('not used here')),
-  listCategories: () => Promise.resolve([{ id: 'cat-wohnen', name: 'Wohnen' }]),
+  listCategories: () => Promise.resolve([{ id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 }]),
   setTransactionCategory: (transactionId: string, categoryId: string | null) =>
     new Promise<TransactionPayload>((resolve, reject) => {
       writes.push({ transactionId, categoryId, resolve, reject });
@@ -86,12 +86,20 @@ async function withRows(rows: TransactionPayload[]): Promise<void> {
     expect(pending.has('acc-1')).toBe(true);
   });
   pending.get('acc-1')?.(rows);
-  await screen.findByRole('combobox', { name: 'Monat' });
+  await screen.findByRole('combobox', { name: 'Kategorie filtern' });
 }
 
 function chooseOption(name: string, option: string | RegExp): void {
   fireEvent.mouseDown(screen.getByRole('combobox', { name }));
   fireEvent.click(screen.getByRole('option', { name: option }));
+}
+
+/** The month is the top bar's stepper now, not a select in the toolbar. */
+const monthButton = () => screen.getByRole('button', { name: /^Monat wählen/ });
+
+function chooseMonth(label: string): void {
+  fireEvent.click(monthButton());
+  fireEvent.click(screen.getByRole('menuitem', { name: label }));
 }
 
 /** Renders the page with one booked row on the first account, loaded. */
@@ -202,7 +210,7 @@ describe('AccountPage, filtering', () => {
     await withRows([SEPTEMBER, OLD]);
     expect(screen.getByRole('cell', { name: 'Versicherung AG' })).toBeInTheDocument();
 
-    chooseOption('Monat', 'September 2025');
+    chooseMonth('September 2025');
 
     await waitFor(() => {
       expect(screen.queryByRole('cell', { name: 'Versicherung AG' })).not.toBeInTheDocument();
@@ -233,7 +241,7 @@ describe('AccountPage, filtering', () => {
     await withRows([SEPTEMBER, OLD]);
     expect(screen.getByText('2 ohne Kategorie')).toBeInTheDocument();
 
-    chooseOption('Monat', 'September 2025');
+    chooseMonth('September 2025');
 
     expect(screen.getByText('2 ohne Kategorie')).toBeInTheDocument();
   });
@@ -283,7 +291,7 @@ describe('AccountPage, filtering', () => {
     // September 2025 against an account whose history ends in 2023 shows an empty table,
     // which reads as a bug rather than as a filter.
     await withRows([SEPTEMBER, OLD]);
-    chooseOption('Monat', 'September 2025');
+    chooseMonth('September 2025');
     fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Suche' }), {
       target: { value: 'müller' },
@@ -298,7 +306,7 @@ describe('AccountPage, filtering', () => {
     pending.get('acc-2')?.([row('t-9', 'Stadtwerke', { bookingDate: '2023-05-02' })]);
 
     expect(await screen.findByRole('cell', { name: 'Stadtwerke' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('Alle Monate');
+    expect(monthButton()).toHaveTextContent('Alle Monate');
     expect(screen.getByRole('combobox', { name: 'Kategorie filtern' })).toHaveTextContent(
       'Alle Kategorien',
     );
@@ -306,14 +314,15 @@ describe('AccountPage, filtering', () => {
   });
 
   it('lands already narrowed when the budgets page sends the user here', async () => {
-    // The uncategorized row on /budgets hands over its account, month and bucket through
-    // router state — the rows it counted, not the first account's rows for every month.
+    // The uncategorized row on /budgets hands over its account and bucket through router
+    // state and its month in the URL — the rows it counted, not every month's.
     render(
       <MemoryRouter
         initialEntries={[
           {
             pathname: '/',
-            state: { accountId: 'acc-2', month: '2025-09', categoryId: 'uncategorized' },
+            search: '?m=2025-09',
+            state: { accountId: 'acc-2', categoryId: 'uncategorized' },
           },
         ]}
       >
@@ -334,7 +343,7 @@ describe('AccountPage, filtering', () => {
     expect(await screen.findByRole('cell', { name: 'Ärzte GmbH' })).toBeInTheDocument();
     expect(screen.queryByRole('cell', { name: 'Müller GmbH' })).toBeNull();
     expect(screen.queryByRole('cell', { name: 'Versicherung Nord AG' })).toBeNull();
-    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('September 2025');
+    expect(monthButton()).toHaveTextContent('September 2025');
     expect(screen.getByRole('combobox', { name: 'Kategorie filtern' })).toHaveTextContent(
       'Ohne Kategorie',
     );
@@ -349,7 +358,10 @@ describe('AccountPage, in English', () => {
       await i18n.changeLanguage('en');
     });
 
-    expect(await screen.findByRole('combobox', { name: 'Month' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Choose month: All months' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Transactions' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Import CSV' })).toBeInTheDocument();
   });

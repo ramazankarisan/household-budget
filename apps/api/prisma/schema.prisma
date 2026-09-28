@@ -101,6 +101,9 @@ model Transaction {
 model Category {
   id           String        @id @default(cuid())
   name         String        @unique
+  /// Index into the UI's category palette, 0–7. Null only on rows created before the
+  /// column existed; `CategoryService.onModuleInit` fills those in.
+  colorIndex   Int?
   createdAt    DateTime      @default(now())
   rules        Rule[]
   transactions Transaction[]

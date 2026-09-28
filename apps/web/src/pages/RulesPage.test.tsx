@@ -15,8 +15,8 @@ import i18n from '../locales/i18n';
 import { RulesPage } from './RulesPage';
 
 const initialCategories: CategoryPayload[] = [
-  { id: 'cat-wohnen', name: 'Wohnen' },
-  { id: 'cat-lebensmittel', name: 'Lebensmittel' },
+  { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+  { id: 'cat-lebensmittel', name: 'Lebensmittel', colorIndex: 0 },
 ];
 /** What the mocked API currently holds: deletes and re-creates change it, as the real one would. */
 let categories: CategoryPayload[] = [...initialCategories];
@@ -90,7 +90,7 @@ beforeEach(() => {
   });
   createdCategory.mockReset();
   createdCategory.mockImplementation((name) => {
-    const category = { id: `cat-${name.toLowerCase()}-new`, name };
+    const category = { id: `cat-${name.toLowerCase()}-new`, name, colorIndex: 0 };
     categories = [...categories, category];
     return Promise.resolve(category);
   });
@@ -284,7 +284,7 @@ describe('RulesPage', () => {
 });
 
 describe('RulesPage, deleting a category', () => {
-  // Dogfood ISSUE-010: the ✕ deleted at once with no way back. It still deletes at once;
+  // Dogfood ISSUE-010: the delete button deleted at once with no way back. It still deletes at once;
   // a snackbar offers undo, which re-creates the name. The API refuses to delete a
   // category anything points at, so a name is all there ever is to restore.
   const chip = (name: string) =>
@@ -398,7 +398,7 @@ describe('RulesPage, deleting a rule', () => {
 });
 
 describe('RulesPage, a category that cannot be deleted', () => {
-  it('keeps the same warning on screen when ✕ is clicked again', async () => {
+  it('keeps the same warning on screen when delete is clicked again', async () => {
     // Dogfood ISSUE-012: the warning was cleared before each request and put back by the
     // 409, so every repeat click removed and re-inserted it and the form below jumped.
     removedCategory.mockRejectedValue(

@@ -69,9 +69,9 @@ test.describe.serial('the transactions list', () => {
     // not a range that contains March 2014.
     await expect(page.getByRole('cell', { name: 'Versicherung Nord AG' })).toBeVisible();
 
-    await page.getByLabel('Monat').click();
-    await expect(page.getByRole('option', { name: 'März 2014' })).toBeVisible();
-    await page.getByRole('option', { name: 'September 2025' }).click();
+    await page.getByRole('button', { name: /^Monat wählen/u }).click();
+    await expect(page.getByRole('menuitem', { name: 'März 2014' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'September 2025' }).click();
 
     await expect(page.getByRole('cell', { name: 'Versicherung Nord AG' })).toHaveCount(0);
     await expect(page.getByRole('cell', { name: 'Müller GmbH' })).toBeVisible();

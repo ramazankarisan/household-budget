@@ -8,8 +8,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CircularProgress from '@mui/material/CircularProgress';
-import Container from '@mui/material/Container';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -36,8 +34,10 @@ import {
   uncategorizedCount,
 } from '../filter';
 import { describeFailure } from '../locales/sentences';
+import { TopBar } from '../shell/TopBar';
+import { useMonth } from '../shell/useMonth';
+import { DelayedSkeleton } from '../ui/DelayedSkeleton';
 import { AccountSelect } from './AccountSelect';
-import { AppHeader } from './AppHeader';
 import { ImportPanel } from './ImportPanel';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionList } from './TransactionList';
@@ -55,9 +55,7 @@ export function AccountPage() {
   const [transactions, setTransactions] = useState<readonly TransactionPayload[]>([]);
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
   const [filters, setFilters] = useState<TransactionFilterState>(
-    entry === undefined
-      ? NO_FILTERS
-      : { ...NO_FILTERS, month: entry.month, categoryId: entry.categoryId },
+    entry === undefined ? NO_FILTERS : { ...NO_FILTERS, categoryId: entry.categoryId },
   );
   // The cause, not its sentence: worded at render by `describeFailure`, so an alert already
   // on screen follows a language switch rather than staying in the old language.
@@ -184,13 +182,19 @@ export function AccountPage() {
   // copy of the rows, which is what lets `changeCategory`'s in-place replacement drop a
   // row out of an active filter the moment it stops matching.
   const months = useMemo(() => monthsOf(transactions), [transactions]);
+  // The URL's month. A month this account does not have falls back to all of them.
+  const monthState = useMonth(months, { defaultTo: 'all' });
+  const { month } = monthState;
   // Normalized per loaded list rather than per keystroke — which is the comparison that
   // matters, since typing is the frequent event. Setting a category by hand rebuilds it
   // too, because `changeCategory` replaces the array: ~2 ms for an eight-year history,
   // once per click, and cheaper than a per-id cache that would need invalidating on
   // exactly that event anyway.
   const searchable = useMemo(() => searchableOf(transactions), [transactions]);
-  const visible = useMemo(() => filterTransactions(searchable, filters), [searchable, filters]);
+  const visible = useMemo(
+    () => filterTransactions(searchable, filters, month),
+    [searchable, filters, month],
+  );
   // The whole account, not the view: the number answers "how much is left to do".
   const uncategorized = useMemo(() => uncategorizedCount(transactions), [transactions]);
   const filtering = hasFilters(filters);
@@ -202,76 +206,79 @@ export function AccountPage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
-      <Stack spacing={3}>
-        <AppHeader />
+    <Stack spacing={3}>
+      <TopBar
+        title={t('common.pages.transactions')}
+        month={
+          transactions.length > 0
+            ? { state: monthState, available: months, allowAll: true }
+            : undefined
+        }
+      />
 
-        {/* A row of its own under the shared header; the Box keeps the select at its own
+      {/* A row of its own under the shared header; the Box keeps the select at its own
             width instead of stretching across the column. */}
-        {accounts !== undefined && accounts.length > 0 && (
-          <Box>
-            <AccountSelect
-              accounts={accounts}
-              value={accountId}
-              onChange={(nextAccountId) => {
-                // Cleared here rather than in the effect that reloads them: showing the
-                // previous account's rows under the new account's name is worse than
-                // showing none for a moment.
-                setTransactions([]);
-                // A month or a category chosen for one account means nothing for the
-                // next: `September 2025` against a history ending in 2023 shows an empty
-                // table, which reads as a bug rather than as a filter.
-                setFilters(NO_FILTERS);
-                setAccountId(nextAccountId);
-              }}
-            />
-          </Box>
-        )}
+      {accounts !== undefined && accounts.length > 0 && (
+        <Box>
+          <AccountSelect
+            accounts={accounts}
+            value={accountId}
+            onChange={(nextAccountId) => {
+              // Cleared here rather than in the effect that reloads them: showing the
+              // previous account's rows under the new account's name is worse than
+              // showing none for a moment.
+              setTransactions([]);
+              // A category chosen for one account means nothing for the next. The month
+              // stays in the URL and falls back to "all" if this account lacks it.
+              setFilters(NO_FILTERS);
+              setAccountId(nextAccountId);
+            }}
+          />
+        </Box>
+      )}
 
-        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
+      {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
-        {accounts === undefined && <CircularProgress size={24} />}
+      {accounts === undefined && <DelayedSkeleton label={t('common.loading')} />}
 
-        {accounts?.length === 0 && <NewAccountForm onCreate={addAccount} onError={fail} />}
+      {accounts?.length === 0 && <NewAccountForm onCreate={addAccount} onError={fail} />}
 
-        {accountId !== '' && (
-          <Card variant="outlined">
-            <CardContent>
-              <Stack spacing={3}>
-                <Typography variant="h6" component="h2">
-                  {t('common.import.title')}
-                </Typography>
-                <ImportPanel accountId={accountId} onImported={refreshTransactions} />
-                <Divider />
-                {transactions.length > 0 && (
-                  <TransactionFilters
-                    filters={filters}
-                    months={months}
-                    categories={categories}
-                    uncategorized={uncategorized}
-                    onChange={setFilters}
-                  />
-                )}
-                <TransactionList
-                  transactions={visible}
+      {accountId !== '' && (
+        <Card variant="outlined">
+          <CardContent>
+            <Stack spacing={3}>
+              <Typography variant="h6" component="h2">
+                {t('common.import.title')}
+              </Typography>
+              <ImportPanel accountId={accountId} onImported={refreshTransactions} />
+              <Divider />
+              {transactions.length > 0 && (
+                <TransactionFilters
+                  filters={filters}
                   categories={categories}
-                  onCategoryChange={changeCategory}
-                  savingIds={savingIds}
-                  emptyMessage={filtering ? t('transactions.noMatches') : undefined}
-                  onResetFilters={
-                    filtering
-                      ? () => {
-                          setFilters(NO_FILTERS);
-                        }
-                      : undefined
-                  }
+                  uncategorized={uncategorized}
+                  onChange={setFilters}
                 />
-              </Stack>
-            </CardContent>
-          </Card>
-        )}
-      </Stack>
-    </Container>
+              )}
+              <TransactionList
+                transactions={visible}
+                categories={categories}
+                onCategoryChange={changeCategory}
+                savingIds={savingIds}
+                emptyMessage={filtering ? t('transactions.noMatches') : undefined}
+                onResetFilters={
+                  filtering
+                    ? () => {
+                        setFilters(NO_FILTERS);
+                      }
+                    : undefined
+                }
+              />
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+    </Stack>
   );
 }
 

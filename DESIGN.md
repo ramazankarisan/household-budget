@@ -63,20 +63,26 @@ contain hex, `rgb()` or pixel font sizes; they use palette paths (`text.secondar
 Every category has one colour from this fixed palette, assigned in creation order and changeable
 by the user. Stored as the index (`0`–`7`), never as a hex, so both schemes resolve it.
 
-| #   | Name   | Light     | Dark      |
-| --- | ------ | --------- | --------- |
-| 0   | Teal   | `#1F8A7D` | `#4CC3B3` |
-| 1   | Blue   | `#3563C9` | `#7EA3F2` |
-| 2   | Violet | `#7250CC` | `#A993F0` |
-| 3   | Rose   | `#C23A6E` | `#F07FA6` |
-| 4   | Orange | `#C4621C` | `#F2A162` |
-| 5   | Olive  | `#6B8420` | `#B0C95A` |
-| 6   | Sky    | `#1F84AD` | `#6CC5E8` |
-| 7   | Brown  | `#8C5E40` | `#C99A78` |
+| #   | Name    | Light     | Dark      |
+| --- | ------- | --------- | --------- |
+| 0   | Blue    | `#2A78D6` | `#3987E5` |
+| 1   | Orange  | `#EB6834` | `#D95926` |
+| 2   | Aqua    | `#1BAF7A` | `#199E70` |
+| 3   | Yellow  | `#EDA100` | `#C98500` |
+| 4   | Magenta | `#E87BA4` | `#D55181` |
+| 5   | Green   | `#008300` | `#008300` |
+| 6   | Violet  | `#4A3AA7` | `#9085E9` |
+| 7   | Brown   | `#A8641C` | `#C07A30` |
+
+Validated with the `dataviz` skill's `validate_palette.js` against `bg.surface` in both schemes
+(adjacent pairs): CVD ΔE ≥ 8.4, normal-vision ΔE ≥ 19.3. Slots 0–6 are that skill's reference
+order; slot 7 replaces its red, which here would collide with `status.over`. In light mode Aqua,
+Yellow and Magenta sit below 3:1 against the surface, which the next rule already covers: a
+category colour never appears without its name.
 
 - A category colour MUST always appear **with the category name** (pill, legend, row label). It is
   an index for the eye, not information on its own.
-- Category colours MUST NOT be used for status. A red-ish Rose category bar is still a category,
+- Category colours MUST NOT be used for status. An orange or magenta category bar is still a category,
   and over-budget is signalled by `status.over` + the word „über".
 - „Ohne Kategorie" has no palette colour: it is `text.disabled` with a dashed outline.
 - Run the palette through the `dataviz` skill's validator before changing any value.

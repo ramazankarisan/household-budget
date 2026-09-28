@@ -10,7 +10,8 @@ import { expect, test } from '@playwright/test';
 test('the page loads and reaches the API', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Household Budget' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Umsätze' })).toBeVisible();
+  await expect(page.getByRole('navigation').getByText('Haushaltsbuch')).toBeVisible();
 
   /*
    * Either the create-account form or the import panel renders, and neither appears

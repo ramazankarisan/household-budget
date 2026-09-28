@@ -11,9 +11,9 @@ const FIXTURE = resolve(
 /** `-832,90 €` separates the amount from the € with U+00A0, not a space. */
 const plain = (text: string): string => text.replaceAll('\u00a0', ' ');
 
-/** MUI's `background.default`, which CssBaseline paints on `body`, in each scheme. */
-const LIGHT_BACKGROUND = 'rgb(255, 255, 255)';
-const DARK_BACKGROUND = 'rgb(18, 18, 18)';
+/** `background.default` (DESIGN.md `bg.canvas`), which CssBaseline paints on `body`. */
+const LIGHT_BACKGROUND = 'rgb(246, 245, 241)';
+const DARK_BACKGROUND = 'rgb(15, 18, 17)';
 
 /**
  * The two preferences in the shared header. Each test starts from a fresh browser context,

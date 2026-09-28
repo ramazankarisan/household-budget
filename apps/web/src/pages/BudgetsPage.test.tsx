@@ -34,8 +34,8 @@ vi.mock('../api/client', () => ({
   listAccounts: () => Promise.resolve(ACCOUNTS),
   listCategories: () =>
     Promise.resolve([
-      { id: 'cat-essen', name: 'Lebensmittel' },
-      { id: 'cat-wohnen', name: 'Wohnen' },
+      { id: 'cat-essen', name: 'Lebensmittel', colorIndex: 0 },
+      { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
     ]),
   // Counted: "a month switch refetches nothing but that month's limits" is a claim about
   // how many times this was called.
@@ -88,7 +88,11 @@ const GIRO_ROWS = [
 /** Where the uncategorized row sends the user, and with what. */
 function ListProbe() {
   const location = useLocation();
-  return <output aria-label="list state">{JSON.stringify(location.state)}</output>;
+  return (
+    <output aria-label="list state">
+      {JSON.stringify({ search: location.search, ...(location.state as object) })}
+    </output>
+  );
 }
 
 const app = () => (
@@ -99,6 +103,20 @@ const app = () => (
     </Routes>
   </MemoryRouter>
 );
+
+/** The month stepper's label button; its name carries the month shown. */
+const monthButton = (label = 'Monat wählen') =>
+  screen.getByRole('button', { name: new RegExp(`^${label}`) });
+
+function openMonths(label = 'Monat wählen'): string[] {
+  fireEvent.click(monthButton(label));
+  return screen.getAllByRole('menuitem').map((item) => item.textContent);
+}
+
+function chooseMonth(name: string): void {
+  fireEvent.click(monthButton());
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+}
 
 /** `Intl` puts U+00A0 between the amount and the €. */
 const plain = (text: string | null): string => (text ?? '').replaceAll('\u00a0', ' ');
@@ -144,7 +162,7 @@ describe('BudgetsPage', () => {
   it('opens on the newest month the account has', async () => {
     await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
 
-    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('September 2025');
+    expect(monthButton()).toHaveTextContent('September 2025');
     expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
     expect(plain(screen.getByText(/von 700,00 €/).textContent)).toBe(
       '2.385,74 € von 700,00 € · 1.685,74 € über · 19,00 € vorgemerkt',
@@ -154,8 +172,7 @@ describe('BudgetsPage', () => {
   it('lists only the months the account has, newest first', async () => {
     await withGiro();
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    const options = openMonths();
 
     expect(options).toEqual(['September 2025', 'März 2014']);
   });
@@ -163,8 +180,7 @@ describe('BudgetsPage', () => {
   it('re-derives the table for another month without refetching the rows', async () => {
     await withGiro();
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    chooseMonth('März 2014');
 
     await waitFor(() => {
       expect(budgetLoads.has('2014-03')).toBe(true);
@@ -245,8 +261,7 @@ describe('BudgetsPage', () => {
   it('offers every month any account has', async () => {
     await withGiro([], [row({ bookingDate: '2024-01-10', amountCents: -5000 })]);
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    const options = openMonths();
 
     expect(options).toEqual(['September 2025', 'Januar 2024', 'März 2014']);
   });
@@ -260,8 +275,7 @@ describe('BudgetsPage', () => {
     expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toBeDisabled();
 
     // September's PUT is still unanswered when the user moves on.
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    chooseMonth('März 2014');
     await waitFor(() => {
       expect(budgetLoads.has('2014-03')).toBe(true);
     });
@@ -299,8 +313,8 @@ describe('BudgetsPage', () => {
 
     const state = await screen.findByRole('status', { name: 'list state' });
     expect(JSON.parse(state.textContent)).toEqual({
+      search: '?m=2025-09',
       accountId: 'acc-1',
-      month: '2025-09',
       categoryId: 'uncategorized',
     });
   });
@@ -344,14 +358,13 @@ describe('BudgetsPage', () => {
     // Dogfood ISSUE-009: a month switch used to swap the whole page for a spinner.
     await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    chooseMonth('März 2014');
     await waitFor(() => {
       expect(budgetLoads.has('2014-03')).toBe(true);
     });
 
     // March's limits are still unanswered: picker, table and spending are all there.
-    expect(screen.getByRole('combobox', { name: 'Monat' })).toHaveTextContent('März 2014');
+    expect(monthButton()).toHaveTextContent('März 2014');
     expect(screen.getByText('1.143,41 € ausgegeben', { normalizer: plain })).toBeInTheDocument();
     expect(within(rowOf('Wohnen')).getAllByLabelText('Budgets werden geladen')).toHaveLength(2);
     expect(screen.queryByRole('textbox', { name: 'Budget Wohnen' })).toBeNull();
@@ -371,16 +384,14 @@ describe('BudgetsPage', () => {
   it('fetches each month’s limits once, however often it is shown', async () => {
     await withGiro([{ categoryId: 'cat-wohnen', month: '2025-09', amountCents: 70000 }]);
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    chooseMonth('März 2014');
     await waitFor(() => {
       expect(budgetLoads.has('2014-03')).toBe(true);
     });
     budgetLoads.get('2014-03')?.([]);
     await screen.findByText('1.143,41 € von — · kein Budget gesetzt', { normalizer: plain });
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'September 2025' }));
+    chooseMonth('September 2025');
 
     // Straight back, with no load in between: the field is there on the next render.
     expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
@@ -401,16 +412,14 @@ describe('BudgetsPage', () => {
       expect(plain(rowOf('Wohnen').textContent)).toContain('175,07 € über');
     });
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'März 2014' }));
+    chooseMonth('März 2014');
     await waitFor(() => {
       expect(budgetLoads.has('2014-03')).toBe(true);
     });
     budgetLoads.get('2014-03')?.([]);
     await screen.findByText('1.143,41 € von — · kein Budget gesetzt', { normalizer: plain });
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'September 2025' }));
+    chooseMonth('September 2025');
 
     expect(screen.getByRole('textbox', { name: 'Budget Wohnen' })).toHaveValue('700,00');
     expect(listBudgets).toHaveBeenCalledTimes(2);
@@ -431,8 +440,7 @@ describe('BudgetsPage, in English', () => {
       '2.385,74 € of 700,00 € · 1.685,74 € over · 19,00 € pending',
     );
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Month' }));
-    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    const options = openMonths('Choose month');
     expect(options).toEqual(['September 2025', 'March 2014']);
   });
 });

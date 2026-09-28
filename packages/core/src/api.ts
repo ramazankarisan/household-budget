@@ -15,9 +15,17 @@ export interface AccountPayload {
   readonly name: string;
 }
 
+/** How many category colours there are. `colorIndex` is `0` to `CATEGORY_COLOR_COUNT - 1`. */
+export const CATEGORY_COLOR_COUNT = 8;
+
 export interface CategoryPayload {
   readonly id: string;
   readonly name: string;
+  /**
+   * Which of the UI's category colours this category wears. An index, not a colour: the
+   * light and dark schemes each resolve it to their own shade.
+   */
+  readonly colorIndex: number;
 }
 
 /**

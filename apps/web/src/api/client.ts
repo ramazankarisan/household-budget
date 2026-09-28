@@ -156,6 +156,17 @@ export function createCategory(name: string): Promise<CategoryPayload> {
   return request<CategoryPayload>('/categories', json('POST', { name }));
 }
 
+/** A rename, a recolour, or both. `CATEGORY_COLOR_INVALID` for an index outside 0–7. */
+export function updateCategory(
+  categoryId: string,
+  update: { readonly name?: string; readonly colorIndex?: number },
+): Promise<CategoryPayload> {
+  return request<CategoryPayload>(
+    `/categories/${encodeURIComponent(categoryId)}`,
+    json('PATCH', update),
+  );
+}
+
 /** 409 while any rule, transaction or budget still points at it — see `CATEGORY_IN_USE`. */
 export function deleteCategory(categoryId: string): Promise<void> {
   return remove(`/categories/${encodeURIComponent(categoryId)}`);

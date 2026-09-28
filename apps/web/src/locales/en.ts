@@ -4,13 +4,28 @@ import { type Messages } from './messages';
 /** Every string `de.ts` has, in English. Typed against it: a missing key fails typecheck. */
 export const en: Messages<typeof de> = {
   common: {
-    appTitle: 'Household Budget',
+    appTitle: 'Household budget',
+    loading: 'Loading',
+    navLabel: 'Main navigation',
     pending: 'pending',
     uncategorized: 'Uncategorized',
     nav: {
+      overview: 'Overview',
       transactions: 'Transactions',
       rules: 'Rules',
       budgets: 'Budgets',
+      more: 'More',
+    },
+    pages: {
+      transactions: 'Transactions',
+      rules: 'Rules',
+      budgets: 'Budgets',
+    },
+    month: {
+      previous: 'Previous month',
+      next: 'Next month',
+      choose: 'Choose month',
+      all: 'All months',
     },
     theme: {
       toDark: 'Dark theme',
@@ -154,6 +169,7 @@ export const en: Messages<typeof de> = {
       RULE_EXISTS: 'This rule already exists.',
       RULE_RESTORE_INVALID: 'This rule cannot be restored.',
       FORBIDDEN_ORIGIN: 'Request refused: it did not come from this page.',
+      CATEGORY_COLOR_INVALID: 'That colour does not exist.',
     },
     unknownApi: 'request refused ({{code}})',
     requestFailed: 'Request failed: {{detail}}',

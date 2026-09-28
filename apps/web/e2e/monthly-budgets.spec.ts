@@ -35,9 +35,9 @@ test.describe.serial('monthly budgets', () => {
   test('September 2025 against a limit on Wohnen', async ({ page }) => {
     await page.getByRole('link', { name: 'Budgets' }).click();
 
-    await page.getByLabel('Monat').click();
-    await expect(page.getByRole('option', { name: 'März 2014' })).toBeVisible();
-    await page.getByRole('option', { name: 'September 2025' }).click();
+    await page.getByRole('button', { name: /^Monat wählen/u }).click();
+    await expect(page.getByRole('menuitem', { name: 'März 2014' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'September 2025' }).click();
 
     const wohnen = page.getByRole('row').filter({ hasText: 'Wohnen' });
     await expect(wohnen).toContainText('875,07');
@@ -80,8 +80,8 @@ test.describe.serial('monthly budgets', () => {
       .getByRole('button', { name: 'Ohne Kategorie' })
       .click();
 
-    await expect(page).toHaveURL(/\/$/u);
-    await expect(page.getByLabel('Monat')).toHaveText('September 2025');
+    await expect(page).toHaveURL(/\/\?m=2025-09$/u);
+    await expect(page.getByRole('button', { name: /^Monat wählen/u })).toHaveText('September 2025');
     await expect(page.getByRole('cell', { name: 'Hausverwaltung Süd GmbH' })).toBeVisible();
     // Another month, and a categorized row of this one: neither is in the bucket.
     await expect(page.getByRole('cell', { name: 'Versicherung Nord AG' })).toHaveCount(0);

@@ -15,8 +15,9 @@ packages/core   Pure TypeScript domain logic — CSV parsing, categorization
                 rules, budget math. No framework dependencies. Compiles to
                 dist/ (ESM + .d.ts); both apps import the built output.
 apps/api        NestJS 12 REST API. SQLite via Prisma 7.
-apps/web        React 19 + Vite 8 + MUI 9 + react-router. Two pages: the
-                transactions of one account, and the rules that categorize them.
+apps/web        React 19 + Vite 8 + MUI 9 + react-router, inside one app shell
+                (sidebar ≥ 1024 px, icon rail ≥ 720 px, bottom bar below).
+                Look and rules: DESIGN.md.
 fixtures/       Synthetic bank CSVs. Byte-exact test data: CRLF endings and,
                 for the primary fixture, Windows-1252. Never real statements.
 docs/           research/ and plans/, one Markdown file per topic.
@@ -42,6 +43,10 @@ pnpm --filter @household-budget/api db:push   # creates apps/api/data/budget.db
 pnpm dev
 ```
 
+After pulling a change to `apps/api/prisma/schema.prisma`, run
+`pnpm --filter @household-budget/api prisma:generate` and `db:push` again — `db:push`
+adds new columns to your existing `budget.db` without touching its rows.
+
 Then open http://localhost:5173. Create an account, drop a Sparkasse CSV export on
 the import panel, and the transactions appear below it. `fixtures/sparkasse-camt-18.csv`
 is a synthetic export to try it with.
@@ -52,8 +57,9 @@ because SQLite folds case for ASCII only, so `LIKE '%müller%'` would miss
 `MÜLLER GmbH`. Choosing a category by hand on a transaction locks that row: the
 rules engine will not touch it again until the category is cleared.
 
-Above the table, the toolbar narrows what is shown: a month, a category, and a
-search over payee, purpose and IBAN. The search runs in the browser over the rows
+The month every page shows lives in the URL (`?m=2025-09`): the stepper in the top
+bar, or `[` and `]`, move it, and the back button undoes a move. Above the table, the
+toolbar narrows what is shown by category and by a search over payee, purpose and IBAN. The search runs in the browser over the rows
 already loaded, for the same case-folding reason — typing `müller` finds
 `MÜLLER GmbH`, and a grouped `DE89 3704 …` finds the IBAN as it is stored. The chip
 on the right counts the transactions of the whole account that still have no

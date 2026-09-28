@@ -33,12 +33,15 @@ function transaction(overrides: Partial<TransactionPayload> = {}): TransactionPa
   };
 }
 
-/** The filter's whole input is the pairs, so every case goes through `searchableOf`. */
+/**
+ * The filter's whole input is the pairs, so every case goes through `searchableOf`. The
+ * month travels beside the filters (it is the URL's, not the toolbar's); `''` is every one.
+ */
 function visible(
   transactions: readonly TransactionPayload[],
-  filters: Partial<TransactionFilterState> = {},
+  { month = '', ...filters }: Partial<TransactionFilterState> & { readonly month?: string } = {},
 ): readonly string[] {
-  return filterTransactions(searchableOf(transactions), { ...NO_FILTERS, ...filters }).map(
+  return filterTransactions(searchableOf(transactions), { ...NO_FILTERS, ...filters }, month).map(
     (row) => row.id,
   );
 }
@@ -68,6 +71,10 @@ describe('monthsOf', () => {
 describe('filterTransactions, by month', () => {
   it('keeps the chosen month and drops every other', () => {
     expect(visible([SEPTEMBER, OCTOBER, OLD], { month: '2025-09' })).toEqual(['sep']);
+  });
+
+  it('keeps every row for "all"', () => {
+    expect(visible([SEPTEMBER, OCTOBER, OLD], { month: 'all' })).toEqual(['sep', 'oct', 'old']);
   });
 
   it('keeps every row when no month is chosen', () => {
@@ -170,7 +177,7 @@ describe('monthOf', () => {
 
 describe('listEntryOf', () => {
   it('reads what the budgets page sends', () => {
-    const state = { accountId: 'acc-1', month: '2025-09', categoryId: UNCATEGORIZED };
+    const state = { accountId: 'acc-1', categoryId: UNCATEGORIZED };
 
     expect(listEntryOf(state)).toEqual(state);
   });
@@ -180,15 +187,14 @@ describe('listEntryOf', () => {
     expect(listEntryOf(null)).toBeUndefined();
     expect(listEntryOf(undefined)).toBeUndefined();
     expect(listEntryOf('2025-09')).toBeUndefined();
-    expect(listEntryOf({ month: '2025-09', categoryId: UNCATEGORIZED })).toBeUndefined();
-    expect(listEntryOf({ accountId: 'acc-1', month: 202509, categoryId: '' })).toBeUndefined();
+    expect(listEntryOf({ categoryId: UNCATEGORIZED })).toBeUndefined();
+    expect(listEntryOf({ accountId: 'acc-1', categoryId: 7 })).toBeUndefined();
   });
 });
 
 describe('hasFilters', () => {
   it('is false only when nothing is narrowing the list', () => {
     expect(hasFilters(NO_FILTERS)).toBe(false);
-    expect(hasFilters({ ...NO_FILTERS, month: '2025-09' })).toBe(true);
     expect(hasFilters({ ...NO_FILTERS, categoryId: UNCATEGORIZED })).toBe(true);
     expect(hasFilters({ ...NO_FILTERS, search: 'rewe' })).toBe(true);
   });

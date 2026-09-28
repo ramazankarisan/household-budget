@@ -16,6 +16,8 @@ import { useTranslation } from 'react-i18next';
 
 import { formatAmount } from '../format';
 import { describeRemaining } from '../locales/sentences';
+import { CategoryPill } from '../ui/CategoryPill';
+import { StatusIcon } from '../ui/StatusIcon';
 import { BudgetField } from './BudgetField';
 
 interface BudgetTableProps {
@@ -63,7 +65,7 @@ export function BudgetTable({
   limitsLoading = false,
 }: BudgetTableProps) {
   const { t } = useTranslation();
-  const names = new Map(categories.map((category) => [category.id, category.name]));
+  const byId = new Map(categories.map((category) => [category.id, category]));
 
   return (
     <TableContainer component={Paper} variant="outlined">
@@ -90,7 +92,8 @@ export function BudgetTable({
                 key={entry.categoryId}
                 entry={entry}
                 categoryId={entry.categoryId}
-                name={names.get(entry.categoryId) ?? entry.categoryId}
+                name={byId.get(entry.categoryId)?.name ?? entry.categoryId}
+                colorIndex={byId.get(entry.categoryId)?.colorIndex ?? 0}
                 month={report.month}
                 saving={savingIds.has(entry.categoryId)}
                 revision={revisions.get(entry.categoryId) ?? 0}
@@ -106,7 +109,7 @@ export function BudgetTable({
   );
 }
 
-/** A dash for nothing vorgemerkt; otherwise the amount with the list's ⏳ marker. */
+/** A dash for nothing vorgemerkt; otherwise the amount with the list's vorgemerkt icon. */
 function PendingCell({ cents }: { readonly cents: number }) {
   const { t } = useTranslation();
 
@@ -117,14 +120,11 @@ function PendingCell({ cents }: { readonly cents: number }) {
       ) : (
         <>
           {formatAmount(cents)}
-          <Box
-            component="span"
-            aria-label={t('common.pending')}
-            title={t('common.pending')}
-            sx={{ ml: 1 }}
-          >
-            ⏳
-          </Box>
+          <StatusIcon
+            kind="pending"
+            label={t('common.pending')}
+            sx={{ ml: 1, color: 'status.pending.main' }}
+          />
         </>
       )}
     </TableCell>
@@ -135,6 +135,7 @@ interface CategoryRowProps {
   readonly entry: CategoryReport;
   readonly categoryId: string;
   readonly name: string;
+  readonly colorIndex: number;
   readonly month: string;
   readonly saving: boolean;
   readonly revision: number;
@@ -164,6 +165,7 @@ function CategoryRow({
   entry,
   categoryId,
   name,
+  colorIndex,
   month,
   saving,
   revision,
@@ -177,7 +179,9 @@ function CategoryRow({
   if (limitsLoading) {
     return (
       <TableRow hover>
-        <TableCell>{name}</TableCell>
+        <TableCell>
+          <CategoryPill category={{ name, colorIndex }} />
+        </TableCell>
         <TableCell align="right" sx={AMOUNT}>
           {formatAmount(entry.bookedCents)}
         </TableCell>
@@ -195,7 +199,9 @@ function CategoryRow({
       // cells already read "Wohnen, 875,07 €…" and a label replaces them rather than adds.
       aria-label={entry.isOver ? `${name}: ${remaining}` : undefined}
     >
-      <TableCell>{name}</TableCell>
+      <TableCell>
+        <CategoryPill category={{ name, colorIndex }} />
+      </TableCell>
       <TableCell align="right" sx={AMOUNT}>
         {formatAmount(entry.bookedCents)}
       </TableCell>
@@ -229,9 +235,7 @@ function CategoryRow({
         {remaining}
         {entry.isOver && (
           // Decoration: the word already said it, so this is hidden from the name.
-          <Box component="span" aria-hidden="true" sx={{ ml: 1 }}>
-            ⚠
-          </Box>
+          <StatusIcon kind="over" sx={{ ml: 1 }} />
         )}
       </TableCell>
     </TableRow>

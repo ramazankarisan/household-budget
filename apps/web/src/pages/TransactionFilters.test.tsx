@@ -6,11 +6,9 @@ import { NO_FILTERS, type TransactionFilterState, UNCATEGORIZED } from '../filte
 import { TransactionFilters } from './TransactionFilters';
 
 const CATEGORIES: CategoryPayload[] = [
-  { id: 'cat-wohnen', name: 'Wohnen' },
-  { id: 'cat-essen', name: 'Lebensmittel' },
+  { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+  { id: 'cat-essen', name: 'Lebensmittel', colorIndex: 0 },
 ];
-
-const MONTHS = ['2025-10', '2025-09', '2014-03'];
 
 function toolbar(
   overrides: {
@@ -22,7 +20,6 @@ function toolbar(
   return (
     <TransactionFilters
       filters={overrides.filters ?? NO_FILTERS}
-      months={MONTHS}
       categories={CATEGORIES}
       uncategorized={overrides.uncategorized ?? 7}
       onChange={overrides.onChange ?? vi.fn()}
@@ -31,25 +28,6 @@ function toolbar(
 }
 
 describe('TransactionFilters', () => {
-  it('names each month rather than showing its key', () => {
-    render(toolbar());
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-
-    expect(screen.getByRole('option', { name: 'September 2025' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'März 2014' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: '2025-09' })).not.toBeInTheDocument();
-  });
-
-  it('reports the month that was chosen', () => {
-    const onChange = vi.fn();
-    render(toolbar({ onChange }));
-
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Monat' }));
-    fireEvent.click(screen.getByRole('option', { name: 'September 2025' }));
-
-    expect(onChange).toHaveBeenCalledWith({ ...NO_FILTERS, month: '2025-09' });
-  });
-
   it('offers every category, plus all and none', () => {
     render(toolbar());
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Kategorie filtern' }));
@@ -85,7 +63,7 @@ describe('TransactionFilters', () => {
 
   it('keeps the other filters when the count is clicked', () => {
     const onChange = vi.fn();
-    const filters = { ...NO_FILTERS, month: '2025-09' };
+    const filters = { ...NO_FILTERS, search: 'rewe' };
     render(toolbar({ filters, onChange }));
 
     fireEvent.click(screen.getByRole('button', { name: /Nur Umsätze ohne Kategorie zeigen/ }));
@@ -127,9 +105,9 @@ describe('TransactionFilters, the search box', () => {
     expect(onChange).toHaveBeenCalledWith({ ...NO_FILTERS, search: '' });
   });
 
-  it('keeps the month and the category when the search is cleared', () => {
+  it('keeps the category when the search is cleared', () => {
     const onChange = vi.fn();
-    const filters = { month: '2025-09', categoryId: 'cat-wohnen', search: 'rewe' };
+    const filters = { categoryId: 'cat-wohnen', search: 'rewe' };
     render(toolbar({ filters, onChange }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Suche löschen' }));

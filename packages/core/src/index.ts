@@ -14,6 +14,7 @@ export type {
   RulePayload,
   TransactionPayload,
 } from './api.js';
+export { CATEGORY_COLOR_COUNT } from './api.js';
 export type {
   Budget,
   BudgetInput,

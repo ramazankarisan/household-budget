@@ -9,14 +9,11 @@ import TextField from '@mui/material/TextField';
 import { useTranslation } from 'react-i18next';
 
 import { type TransactionFilterState, UNCATEGORIZED } from '../filter';
-import { formatMonth } from '../format';
-import { toLocale } from '../locales/messages';
 import { describeUncategorized } from '../locales/sentences';
+import { StatusIcon } from '../ui/StatusIcon';
 
 interface TransactionFiltersProps {
   readonly filters: TransactionFilterState;
-  /** `'YYYY-MM'`, newest first — only the months the account actually has. */
-  readonly months: readonly string[];
   readonly categories: readonly CategoryPayload[];
   /** Uncategorized rows in the **whole account**, not in the filtered view. */
   readonly uncategorized: number;
@@ -32,44 +29,24 @@ interface TransactionFiltersProps {
  */
 export function TransactionFilters({
   filters,
-  months,
   categories,
   uncategorized,
   onChange,
 }: TransactionFiltersProps) {
-  const { t, i18n } = useTranslation();
-  const locale = toLocale(i18n.resolvedLanguage);
+  const { t } = useTranslation();
 
   return (
     <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
       {/*
-        No visible label on either select. MUI's `label` becomes an `aria-labelledby`,
+        No visible label on the select. MUI's `label` becomes an `aria-labelledby`,
         which outranks `aria-label` in the name computation — so a visible "Kategorie"
         here would name this control exactly what `CategoryCell` names the combobox on
         every row, and every page-scoped query for one of those would match two elements.
         Nothing is lost by dropping it: a filter select displays its own value, and the
-        value at rest is the words "Alle Monate" and "Alle Kategorien" — which is what
-        `displayEmpty` buys. Without it MUI renders a zero-width space for an empty value
-        and both controls sit there blank, the same reason `CategoryCell` sets it.
+        value at rest is the words "Alle Kategorien" — which is what `displayEmpty` buys.
+        Without it MUI renders a zero-width space for an empty value and the control sits
+        there blank, the same reason `CategoryCell` sets it. The month is the top bar's.
       */}
-      <TextField
-        select
-        size="small"
-        slotProps={{ select: { 'aria-label': t('transactions.month'), displayEmpty: true } }}
-        value={filters.month}
-        onChange={(event) => {
-          onChange({ ...filters, month: event.target.value });
-        }}
-        sx={{ minWidth: 180 }}
-      >
-        <MenuItem value="">{t('transactions.allMonths')}</MenuItem>
-        {months.map((month) => (
-          <MenuItem key={month} value={month}>
-            {formatMonth(month, locale)}
-          </MenuItem>
-        ))}
-      </TextField>
-
       <TextField
         select
         size="small"
@@ -113,7 +90,7 @@ export function TransactionFilters({
                       onChange({ ...filters, search: '' });
                     }}
                   >
-                    ✕
+                    <StatusIcon kind="clear" />
                   </IconButton>
                 </InputAdornment>
               ),

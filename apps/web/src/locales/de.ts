@@ -23,19 +23,38 @@ type CsvErrorCode =
 
 /** Coded refusals from the API that are not a form's field errors or an import's. */
 type ApiRefusalCode =
-  'TRANSACTION_PENDING' | 'RULE_EXISTS' | 'RULE_RESTORE_INVALID' | 'FORBIDDEN_ORIGIN';
+  | 'TRANSACTION_PENDING'
+  | 'RULE_EXISTS'
+  | 'RULE_RESTORE_INVALID'
+  | 'FORBIDDEN_ORIGIN'
+  | 'CATEGORY_COLOR_INVALID';
 
 export const de = {
   common: {
-    appTitle: 'Household Budget',
+    appTitle: 'Haushaltsbuch',
+    loading: 'Wird geladen',
+    navLabel: 'Hauptnavigation',
     /** A pending row or amount — one word on every page, the ⏳ marker's name included. */
     pending: 'vorgemerkt',
     /** The uncategorized bucket, wherever it is named. */
     uncategorized: 'Ohne Kategorie',
     nav: {
+      overview: 'Überblick',
       transactions: 'Umsätze',
       rules: 'Regeln',
       budgets: 'Budgets',
+      more: 'Mehr',
+    },
+    pages: {
+      transactions: 'Umsätze',
+      rules: 'Regeln',
+      budgets: 'Budgets',
+    },
+    month: {
+      previous: 'Vorheriger Monat',
+      next: 'Nächster Monat',
+      choose: 'Monat wählen',
+      all: 'Alle Monate',
     },
     theme: {
       toDark: 'Dunkles Design',
@@ -189,6 +208,7 @@ export const de = {
       RULE_EXISTS: 'Diese Regel gibt es bereits.',
       RULE_RESTORE_INVALID: 'Diese Regel lässt sich nicht wiederherstellen.',
       FORBIDDEN_ORIGIN: 'Anfrage abgelehnt: sie kam nicht von dieser Seite.',
+      CATEGORY_COLOR_INVALID: 'Diese Farbe gibt es nicht.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */
     unknownApi: 'Anfrage abgelehnt ({{code}})',

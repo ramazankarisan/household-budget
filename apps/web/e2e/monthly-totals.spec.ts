@@ -40,7 +40,7 @@ test.describe.serial('monthly totals', () => {
   test.beforeEach(async ({ page }) => {
     await importFixture(page);
     await page.getByRole('link', { name: 'Budgets' }).click();
-    // The list has a `Monat` select too: wait for this page's table before asking for one.
+    // Wait for this page's table: the list's stepper is gone once it is here.
     await expect(page.getByRole('columnheader', { name: 'Gebucht' })).toBeVisible();
   });
 
@@ -96,7 +96,8 @@ async function importFixture(page: Page): Promise<void> {
 }
 
 async function chooseMonth(page: Page, name: string): Promise<void> {
-  await page.getByLabel('Monat').click();
-  await page.getByRole('option', { name }).click();
-  await expect(page.getByLabel('Monat')).toHaveText(name);
+  const stepper = page.getByRole('button', { name: /^Monat wählen/u });
+  await stepper.click();
+  await page.getByRole('menuitem', { name }).click();
+  await expect(stepper).toHaveText(name);
 }

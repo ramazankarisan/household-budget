@@ -16,9 +16,12 @@ import {
  * and `docs/research/02-categorization-rules.md` §3 recorded before it.
  */
 
-/** `''` means "every month"; otherwise `'YYYY-MM'`. */
+/**
+ * What narrows the list. The month is not here: it is navigation, kept in the URL by
+ * `useMonth` and shared with every page, and passed to {@link filterTransactions} beside
+ * this.
+ */
 export interface TransactionFilterState {
-  readonly month: string;
   /** `''` = every category, `UNCATEGORIZED` = rows with none, else a category id. */
   readonly categoryId: string;
   readonly search: string;
@@ -30,7 +33,7 @@ export interface TransactionFilterState {
  */
 export const UNCATEGORIZED = 'uncategorized';
 
-export const NO_FILTERS: TransactionFilterState = { month: '', categoryId: '', search: '' };
+export const NO_FILTERS: TransactionFilterState = { categoryId: '', search: '' };
 
 /**
  * What another page hands the list through router state: which account, already narrowed.
@@ -42,7 +45,6 @@ export const NO_FILTERS: TransactionFilterState = { month: '', categoryId: '', s
  */
 export interface ListEntryState {
   readonly accountId: string;
-  readonly month: string;
   readonly categoryId: string;
 }
 
@@ -54,20 +56,19 @@ export function listEntryOf(state: unknown): ListEntryState | undefined {
   if (typeof state !== 'object' || state === null) {
     return undefined;
   }
-  const { accountId, month, categoryId } = state as Record<string, unknown>;
-  if (
-    typeof accountId !== 'string' ||
-    typeof month !== 'string' ||
-    typeof categoryId !== 'string'
-  ) {
+  const { accountId, categoryId } = state as Record<string, unknown>;
+  if (typeof accountId !== 'string' || typeof categoryId !== 'string') {
     return undefined;
   }
-  return { accountId, month, categoryId };
+  return { accountId, categoryId };
 }
 
-/** True while anything is narrowing the list — what tells the two empty states apart. */
+/**
+ * True while anything is narrowing the list — what tells the two empty states apart. The
+ * month is not a filter: every month the stepper offers has rows.
+ */
 export function hasFilters(filters: TransactionFilterState): boolean {
-  return filters.month !== '' || filters.categoryId !== '' || filters.search !== '';
+  return filters.categoryId !== '' || filters.search !== '';
 }
 
 /**
@@ -130,8 +131,9 @@ export function searchableOf(
 /** The country code and the first check digit — as much of an IBAN as is unambiguous. */
 const IBAN_NEEDLE = /^[a-z]{2}\d/u;
 
+/** `'all'` (`ALL_MONTHS`) or `''` = every month. */
 function matchesMonth(row: TransactionPayload, month: string): boolean {
-  return month === '' || monthOf(row) === month;
+  return month === '' || month === 'all' || monthOf(row) === month;
 }
 
 function matchesCategory(row: TransactionPayload, categoryId: string): boolean {
@@ -148,6 +150,7 @@ function matchesCategory(row: TransactionPayload, categoryId: string): boolean {
 export function filterTransactions(
   searchable: readonly SearchableTransaction[],
   filters: TransactionFilterState,
+  month: string,
 ): readonly TransactionPayload[] {
   /*
    * Two needles from one typed string, because one haystack cannot serve both. `normalize`
@@ -169,7 +172,7 @@ export function filterTransactions(
   return searchable
     .filter(
       (candidate) =>
-        matchesMonth(candidate.row, filters.month) &&
+        matchesMonth(candidate.row, month) &&
         matchesCategory(candidate.row, filters.categoryId) &&
         (needle === '' ||
           candidate.text.includes(needle) ||

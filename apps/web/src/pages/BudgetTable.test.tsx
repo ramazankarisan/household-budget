@@ -5,9 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { BudgetTable } from './BudgetTable';
 
 const CATEGORIES = [
-  { id: 'cat-wohnen', name: 'Wohnen' },
-  { id: 'cat-essen', name: 'Lebensmittel' },
-  { id: 'cat-reise', name: 'Reise' },
+  { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+  { id: 'cat-essen', name: 'Lebensmittel', colorIndex: 0 },
+  { id: 'cat-reise', name: 'Reise', colorIndex: 0 },
 ];
 
 /** `Intl` puts U+00A0 between the amount and the €. */

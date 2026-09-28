@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { CategoryCell } from './CategoryCell';
 
 const CATEGORIES: CategoryPayload[] = [
-  { id: 'cat-wohnen', name: 'Wohnen' },
-  { id: 'cat-lebensmittel', name: 'Lebensmittel' },
+  { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+  { id: 'cat-lebensmittel', name: 'Lebensmittel', colorIndex: 0 },
 ];
 
 function transaction(overrides: Partial<TransactionPayload> = {}): TransactionPayload {
@@ -133,7 +133,7 @@ describe('CategoryCell', () => {
     );
 
     const slot = screen.getByTestId('lock-slot');
-    expect(slot).toHaveTextContent('🔒');
+    expect(slot.querySelector('svg')).not.toBeNull();
     expect(slot).toHaveAccessibleName('von Hand gesetzt — Regeln ändern das nicht');
     expect(slot).not.toHaveAttribute('aria-hidden');
   });

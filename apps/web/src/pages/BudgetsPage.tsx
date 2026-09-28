@@ -7,11 +7,7 @@ import {
 } from '@household-budget/core';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Container from '@mui/material/Container';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -26,10 +22,10 @@ import {
   setBudget,
 } from '../api/client';
 import { type ListEntryState, monthOf, monthsOf, UNCATEGORIZED } from '../filter';
-import { formatMonth } from '../format';
-import { toLocale } from '../locales/messages';
 import { describeFailure, describeMonthTotal } from '../locales/sentences';
-import { AppHeader } from './AppHeader';
+import { TopBar } from '../shell/TopBar';
+import { MONTH_PARAM, useMonth } from '../shell/useMonth';
+import { DelayedSkeleton } from '../ui/DelayedSkeleton';
 import { BudgetTable } from './BudgetTable';
 import { SpendingChart } from './SpendingChart';
 
@@ -72,14 +68,12 @@ function inMonth<T>(cells: ReadonlyMap<string, T>, month: string): ReadonlyMap<s
  * the first time the month is shown (see `budgets`).
  */
 export function BudgetsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<readonly CategoryPayload[]>([]);
   // `undefined` while the rows are on their way; `[]` means there is no account yet.
   const [loaded, setLoaded] = useState<readonly AccountRows[] | undefined>(undefined);
-  // What the user picked. `''` until they pick — the page then shows the newest month.
-  const [chosenMonth, setChosenMonth] = useState('');
   /*
    * The limits per month, kept for as long as the page is. A month switch shows the
    * cached month at once and fetches only a month not seen yet; writes update the entry
@@ -155,10 +149,10 @@ export function BudgetsPage() {
 
   const transactions = useMemo(() => loaded?.flatMap((account) => account.rows), [loaded]);
   const months = useMemo(() => monthsOf(transactions ?? []), [transactions]);
-  // Derived, not stored: the newest month until the user picks one. An effect that
-  // copied `months[0]` into state would render the wrong month once first.
-  const month =
-    chosenMonth !== '' && months.includes(chosenMonth) ? chosenMonth : (months[0] ?? '');
+  // The URL's month, else the newest one. Derived, not stored: an effect that copied
+  // `months[0]` into state would render the wrong month once first.
+  const monthState = useMonth(months, { defaultTo: 'newest' });
+  const { month } = monthState;
 
   useEffect(() => {
     if (month === '' || budgetsRef.current.has(month)) {
@@ -274,85 +268,68 @@ export function BudgetsPage() {
   const empty = transactions?.length === 0;
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
-      <Stack spacing={3}>
-        <AppHeader />
+    <Stack spacing={3}>
+      <TopBar
+        title={t('common.pages.budgets')}
+        month={
+          months.length > 0 ? { state: monthState, available: months, allowAll: false } : undefined
+        }
+      />
 
-        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
+      {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
-        {empty ? (
-          <Stack
-            direction="row"
-            spacing={2}
-            useFlexGap
-            sx={{ flexWrap: 'wrap', alignItems: 'center' }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              {t('transactions.noTransactions')}
-            </Typography>
-            <Button size="small" component={Link} to="/">
-              {t('budgets.toTransactions')}
-            </Button>
-          </Stack>
-        ) : transactions === undefined ? (
-          <CircularProgress size={24} />
-        ) : (
-          <Stack spacing={2}>
-            <Stack
-              direction="row"
-              spacing={2}
-              useFlexGap
-              sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
-            >
-              <TextField
-                select
-                size="small"
-                // The dashboard always shows exactly one month, so there is no "all" entry.
-                slotProps={{ select: { 'aria-label': t('transactions.month') } }}
-                value={month}
-                onChange={(event) => {
-                  setChosenMonth(event.target.value);
-                }}
-                sx={{ minWidth: 180 }}
-              >
-                {months.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {formatMonth(option, toLocale(i18n.resolvedLanguage))}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                {describeMonthTotal(t, report, { limitsLoading })}
-              </Typography>
-            </Stack>
+      {empty ? (
+        <Stack
+          direction="row"
+          spacing={2}
+          useFlexGap
+          sx={{ flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t('transactions.noTransactions')}
+          </Typography>
+          <Button size="small" component={Link} to="/">
+            {t('budgets.toTransactions')}
+          </Button>
+        </Stack>
+      ) : transactions === undefined ? (
+        <DelayedSkeleton label={t('common.loading')} />
+      ) : (
+        <Stack spacing={2}>
+          <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {describeMonthTotal(t, report, { limitsLoading })}
+          </Typography>
 
-            <BudgetTable
-              report={report}
-              categories={categories}
-              savingIds={savingIds}
-              revisions={monthRevisions}
-              limitsLoading={limitsLoading}
-              onSave={(categoryId, amountCents) => {
-                write(categoryId, () => setBudget(month, categoryId, amountCents));
-              }}
-              onClear={(categoryId) => {
-                write(categoryId, () => clearBudget(month, categoryId).then(() => null));
-              }}
-              onShowUncategorized={() => {
-                const state: ListEntryState = {
-                  accountId: uncategorizedAccount(),
-                  month,
-                  categoryId: UNCATEGORIZED,
-                };
-                void navigate('/', { state });
-              }}
-            />
+          <BudgetTable
+            report={report}
+            categories={categories}
+            savingIds={savingIds}
+            revisions={monthRevisions}
+            limitsLoading={limitsLoading}
+            onSave={(categoryId, amountCents) => {
+              write(categoryId, () => setBudget(month, categoryId, amountCents));
+            }}
+            onClear={(categoryId) => {
+              write(categoryId, () => clearBudget(month, categoryId).then(() => null));
+            }}
+            onShowUncategorized={() => {
+              const state: ListEntryState = {
+                accountId: uncategorizedAccount(),
+                categoryId: UNCATEGORIZED,
+              };
+              // The month rides in the URL like everywhere else; the account and the
+              // category are this one hand-off's.
+              void navigate(
+                { pathname: '/', search: `?${MONTH_PARAM}=${encodeURIComponent(month)}` },
+                { state },
+              );
+            }}
+          />
 
-            {/* The same report object: the chart reads what the table reads, nothing else. */}
-            <SpendingChart report={report} categories={categories} limitsLoading={limitsLoading} />
-          </Stack>
-        )}
-      </Stack>
-    </Container>
+          {/* The same report object: the chart reads what the table reads, nothing else. */}
+          <SpendingChart report={report} categories={categories} limitsLoading={limitsLoading} />
+        </Stack>
+      )}
+    </Stack>
   );
 }

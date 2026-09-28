@@ -5,6 +5,9 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 
+import { CategoryDot } from '../ui/CategoryPill';
+import { StatusIcon } from '../ui/StatusIcon';
+
 interface CategoryCellProps {
   readonly transaction: TransactionPayload;
   readonly categories: readonly CategoryPayload[];
@@ -104,7 +107,8 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
           </Box>
         </MenuItem>
         {categories.map((category) => (
-          <MenuItem key={category.id} value={category.id}>
+          <MenuItem key={category.id} value={category.id} sx={{ gap: 1 }}>
+            <CategoryDot colorIndex={category.colorIndex} />
             {category.name}
           </MenuItem>
         ))}
@@ -122,7 +126,7 @@ export function CategoryCell({ transaction, categories, onChange, disabled }: Ca
         title={locked ? t('rules.lockedHint') : undefined}
         sx={{ width: '1rem', flexShrink: 0, fontSize: '0.75rem', lineHeight: 1 }}
       >
-        {locked ? '🔒' : null}
+        {locked ? <StatusIcon kind="locked" sx={{ color: 'text.secondary' }} /> : null}
       </Box>
     </Box>
   );

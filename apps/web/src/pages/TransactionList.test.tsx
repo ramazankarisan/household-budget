@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { TransactionList } from './TransactionList';
 
 const CATEGORIES: CategoryPayload[] = [
-  { id: 'cat-wohnen', name: 'Wohnen' },
-  { id: 'cat-lebensmittel', name: 'Lebensmittel' },
+  { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+  { id: 'cat-lebensmittel', name: 'Lebensmittel', colorIndex: 0 },
 ];
 
 /** The two props the page owns; no test here is about either. */

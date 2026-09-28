@@ -368,12 +368,12 @@ The visual system and the shell land; the three existing pages move inside it. R
 
 **Tasks**:
 
-- [ ] Fonts (decision 17):
+- [x] Fonts (decision 17):
       `pnpm --filter @household-budget/web add @fontsource/ibm-plex-sans @fontsource/ibm-plex-mono @fontsource/newsreader`;
       import the weights in `main.tsx`.
-- [ ] Before writing `theme.ts`, run the DESIGN.md §2.2 category palette through the `dataviz`
+- [x] Before writing `theme.ts`, run the DESIGN.md §2.2 category palette through the `dataviz`
       skill's validator in both schemes; adjust DESIGN.md if a value fails.
-- [ ] `theme.ts` — `createTheme({ colorSchemes: { light: { palette }, dark: { palette } }, … })`
+- [x] `theme.ts` — `createTheme({ colorSchemes: { light: { palette }, dark: { palette } }, … })`
       without `cssVariables` (decision 14). Palette: `primary` (+ `soft`), `error` =
       `status.over`, `success` = `status.income`, `warning` = `status.near`,
       `background.default` = canvas, `background.paper` = surface, `background.subtle`,
@@ -384,71 +384,71 @@ The visual system and the shell land; the three existing pages move inside it. R
       (`textTransform: 'none'`, `disableElevation`), `MuiCard` (outlined, radius 10), `MuiChip`
       (radius 999), `MuiTableCell` (caption head), `MuiOutlinedInput` (`border.strong`),
       focus-visible ring (2 px `primary`, offset 2).
-- [ ] `theme.d.ts` — augment `Palette`/`PaletteOptions` (`createPalette.d.ts:81`) with `status`,
+- [x] `theme.d.ts` — augment `Palette`/`PaletteOptions` (`createPalette.d.ts:81`) with `status`,
       `category`, `border`; `PaletteColor`/`SimplePaletteColorOptions` with `soft`;
       `TypeBackground` with `subtle`; `TypographyVariants` with `display`.
-- [ ] `ui/StatusIcon.tsx` — `pending` `ScheduleRounded`, `locked` `LockRounded`, `over`
+- [x] `ui/StatusIcon.tsx` — `pending` `ScheduleRounded`, `locked` `LockRounded`, `over`
       `WarningAmberRounded`, `income` `SouthWestRounded`, `clear` `CloseRounded`, at `1.125em`;
       `label` → `aria-label`, else `aria-hidden`.
-- [ ] Replace every emoji with `StatusIcon`, keeping each accessible name: `⏳`
+- [x] Replace every emoji with `StatusIcon`, keeping each accessible name: `⏳`
       `TransactionList.tsx:108`, `BudgetTable.tsx:126`; `🔒` `CategoryCell.tsx:125`; `⚠`
       `BudgetTable.tsx:233`; `✕` `TransactionFilters.tsx` (clear search), `RulesPage.tsx:381`,
       `RulesPage.tsx:510`, `BudgetField.tsx:175`.
-- [ ] `ui/AmountText.tsx` (`cents`, `tone: 'auto' | 'plain'`, `variant`; income `+` and
+- [x] `ui/AmountText.tsx` (`cents`, `tone: 'auto' | 'plain'`, `variant`; income `+` and
       `status.income`; `nowrap`, tabular) — used in `TransactionList`, `BudgetTable`.
-- [ ] `ui/CategoryPill.tsx` (dot `category[colorIndex]` + name; `null` → „Ohne Kategorie“, dashed
+- [x] `ui/CategoryPill.tsx` (dot `category[colorIndex]` + name; `null` → „Ohne Kategorie“, dashed
       outline; clickable variant is a `button`) — used in `CategoryCell` (closed state),
       `RulesPage` chips and rule table, `BudgetTable` names.
-- [ ] `ui/KeyHint.tsx`, `ui/EmptyState.tsx`, `ui/DelayedSkeleton.tsx` (nothing for 300 ms, then
+- [x] `ui/KeyHint.tsx`, `ui/EmptyState.tsx`, `ui/DelayedSkeleton.tsx` (nothing for 300 ms, then
       `Skeleton`s of a given shape). Replace the page-level `CircularProgress` in
       `AccountPage.tsx:233` and `BudgetsPage.tsx:298` with `DelayedSkeleton`.
-- [ ] `shell/nav.ts` — items `{ to, labelKey, icon, badge? }`; phase 1: Umsätze `/`, Regeln
+- [x] `shell/nav.ts` — items `{ to, labelKey, icon, badge? }`; phase 1: Umsätze `/`, Regeln
       `/rules`, Budgets `/budgets`. Nav links build `to` with the current `?m` only.
-- [ ] `shell/Sidebar.tsx`, `NavRail.tsx` (icons, `Tooltip` + `aria-label`), `BottomNav.tsx`
+- [x] `shell/Sidebar.tsx`, `NavRail.tsx` (icons, `Tooltip` + `aria-label`), `BottomNav.tsx`
       (first four items + „Mehr“), `MoreSheet.tsx` (bottom `Drawer`: remaining nav items, DE|EN,
       theme) — `nav` landmark labelled `common.navLabel`, `aria-current` from `NavLink`.
       Sidebar: app name in Newsreader, `LanguageToggle`, `ThemeToggle` (accounts list arrives in
       phase 2).
-- [ ] `shell/useMonth.ts` — `useMonth(available, { defaultTo: 'newest' | 'all' })` →
+- [x] `shell/useMonth.ts` — `useMonth(available, { defaultTo: 'newest' | 'all' })` →
       `{ month, setMonth, step(delta) }` over `?m` (`useSearchParams`, push); unknown/invalid →
       the default; `'all'` valid only when `defaultTo === 'all'`.
-- [ ] `shell/MonthStepper.tsx` — `‹ label ›`; the label opens a `Menu` of `available` (+ „Alle
+- [x] `shell/MonthStepper.tsx` — `‹ label ›`; the label opens a `Menu` of `available` (+ „Alle
       Monate“ when allowed); arrows disabled at the ends; `formatMonth(month, locale)`.
-- [ ] `shell/useShortcuts.ts` (decision 16).
-- [ ] `shell/PageChrome.tsx` — context + `usePageChrome(...)` (decision 15); `TopBar.tsx` renders
+- [x] `shell/useShortcuts.ts` (decision 16).
+- [x] `shell/PageChrome.tsx` — context + `usePageChrome(...)` (decision 15); `TopBar.tsx` renders
       `h1`, subtitle, `MonthStepper` when `months` is set, the page's `actions`, `[`/`]`.
-- [ ] `shell/AppShell.tsx` — breakpoints via `useMediaQuery` at 1024/720; `main` landmark;
+- [x] `shell/AppShell.tsx` — breakpoints via `useMediaQuery` at 1024/720; `main` landmark;
       content `maxWidth: 1200`, gutters 32/16 px.
-- [ ] `App.tsx` — routes inside `<AppShell>`. `AccountPage`, `RulesPage`, `BudgetsPage` drop
+- [x] `App.tsx` — routes inside `<AppShell>`. `AccountPage`, `RulesPage`, `BudgetsPage` drop
       `AppHeader` and `Container maxWidth="md"` and call `usePageChrome`. Delete `AppHeader.tsx`,
       `Nav.tsx`, `AppHeader.test.tsx`.
-- [ ] `BudgetsPage.tsx` — month from `useMonth(months, { defaultTo: 'newest' })`; month select
+- [x] `BudgetsPage.tsx` — month from `useMonth(months, { defaultTo: 'newest' })`; month select
       removed; the uncategorized hand-off keeps `location.state` for account + category and
       passes the month as `?m` (the state's `month` field is dropped).
-- [ ] `AccountPage.tsx` / `TransactionFilters.tsx` / `filter.ts` — month from
+- [x] `AccountPage.tsx` / `TransactionFilters.tsx` / `filter.ts` — month from
       `useMonth(months, { defaultTo: 'all' })`; month select removed;
       `filterTransactions(rows, filters, month)`; `TransactionFilterState` and `ListEntryState`
       lose `month`; `hasFilters` covers category + search.
-- [ ] Core: `CategoryPayload.colorIndex`, `CATEGORY_COLOR_COUNT`. API: `schema.prisma`
+- [x] Core: `CategoryPayload.colorIndex`, `CATEGORY_COLOR_COUNT`. API: `schema.prisma`
       `Category.colorIndex Int?`; `CategoryService.nextColorIndex()` =
       `count({ where: { colorIndex: { not: null } } }) % 8`; `create` uses it; `onModuleInit`
       fills `null` rows in `createdAt` order with the same rule; `rename` →
       `update(id, { name?, colorIndex? })` (integer 0–7 else 400 `CATEGORY_COLOR_INVALID`);
       `list`/`create`/`update` return `colorIndex ?? 0`. Controller PATCH passes both fields.
-- [ ] `api/client.ts` — `updateCategory(id, { name?, colorIndex? })`.
-- [ ] Locales (both languages): `common.appTitle` „Haushaltsbuch“ / "Household budget";
+- [x] `api/client.ts` — `updateCategory(id, { name?, colorIndex? })`.
+- [x] Locales (both languages): `common.appTitle` „Haushaltsbuch“ / "Household budget";
       `common.navLabel`; `common.nav.more`; `common.month.{previous,next,choose,all}`; page
       titles `common.pages.{transactions,rules,budgets}`; `errors.api.CATEGORY_COLOR_INVALID`
       (and the `ApiRefusalCode` union, `de.ts:25`).
-- [ ] `README.md` — after pulling: `pnpm --filter @household-budget/api prisma:generate` and
+- [x] `README.md` — after pulling: `pnpm --filter @household-budget/api prisma:generate` and
       `db:push` (new column); layout section describes the shell and `?m`.
-- [ ] Tests (web, new): `ui/StatusIcon.test.tsx`, `ui/AmountText.test.tsx`,
+- [x] Tests (web, new): `ui/StatusIcon.test.tsx`, `ui/AmountText.test.tsx`,
       `ui/CategoryPill.test.tsx`, `ui/DelayedSkeleton.test.tsx` (fake timers: nothing before
       300 ms), `shell/useMonth.test.tsx` (default newest/all; invalid → default; `all` refused
       when not allowed; `step` at ends), `shell/useShortcuts.test.tsx` (ignored in inputs and
       with modifiers), `shell/AppShell.test.tsx` (sidebar at 1440, rail at 900, bottom nav + Mehr
       at 390 via a `matchMedia` stub; nav links carry `?m`).
-- [ ] Tests (web, updated): add `colorIndex` to every `CategoryPayload` fixture (`CategoryCell`,
+- [x] Tests (web, updated): add `colorIndex` to every `CategoryPayload` fixture (`CategoryCell`,
       `TransactionFilters`, `RulesPage`, `TransactionList`, `BudgetTable`, `BudgetsPage`,
       `AccountPage` tests); `CategoryCell.test.tsx:136` lock → accessible name
       `rules.lockedHint`; `RulesPage.test.tsx` delete-chip queries; `filter.test.ts:68-126`
@@ -456,12 +456,12 @@ The visual system and the shell land; the three existing pages move inside it. R
       without month); `AccountPage.test.tsx` and `TransactionFilters.test.tsx` month cases via
       `MemoryRouter initialEntries` `?m=`; `BudgetsPage.test.tsx` month cases via the stepper
       (rendered inside `AppShell` + `MemoryRouter`).
-- [ ] Tests (api): `category.service.test.ts` — `toEqual({ id, name })` at `:78`, `:105`,
+- [x] Tests (api): `category.service.test.ts` — `toEqual({ id, name })` at `:78`, `:105`,
       `:198` gain `colorIndex`; `rename` calls at `:103`, `:112`, `:196` → `update`; new: create
       assigns `nextColorIndex`; update rejects `8`, `-1`, `1.5`, `'2'`; `onModuleInit()` called
       directly (not run by `compile()`) fills nulls in `createdAt` order and is a no-op the
       second time.
-- [ ] E2E (updated): `smoke.spec.ts:13` heading → the `Umsätze` page title, plus `Haushaltsbuch`
+- [x] E2E (updated): `smoke.spec.ts:13` heading → the `Umsätze` page title, plus `Haushaltsbuch`
       in the sidebar; `transactions.spec.ts:67-77` month → the stepper menu („Alle Monate“
       default keeps the 2014 row visible); `preferences.spec.ts` nav lookups (sidebar landmark;
       English app name) and body colours (`rgb(246, 245, 241)` light, `rgb(15, 18, 17)` dark);
@@ -471,12 +471,12 @@ The visual system and the shell land; the three existing pages move inside it. R
 
 **Automated Verification**:
 
-- [ ] `pnpm --filter @household-budget/web exec vitest run src/ui src/shell src/filter.test.ts` passes
-- [ ] `pnpm --filter @household-budget/api exec vitest run src/rules/category.service.test.ts` passes
-- [ ] `rg -n '[⏳🔒⚠✕]' apps/web/src --glob '*.tsx'` finds nothing
-- [ ] `rg -n '#[0-9a-fA-F]{3,8}\b|rgba?\(|fontSize: *[0-9]|fontSize: *.[0-9.]+px' apps/web/src/pages apps/web/src/ui apps/web/src/shell` finds nothing
-- [ ] `pnpm check` passes
-- [ ] `pnpm check:all` passes (including `shell.spec.ts`)
+- [x] `pnpm --filter @household-budget/web exec vitest run src/ui src/shell src/filter.test.ts` passes
+- [x] `pnpm --filter @household-budget/api exec vitest run src/rules/category.service.test.ts` passes
+- [x] `rg -n '[⏳🔒⚠✕]' apps/web/src --glob '*.tsx'` finds nothing
+- [x] `rg -n '#[0-9a-fA-F]{3,8}\b|rgba?\(|fontSize: *[0-9]|fontSize: *.[0-9.]+px' apps/web/src/pages apps/web/src/ui apps/web/src/shell` finds nothing
+- [x] `pnpm check` passes
+- [x] `pnpm check:all` passes (including `shell.spec.ts`)
 
 **Manual Verification**:
 
@@ -774,6 +774,18 @@ During implementation, document user feedback, problems, and decisions here.
   definition of „Ohne Kategorie“ (decision 5); budget semantics pinned to plan 04 (decision 6);
   new rules appended (decision 8); phase 2 links point at `/transactions` until `/inbox` exists;
   `CategoryMenu` moved to phase 3; bottom nav gains „Mehr“; line references corrected.
+- Phase 1, category palette: the first palette in DESIGN.md §2.2 failed the `dataviz`
+  validator (CVD ΔE 0.9 between violet and blue). Replaced by the skill's reference order
+  for slots 0–6 plus a brown slot 7 instead of its red, which would collide with
+  `status.over`; both schemes pass. DESIGN.md §2.2 updated.
+- Phase 1, `theme.d.ts` is `mui-theme.d.ts`: TypeScript treats `theme.d.ts` beside
+  `theme.ts` as that file's own declaration and ignores its module augmentation.
+- Phase 1, decision 15 as built: pages render `<TopBar …/>` themselves instead of
+  declaring it through a `usePageChrome` context. A context written from a page's render
+  re-renders the shell, which re-renders the page with a fresh config object — a loop — and
+  rendering the top bar in the page gives the same single component with no state to sync.
+- Phase 1, the nav is `shell/navItems.ts` (items) + `shell/NavItemLink.tsx` (link), split
+  for React Fast Refresh.
 
 ## References
 

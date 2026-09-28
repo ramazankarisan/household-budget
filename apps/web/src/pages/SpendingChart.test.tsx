@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { SpendingChart } from './SpendingChart';
 
 const CATEGORIES = [
-  { id: 'cat-wohnen', name: 'Wohnen' },
-  { id: 'cat-essen', name: 'Lebensmittel' },
+  { id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 },
+  { id: 'cat-essen', name: 'Lebensmittel', colorIndex: 0 },
 ];
 
 function entry(overrides: Partial<CategoryReport>): CategoryReport {

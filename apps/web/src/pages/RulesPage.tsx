@@ -17,7 +17,6 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
-import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
@@ -58,7 +57,9 @@ import {
   describeRuleDeleted,
   describeRuleErrors,
 } from '../locales/sentences';
-import { AppHeader } from './AppHeader';
+import { TopBar } from '../shell/TopBar';
+import { CategoryDot, CategoryPill } from '../ui/CategoryPill';
+import { StatusIcon } from '../ui/StatusIcon';
 
 type ApplyState =
   | { readonly status: 'idle' }
@@ -189,9 +190,9 @@ export function RulesPage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
+    <>
       <Stack spacing={3}>
-        <AppHeader />
+        <TopBar title={t('common.pages.rules')} />
 
         {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
@@ -270,7 +271,7 @@ export function RulesPage() {
           }
         />
       )}
-    </Container>
+    </>
   );
 }
 
@@ -365,6 +366,9 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
                 <Chip
                   key={category.id}
                   label={category.name}
+                  icon={<CategoryDot colorIndex={category.colorIndex} />}
+                  variant="outlined"
+                  sx={{ pl: 0.75 }}
                   onDelete={() => {
                     remove(category);
                   }}
@@ -376,9 +380,9 @@ function CategoryStrip({ categories, onChanged, onError, onUndoable }: CategoryS
                       component="span"
                       role="button"
                       aria-label={`${t('rules.deleteCategory')}: ${category.name}`}
-                      sx={{ px: 0.5, cursor: 'pointer' }}
+                      sx={{ px: 0.5, cursor: 'pointer', display: 'inline-flex' }}
                     >
-                      ✕
+                      <StatusIcon kind="clear" />
                     </Box>
                   }
                 />
@@ -429,8 +433,8 @@ interface RuleTableProps {
 function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTableProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<RuleDraft | undefined>(undefined);
-  const nameOf = (categoryId: string) =>
-    categories.find((category) => category.id === categoryId)?.name ?? '—';
+  const categoryOf = (categoryId: string) =>
+    categories.find((category) => category.id === categoryId);
 
   return (
     <Stack spacing={2}>
@@ -465,7 +469,13 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
                       not how anyone reads one back. Upper-cased for the eye only; the
                       stored value is what a fingerprint was built from. */}
                   <TableCell>{displayValue(rule)}</TableCell>
-                  <TableCell>{nameOf(rule.categoryId)}</TableCell>
+                  <TableCell>
+                    {categoryOf(rule.categoryId) === undefined ? (
+                      '—'
+                    ) : (
+                      <CategoryPill category={categoryOf(rule.categoryId) ?? null} />
+                    )}
+                  </TableCell>
                   <TableCell align="right">
                     <Switch
                       size="small"
@@ -507,7 +517,7 @@ function RuleTable({ rules, categories, onChanged, onError, onUndoable }: RuleTa
                             .catch(onError);
                         }}
                       >
-                        ✕
+                        <StatusIcon kind="clear" />
                       </IconButton>
                     </Stack>
                   </TableCell>

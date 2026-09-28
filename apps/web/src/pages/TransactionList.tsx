@@ -1,5 +1,4 @@
 import { type CategoryPayload, type TransactionPayload } from '@household-budget/core';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -12,7 +11,9 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 
-import { formatAmount, formatBookingDate } from '../format';
+import { formatBookingDate } from '../format';
+import { AmountText } from '../ui/AmountText';
+import { StatusIcon } from '../ui/StatusIcon';
 import { CategoryCell } from './CategoryCell';
 
 interface TransactionListProps {
@@ -99,14 +100,11 @@ export function TransactionList({
                 {transaction.status === 'pending' && (
                   // Pending rows are shown, never hidden, but they are labelled: they are
                   // a snapshot the next import replaces, not a settled entry.
-                  <Box
-                    component="span"
-                    aria-label={t('common.pending')}
-                    title={t('common.pending')}
-                    sx={{ ml: 1 }}
-                  >
-                    ⏳
-                  </Box>
+                  <StatusIcon
+                    kind="pending"
+                    label={t('common.pending')}
+                    sx={{ ml: 1, color: 'status.pending.main' }}
+                  />
                 )}
               </TableCell>
               {/* `anywhere` as well as pre-line: a SEPA reference is one unbroken token
@@ -122,15 +120,8 @@ export function TransactionList({
                   disabled={savingIds?.has(transaction.id) ?? false}
                 />
               </TableCell>
-              <TableCell
-                align="right"
-                sx={{
-                  whiteSpace: 'nowrap',
-                  fontVariantNumeric: 'tabular-nums',
-                  color: transaction.amountCents < 0 ? 'text.primary' : 'success.main',
-                }}
-              >
-                {formatAmount(transaction.amountCents)}
+              <TableCell align="right">
+                <AmountText cents={transaction.amountCents} tone="auto" />
               </TableCell>
             </TableRow>
           ))}
