@@ -191,3 +191,6 @@ apps/api/src/generated/
 # Stryker mutation testing (packages/core): sandbox copies and the HTML report.
 .stryker-tmp/
 reports/
+
+# Written into the checkout by gitleaks-action in CI.
+results.sarif
