@@ -35,6 +35,12 @@ pre-commit:
     - name: core-tests
       run: pnpm --filter @household-budget/core test:fast
 
+# Conventional Commits, as the history already writes them. commitlint.config.mjs.
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}
+
 # The full suite, Playwright included.
 pre-push:
   jobs:

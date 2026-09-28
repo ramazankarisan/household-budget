@@ -5,7 +5,7 @@ import SouthWestRounded from '@mui/icons-material/SouthWestRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import { type SxProps, type Theme } from '@mui/material/styles';
 
-export type StatusKind = 'pending' | 'locked' | 'over' | 'income' | 'clear';
+type StatusKind = 'pending' | 'locked' | 'over' | 'income' | 'clear';
 
 const ICONS = {
   pending: ScheduleRounded,

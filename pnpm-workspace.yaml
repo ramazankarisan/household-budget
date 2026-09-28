@@ -33,3 +33,14 @@ minimumReleaseAgeExclude:
   - unplugin-swc@2.0.0
   - w3c-xmlserializer@6.0.0
   - dotenv@18.0.2
+
+# `pnpm audit --audit-level high` runs in CI. Each ignore names why it cannot reach this
+# app; remove it once Prisma ships the patched version. docs/plans/09.
+auditConfig:
+  ignoreGhsas:
+    # mysql2, via the prisma CLI. Credentials leak over a MySQL auth downgrade; this app
+    # talks to SQLite only and never opens a MySQL connection.
+    - GHSA-3f6p-5ww8-9rcr
+    # deepmerge-ts, via @prisma/config. Stack exhaustion on recursive object graphs; the
+    # only input it merges is our own prisma.config.ts.
+    - GHSA-ggr8-5vv4-36mx

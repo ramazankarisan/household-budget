@@ -1,0 +1,30 @@
+// Unused files, exports and dependencies across the workspace. Run by `pnpm check` as
+// `unused`. Entry points not listed here come from knip's own plugins (Vitest, Vite,
+// Playwright, NestJS, Prisma, lefthook, commitlint). docs/plans/09.
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"],
+      // reset-e2e-db.mjs calls the api workspace's prisma, which the root does not list.
+      "ignoreBinaries": ["prisma"],
+    },
+    "packages/core": {
+      "project": ["src/**/*.ts"],
+      // Stryker's `testRunner: 'command'` is built into @stryker-mutator/core; knip's
+      // Stryker plugin assumes every runner is a package of its own.
+      "ignoreDependencies": ["@stryker-mutator/command-runner"],
+    },
+    "apps/api": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"],
+      // Imported only by the generated client in src/generated/, which is git-ignored and
+      // written by `prisma generate`, so knip never sees the import.
+      "ignoreDependencies": ["@prisma/client"],
+    },
+    "apps/web": {
+      "entry": ["e2e/**/*.spec.ts"],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+    },
+  },
+}

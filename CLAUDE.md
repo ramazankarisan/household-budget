@@ -93,22 +93,27 @@ pnpm --filter @household-budget/api db:push    # creates apps/api/data/budget.db
 pnpm dev                                       # core watch + api :3000 + web :5173
 ```
 
-| Task                 | Command          |
-| -------------------- | ---------------- |
-| **Everything, fast** | `pnpm check`     |
-| Everything + E2E     | `pnpm check:all` |
-| Build                | `pnpm build`     |
-| Test                 | `pnpm test`      |
-| Test (bail on first) | `pnpm test:fast` |
-| E2E (Playwright)     | `pnpm test:e2e`  |
-| Typecheck            | `pnpm typecheck` |
-| Lint                 | `pnpm lint`      |
-| Architecture rules   | `pnpm lint:deps` |
-| Format               | `pnpm format`    |
+| Task                  | Command            |
+| --------------------- | ------------------ |
+| **Everything, fast**  | `pnpm check`       |
+| Everything + E2E      | `pnpm check:all`   |
+| Build                 | `pnpm build`       |
+| Test                  | `pnpm test`        |
+| Test (bail on first)  | `pnpm test:fast`   |
+| E2E (Playwright)      | `pnpm test:e2e`    |
+| Typecheck             | `pnpm typecheck`   |
+| Lint                  | `pnpm lint`        |
+| Architecture rules    | `pnpm lint:deps`   |
+| Unused code/deps      | `pnpm lint:unused` |
+| Mutation tests (core) | `pnpm mutation`    |
+| Format                | `pnpm format`      |
 
-`pnpm check` runs format → lint → deps → typecheck → unit tests, printing one line per step
-and nothing else unless something fails. `pnpm check:all` adds Playwright, which boots the API
-and the web server, so it is slower — that is what the pre-push hook runs.
+`pnpm check` runs format → lint → deps → unused → typecheck → unit tests with coverage
+thresholds, printing one line per step and nothing else unless something fails. CI runs
+`pnpm check:all` plus gitleaks and `pnpm audit` on every PR. What each guardrail covers, and
+why coverage thresholds only go up: [plan 09](docs/plans/09-guardrails.md).
+`pnpm check:all` adds Playwright, which boots the API and the web server, so it is slower —
+that is what the pre-push hook runs.
 
 Single package, single file, single test:
 
@@ -121,7 +126,7 @@ pnpm --filter @household-budget/core exec vitest run -t 'parses both date widths
 Each package owns its `vitest.config.ts`; there is no root Vitest config, so Vitest must run
 inside a package.
 
-`dev`, `test`, and `typecheck` build `packages/core` first. This is not optional — the apps
+`dev`, `test`, `typecheck` and `lint:deps` build `packages/core` first. This is not optional — the apps
 consume its `.d.ts`. A stale `packages/core/dist` shows up as bogus "has no exported member"
 errors in both apps.
 
@@ -137,8 +142,9 @@ Two things worth knowing about what `check` is checking:
 
 - `pnpm typecheck` is the real strictness gate — lint is deliberately not type-aware, except
   for a floating-promise overlay scoped to `src/` and the Playwright specs.
-- `pnpm lint:deps` is dependency-cruiser enforcing the `packages/core` rule below. It catches
-  type-only imports too.
+- `pnpm lint:deps` is dependency-cruiser enforcing the `packages/core` rule below, plus: apps
+  import core's built package only, api and web never import each other, web never imports
+  Node, NestJS, Prisma or `core/csv`, and no cycles. It catches type-only imports too.
 
 ### Git hooks
 
@@ -146,6 +152,7 @@ lefthook, installed by `pnpm install` via the root `prepare` script.
 
 - **pre-commit** (seconds): staged-data guard → gitleaks → prettier → eslint → typecheck →
   core unit tests. Stops at the first failure.
+- **commit-msg**: commitlint, Conventional Commits.
 - **pre-push**: `pnpm check:all`, Playwright included.
 
 gitleaks is a Go binary, not an npm package — `brew install gitleaks`. The hook fails rather

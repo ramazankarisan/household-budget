@@ -20,8 +20,10 @@ const STEPS = [
   { label: 'format', script: 'format:check' },
   { label: 'lint', script: 'lint' },
   { label: 'deps', script: 'lint:deps' },
+  { label: 'unused', script: 'lint:unused' },
   { label: 'types', script: 'typecheck' },
-  { label: 'unit', script: 'test' },
+  // With coverage, so a drop below a package's thresholds fails here, not in review.
+  { label: 'unit', script: 'test:coverage' },
   { label: 'e2e', script: 'test:e2e', only: 'all' },
 ];
 

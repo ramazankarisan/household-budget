@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -86,6 +87,21 @@ export default tseslint.config(
     files: ['apps/web/**/*.{ts,tsx}'],
     plugins: {
       'react-hooks': reactHooks,
+    },
+  },
+
+  // Accessibility, statically: a missing label or alt text, a click handler on a <div>.
+  // Only half the picture, because MUI renders the real elements at runtime — the axe
+  // pass in the Playwright specs checks what the browser actually got. docs/plans/09.
+  {
+    files: ['apps/web/src/**/*.tsx'],
+    ...jsxA11y.flatConfigs.recommended,
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // The rule is about stealing focus on page load. Every autoFocus here is on a MUI
+      // field inside a popover or form the user just opened, where moving focus into it
+      // is the accessible behaviour. A raw DOM element still gets flagged.
+      'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
     },
   },
 

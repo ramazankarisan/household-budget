@@ -27,5 +27,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // See packages/core/vitest.config.ts for how the thresholds are kept.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
+      reporter: ['text-summary', 'html'],
+      thresholds: { statements: 82, branches: 76, functions: 78, lines: 82 },
+    },
   },
 });

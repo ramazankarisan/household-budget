@@ -6,10 +6,10 @@ import { en } from './en';
 import { type Locale, LOCALES, toLocale } from './messages';
 
 /** Where the chosen language is kept between visits. Absent means a first visit: German. */
-export const LOCALE_STORAGE_KEY = 'hb-locale';
+const LOCALE_STORAGE_KEY = 'hb-locale';
 
 /** The stored language, or `undefined` when there is none — or storage is unavailable. */
-export function storedLocale(): Locale | undefined {
+function storedLocale(): Locale | undefined {
   try {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
     return stored === null ? undefined : toLocale(stored);
