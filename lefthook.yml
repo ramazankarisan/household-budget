@@ -34,7 +34,7 @@ commit-msg:
     - name: commitlint
       run: pnpm exec commitlint --edit {1}
 
-# Whole-project checks, once per push: deps, unused, types, unit tests with coverage.
+# Whole-project checks, once per push: deps, unused, dupes, types, unit tests with coverage.
 # Format and lint already ran per commit; Playwright runs in CI.
 pre-push:
   jobs:

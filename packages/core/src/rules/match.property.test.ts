@@ -69,7 +69,9 @@ describe('rule order (properties)', () => {
     fc.assert(
       fc.property(rule, rule, (left, right) => {
         expect(Math.sign(compareRules(left, right))).toBe(-Math.sign(compareRules(right, left)));
-        if (compareRules(left, right) === 0) expect(left.id).toBe(right.id);
+        if (compareRules(left, right) === 0) {
+          expect(left.id).toBe(right.id);
+        }
       }),
     );
   });

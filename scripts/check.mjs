@@ -24,6 +24,7 @@ const STEPS = [
   { label: 'lint', script: 'lint', perCommit: true },
   { label: 'deps', script: 'lint:deps' },
   { label: 'unused', script: 'lint:unused' },
+  { label: 'dupes', script: 'lint:dupes' },
   { label: 'types', script: 'typecheck' },
   // With coverage, so a drop below a package's thresholds fails here, not in review.
   { label: 'unit', script: 'test:coverage' },

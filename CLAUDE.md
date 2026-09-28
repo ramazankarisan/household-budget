@@ -103,10 +103,11 @@ pnpm dev                                       # core watch + api :3000 + web :5
 | Lint                  | `pnpm lint`        |
 | Architecture rules    | `pnpm lint:deps`   |
 | Unused code/deps      | `pnpm lint:unused` |
+| Copy-paste (jscpd)    | `pnpm lint:dupes`  |
 | Mutation tests (core) | `pnpm mutation`    |
 | Format                | `pnpm format`      |
 
-`pnpm check` runs format → lint → deps → unused → typecheck → unit tests with coverage
+`pnpm check` runs format → lint → deps → unused → dupes → typecheck → unit tests with coverage
 thresholds, printing one line per step and nothing else unless something fails.
 `pnpm check:all` adds Playwright, which boots the API and the web server, so it is slower. CI
 runs `pnpm check:all` plus gitleaks and `pnpm audit` on every PR, and mutation tests weekly.
@@ -133,7 +134,7 @@ errors in both apps.
 **After every change, run `pnpm check` before saying you are done.**
 
 That is the whole rule. `pnpm check` is the fast set and covers formatting, lint, the
-architecture rules, unused code, typecheck and unit tests. For anything touching HTTP or UI, also run
+architecture rules, unused code, duplicated code, typecheck and unit tests. For anything touching HTTP or UI, also run
 `pnpm check:all` (or `pnpm dev` and exercise it at http://localhost:5173).
 
 Two things worth knowing about what `check` is checking:
@@ -153,7 +154,7 @@ lefthook, installed by `pnpm install` via the root `prepare` script.
 - **pre-commit** (seconds, staged files): staged-data guard → gitleaks → prettier → eslint.
   Stops at the first failure.
 - **commit-msg**: commitlint, Conventional Commits.
-- **pre-push**: `check.mjs --push` — deps, unused, typecheck, unit with coverage. Format and
+- **pre-push**: `check.mjs --push` — deps, unused, dupes, typecheck, unit with coverage. Format and
   lint already ran per commit; Playwright runs in CI, which runs everything.
 
 gitleaks is a Go binary, not an npm package — `brew install gitleaks`. The hook fails rather

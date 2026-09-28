@@ -51,7 +51,7 @@ jobs:
 
       - run: pnpm e2e:install --with-deps
 
-      # format → lint → deps → unused → types → unit with coverage → Playwright.
+      # format → lint → deps → unused → dupes → types → unit with coverage → Playwright.
       - run: pnpm check:all
         env:
           CI: 'true'

@@ -42,10 +42,16 @@ function hostnameOf(host: string): string | undefined {
  * POST cannot fake.
  */
 export function isLoopbackRequest(host: string | undefined, origin: string | undefined): boolean {
-  if (host === undefined) return false;
+  if (host === undefined) {
+    return false;
+  }
   const hostname = hostnameOf(host);
-  if (hostname === undefined || !isLoopbackHost(hostname)) return false;
-  if (origin === undefined) return true;
+  if (hostname === undefined || !isLoopbackHost(hostname)) {
+    return false;
+  }
+  if (origin === undefined) {
+    return true;
+  }
   // `Origin: null` (sandboxed iframe, file://) is not a place this UI is served from.
   const url = URL.parse(origin);
   return url !== null && isLoopbackHost(url.hostname);

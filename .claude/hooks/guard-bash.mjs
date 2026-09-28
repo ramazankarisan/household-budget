@@ -40,7 +40,9 @@ const EXPORT_OR_DATA = new RegExp(
 function namesUserData(command) {
   const words = command.split(/[\s'"=<>()]+/).filter(Boolean);
   return words.some((word) => {
-    if (/(^|\/)(test|e2e)\.db(-journal|-wal|-shm)?$/.test(word)) return false;
+    if (/(^|\/)(test|e2e)\.db(-journal|-wal|-shm)?$/.test(word)) {
+      return false;
+    }
     return (
       /\bbudget\.db/.test(word) ||
       /(^|\/)apps\/api\/data(\/|$)/.test(word) ||
@@ -109,9 +111,13 @@ function visibleCommand(command) {
     const line = lines[i] ?? '';
     kept.push(line);
     const opener = /<<-?\s*(['"]?)(\w+)\1/.exec(line);
-    if (opener === null) continue;
+    if (opener === null) {
+      continue;
+    }
     const end = lines.findIndex((l, j) => j > i && l.trim() === opener[2]);
-    if (end === -1) continue;
+    if (end === -1) {
+      continue;
+    }
     if (INTERPRETER.test(line)) {
       kept.push(...lines.slice(i + 1, end));
     }
@@ -122,7 +128,9 @@ function visibleCommand(command) {
 
 const input = JSON.parse((await text(process.stdin)) || '{}');
 const command = input.tool_input?.command;
-if (typeof command !== 'string') process.exit(0);
+if (typeof command !== 'string') {
+  process.exit(0);
+}
 
 const visible = visibleCommand(command);
 const hit = RULES.find((rule) => rule.test(visible));

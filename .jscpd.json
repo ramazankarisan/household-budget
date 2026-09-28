@@ -1,0 +1,9 @@
+{
+  "path": ["packages/core/src", "apps/api/src", "apps/web/src", "scripts"],
+  "format": ["typescript", "tsx", "javascript"],
+  "ignore": ["**/generated/**", "**/*.test.ts", "**/*.test.tsx", "**/test/**"],
+  "threshold": 0.5,
+  "reporters": ["console", "threshold"],
+  "gitignore": true,
+  "failOnEmpty": true
+}
