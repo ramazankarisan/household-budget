@@ -167,7 +167,8 @@ Two fields carry most of the behaviour:
 
 ## Domain invariants
 
-Listed, with their reasons, in [CLAUDE.md § Invariants](../CLAUDE.md#invariants). In short:
+Listed, with their reasons, in the CLAUDE.md of the package they govern —
+[core](../packages/core/CLAUDE.md), [api](../apps/api/CLAUDE.md), [web](../apps/web/CLAUDE.md). In short:
 „Ohne Kategorie“ is counted by one function (`uncategorizedRows`); budgets are measured against
 every account; `monthlyReport` counts money out only and keeps booked and vorgemerkt apart; UI
 text lives only in `apps/web/src/locales/`.

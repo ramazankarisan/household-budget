@@ -245,7 +245,7 @@ component.
 
 ## 9. Words
 
-- All UI text lives in `apps/web/src/locales/{de,en}.ts` (invariant in `CLAUDE.md`).
+- All UI text lives in `apps/web/src/locales/{de,en}.ts` (invariant in `apps/web/CLAUDE.md`).
 - German uses **Sie**, sentence case, and the bank's own terms: Umsätze, vorgemerkt, Empfänger,
   Verwendungszweck. English mirrors meaning, not word order.
 - The app name is localized: „Haushaltsbuch" / "Household budget".

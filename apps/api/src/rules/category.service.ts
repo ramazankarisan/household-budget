@@ -190,7 +190,7 @@ export class CategoryService implements OnModuleInit {
    * exact-match only (SQLite compares bytes), so without this the case variant went in
    * as a second category and the spending split between the two.
    *
-   * In JavaScript over every name rather than in SQL, for the reason in CLAUDE.md: SQLite
+   * In JavaScript over every name rather than in SQL, for the reason in packages/core/CLAUDE.md: SQLite
    * folds ASCII only. Check-then-insert can race; this is a single-user local app, and
    * `@unique` still catches the exact duplicate. `exceptId` lets a rename change only the
    * case of its own name. Duplicates stored before this check are left alone.

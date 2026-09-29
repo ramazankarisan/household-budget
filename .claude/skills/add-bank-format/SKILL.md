@@ -215,8 +215,8 @@ python3 .claude/skills/add-bank-format/scripts/check_fixture_bytes.py fixtures/<
 
 Add the implementation notes to `docs/plans/NN-<bank>-csv.md` — specifically the things that
 surprised you, since that is what the next bank's author reads. Update the
-`POST /api/imports` paragraph in `CLAUDE.md` and the README's introduction and fixtures line
-so they name the formats that actually import. Keep `CLAUDE.md` short: link to
+`POST /api/imports` paragraph in `apps/api/CLAUDE.md` and the README's introduction and fixtures line
+so they name the formats that actually import. Keep every `CLAUDE.md` short: link to
 the docs rather than inlining them.
 
 ## Reference files

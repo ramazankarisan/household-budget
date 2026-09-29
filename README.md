@@ -114,7 +114,7 @@ docs/reports/        Dated reviews and test sessions (dogfood, security).
 docs/architecture.md Boundaries and data flow.
 docs/best-practices.md  The agent workflow and its gates.
 DESIGN.md            The UI rulebook.
-CLAUDE.md            What the agent reads first.
+CLAUDE.md            What the agent reads first; each package adds its own.
 .claude/             Claude Code hooks (with tests) and project skills.
 scripts/             check runner, bank-data guard, gitleaks wrapper, e2e database reset.
 .github/workflows/   CI on every PR, mutation tests weekly.
