@@ -120,12 +120,20 @@ context is finite, and noise from passing steps crowds out the one line that mat
 
 ## CLAUDE.md as the contract
 
-[CLAUDE.md](../CLAUDE.md) is what the agent reads first, and kept short enough to be read:
+[CLAUDE.md](../CLAUDE.md) is what the agent reads first, so it holds only what the agent cannot
+find on its own, in under 50 lines:
 
-- **WHAT / HOW / WHY / RULES** — layout, commands, the local-only constraint, the four hard rules.
-- **Invariants with their reasons.** Each links to the research that made it, and says "do not
-  undo one without reading it" — so the agent meets the reason before the temptation.
-- **Link, do not inline.** Anything longer than a few lines lives under `docs/` and is linked.
+- **Only the non-discoverable.** No command lists or stack versions — `package.json` has them.
+  What stays: why the app is local, what "done" means, the traps (a stale core build, no root
+  Vitest config), and the hard rules.
+- **One CLAUDE.md per package.** `packages/core`, `apps/api` and `apps/web` each hold their own
+  invariants with their reasons. Claude Code loads a subdirectory's CLAUDE.md only when it reads
+  a file there, so the rules arrive exactly when they apply.
+- **Required docs are imported where they apply.** `apps/web/CLAUDE.md` imports DESIGN.md with
+  `@../../DESIGN.md`, so the UI rulebook loads for web work and nowhere else. An `@` import in a
+  path-scoped `.claude/rules/` file, tested here, loads at session start regardless of its
+  `paths` — so rules hold their text inline or not at all.
+- **Link, do not inline.** Optional reading — architecture, plans, research — stays a link.
 - **One verification rule:** run `pnpm check` before saying you are done — which the Stop hook
   enforces.
 

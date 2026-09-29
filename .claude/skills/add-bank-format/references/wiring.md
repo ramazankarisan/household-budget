@@ -56,5 +56,5 @@ that only passes `pnpm check` is not done.
 
 - `docs/research/NN-<bank>-csv.md` — the format, with sources. Written before the code.
 - `docs/plans/NN-<bank>-csv.md` — what was built and what surprised you.
-- `CLAUDE.md` (the `POST /api/imports` paragraph) and `README.md` (introduction, fixtures
+- `apps/api/CLAUDE.md` (the `POST /api/imports` paragraph) and `README.md` (introduction, fixtures
   line) — name the formats that import. Link, do not inline.

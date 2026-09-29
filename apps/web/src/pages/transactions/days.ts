@@ -20,7 +20,7 @@ const DAY: Record<Locale, Intl.DateTimeFormat> = {
 /**
  * `'2025-09-18'` → `Donnerstag, 18. September 2025`, split by hand for the zone reason
  * `format.ts` gives. Weekday and month are words, so they follow the language — like
- * `formatMonth`; numeric dates stay `de-DE` (CLAUDE.md).
+ * `formatMonth`; numeric dates stay `de-DE` (apps/web/CLAUDE.md).
  */
 export function formatDay(isoDate: string, locale: Locale): string {
   const [year, month, day] = isoDate.split('-').map(Number);

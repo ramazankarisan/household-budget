@@ -45,7 +45,7 @@ module.exports = {
       comment:
         'Both apps import @household-budget/core — its built dist/ — never its source by ' +
         'relative path. A relative import skips the package exports map, so it can reach ' +
-        'the Node-only csv entry from the browser and compiles core twice. CLAUDE.md WHAT.',
+        'the Node-only csv entry from the browser and compiles core twice. packages/core/CLAUDE.md.',
       from: { path: '^apps/' },
       to: { path: '^packages/core/src' },
     },
@@ -64,7 +64,7 @@ module.exports = {
       comment:
         'apps/web ships to a browser. NestJS, Prisma and node: built-ins do not run there, and ' +
         '@household-budget/core/csv wraps csv-parse, whose Node build needs Buffer — exporting ' +
-        'it to the web bundle breaks it. Parsing happens in the API. CLAUDE.md WHAT. Node ' +
+        'it to the web bundle breaks it. Parsing happens in the API. packages/core/CLAUDE.md. Node ' +
         'built-ins are the next rule: dependency-cruiser tags them by type, not by path.',
       from: { path: '^apps/web/src', pathNot: '\\.test\\.tsx?$|^apps/web/src/test/' },
       to: {
