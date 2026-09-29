@@ -1,18 +1,16 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## WHAT
 
 pnpm 12 monorepo, Node >=24, strict TypeScript `~6.0.3` everywhere.
 
 ```
 packages/core   Domain logic: CSV parsing, categorization rules, budget math.
-                Pure TypeScript, no framework deps. Compiles to dist/ (ESM + .d.ts).
+                Pure TypeScript. Compiles to dist/ (ESM + .d.ts).
                 Two entry points — the root is browser-safe; `/csv` holds the parser.
-apps/api        NestJS 12 REST API. SQLite via Prisma 7 (driver adapter, no Rust engine).
-                Global route prefix `api`; listens on 127.0.0.1:3000 only; rejects
-                non-loopback Host/Origin (`src/security/loopback.ts`).
+apps/api        NestJS 12 REST API. SQLite via Prisma 7 (no Rust query engine at runtime).
+                Global route prefix `api`; 127.0.0.1:3000 only; rejects non-loopback
+                Host/Origin (`src/security/loopback.ts`).
 apps/web        React 19 + Vite 8 + MUI 9 + react-router. Dev server on :5173,
                 proxies /api to :3000.
 fixtures/       Synthetic bank CSVs, byte-exact as each bank ships them: Sparkasse CRLF
@@ -20,41 +18,32 @@ fixtures/       Synthetic bank CSVs, byte-exact as each bank ships them: Sparkas
                 .gitattributes and .editorconfig keep them that way.
 ```
 
-Both apps depend on `@household-budget/core` as `workspace:*` and import its **built**
-`dist/`, never its source. Types declared once in core (`AccountPayload`,
-`TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract between API
-responses and the UI that renders them.
+Both apps import core's **built** `dist/`, never its source. Types declared once in core
+(`AccountPayload`, `TransactionPayload`, `ImportSummary`, `BudgetPayload`) are the contract
+between API responses and the UI.
 
-Status: import → categorize → report works end to end. Routes: `/` (Überblick),
-`/transactions` (`/inbox` redirects to its „Ohne Kategorie“ filter), `/rules`, `/imports`
-(lists every upload and can remove one, with undo — [plan 11](docs/plans/11-import-undo.md));
-`/budgets` redirects to `/`. One app shell ([DESIGN.md](DESIGN.md)), the month in `?m=`, one
-household copy of the data (`apps/web/src/household/`). What each page does: [README](README.md).
-
-`POST /api/imports` takes a bank CSV upload scoped to an account — Sparkasse CSV-CAMT or
-Deutsche Bank ([research 07](docs/research/07-deutsche-bank-csv.md)), the format detected from
-the header, never asked — decodes it (UTF-8, falling back to Windows-1252), parses it by
-column **name** through one descriptor per bank (`packages/core/src/csv/dialects/`), and
-stores the rows —
-deduplicated by a content fingerprint plus an occurrence index, so an overlapping export
-imports only what is new. Bad rows are reported with their line number while the rest of
-the file imports; an unparseable file is a 4xx.
+Import → categorize → report works end to end, for Sparkasse CSV-CAMT and Deutsche Bank. The
+UI is one app shell, the month in `?m=`, over one household copy of the data
+(`apps/web/src/household/`).
 
 Categorization is user-defined rules — one condition each, `priority ASC` then `createdAt`
-then `id`, first match wins — matched in `packages/core` over rows already loaded, never in
-SQL (see Invariants). `POST /api/rules/apply` re-runs them over every account and writes `null`
-as well as matches, so a category never outlives the rule that explains it. A category set
-by hand sets `Transaction.categoryLockedAt` and is never touched again until it is cleared.
+then `id`, first match wins. `POST /api/rules/apply` re-runs them over every account and writes
+`null` as well as matches, so a category never outlives the rule that explains it. A category
+set by hand sets `Transaction.categoryLockedAt` and is never touched again until it is cleared.
 An import categorizes the rows it inserts inside its own transaction.
 
-Details: [README.md](README.md) — setup, deliberate version pins, ESM/lint conventions.
-[DESIGN.md](DESIGN.md) — the UI rulebook (tokens, layout, components, states); read it before
-touching `apps/web`.
-The authority on each CSV format is its research doc:
-[01](docs/research/01-csv-import.md) for Sparkasse CSV-CAMT,
-[07](docs/research/07-deutsche-bank-csv.md) for Deutsche Bank. `docs/plans/` holds one plan per feature: the decisions behind it and, where the build
-departed from them, what changed and why. Before changing a feature, read its plan — the code
-is the truth about _what_, the plan about _why_.
+Where to read more:
+
+- [README.md](README.md) — setup, checks, pages, repo map.
+- [docs/architecture.md](docs/architecture.md) — boundaries, data flow, data model, version
+  pins, ESM/lint conventions.
+- [docs/best-practices.md](docs/best-practices.md) — the workflow and every gate, hooks included.
+- [DESIGN.md](DESIGN.md) — the UI rulebook. Read it before touching `apps/web`.
+- CSV formats: [research 01](docs/research/01-csv-import.md) (Sparkasse CSV-CAMT),
+  [research 07](docs/research/07-deutsche-bank-csv.md) (Deutsche Bank) — the authority on each.
+- `docs/plans/` — one plan per feature: the decisions, and where the build departed from them.
+  Before changing a feature, read its plan. The code is the truth about _what_, the plan about
+  _why_.
 
 ### Invariants
 
@@ -91,27 +80,17 @@ pnpm --filter @household-budget/api db:push    # creates apps/api/data/budget.db
 pnpm dev                                       # core watch + api :3000 + web :5173
 ```
 
-| Task                  | Command            |
-| --------------------- | ------------------ |
-| **Everything, fast**  | `pnpm check`       |
-| Everything + E2E      | `pnpm check:all`   |
-| Build                 | `pnpm build`       |
-| Test                  | `pnpm test`        |
-| Test (bail on first)  | `pnpm test:fast`   |
-| E2E (Playwright)      | `pnpm test:e2e`    |
-| Typecheck             | `pnpm typecheck`   |
-| Lint                  | `pnpm lint`        |
-| Architecture rules    | `pnpm lint:deps`   |
-| Unused code/deps      | `pnpm lint:unused` |
-| Copy-paste (jscpd)    | `pnpm lint:dupes`  |
-| Mutation tests (core) | `pnpm mutation`    |
-| Format                | `pnpm format`      |
+| Task                  | Command                                       |
+| --------------------- | --------------------------------------------- |
+| **Everything, fast**  | `pnpm check`                                  |
+| Everything + E2E      | `pnpm check:all`                              |
+| Test (+ hook tests)   | `pnpm test` · `pnpm test:fast` bails on first |
+| E2E (Playwright)      | `pnpm test:e2e`                               |
+| Mutation tests (core) | `pnpm mutation`                               |
+| Format                | `pnpm format`                                 |
 
-`pnpm check` runs format → lint → deps → unused → dupes → typecheck → unit tests with coverage
-thresholds, printing one line per step and nothing else unless something fails.
-`pnpm check:all` adds Playwright, which boots the API and the web server, so it is slower. CI
-runs `pnpm check:all` plus gitleaks and `pnpm audit` on every PR, and mutation tests weekly.
-What each guardrail covers, and why coverage thresholds only go up:
+Each step of `pnpm check` also runs alone: `lint`, `lint:deps`, `lint:unused`, `lint:dupes`,
+`typecheck`, `test:coverage`. What each covers: [README § Checks](README.md#checks),
 [plan 09](docs/plans/09-guardrails.md).
 
 Single package, single file, single test:
@@ -125,43 +104,34 @@ pnpm --filter @household-budget/core exec vitest run -t 'parses both date widths
 Each package owns its Vitest config — `vitest.config.ts` in core and api, the `test` block of
 `vite.config.ts` in web; there is no root Vitest config, so Vitest must run inside a package.
 
-`dev`, `test`, `typecheck` and `lint:deps` build `packages/core` first. This is not optional — the apps
-consume its `.d.ts`. A stale `packages/core/dist` shows up as bogus "has no exported member"
-errors in both apps.
+Every root script that needs core builds it first — the apps consume its `.d.ts`. A stale
+`packages/core/dist` shows up as bogus "has no exported member" errors in both apps.
 
 ### Verifying a change
 
-**After every change, run `pnpm check` before saying you are done.**
+**After every change, run `pnpm check` before saying you are done.** The Stop hook runs it
+anyway when you edited something, and keeps you working if it fails.
 
-That is the whole rule. `pnpm check` is the fast set and covers formatting, lint, the
-architecture rules, unused code, duplicated code, typecheck and unit tests. For anything touching HTTP or UI, also run
-`pnpm check:all` (or `pnpm dev` and exercise it at http://localhost:5173).
-
-Two things worth knowing about what `check` is checking:
+`pnpm check` is format → lint → deps → unused → dupes → typecheck → unit tests with coverage
+thresholds, one line per step, full output only for the step that fails. For anything touching
+HTTP or UI, also run `pnpm check:all` (or `pnpm dev` and exercise it at http://localhost:5173).
 
 - `pnpm typecheck` is the real strictness gate — lint is deliberately not type-aware, except
   for a floating-promise overlay scoped to `src/` and the Playwright specs.
-- `pnpm lint:deps` is dependency-cruiser enforcing the `packages/core` rule below (type-only
-  imports included), plus: apps import core's built package only, api and web never import
-  each other, no cycles, and web never imports Node, NestJS, Prisma or `core/csv` at runtime
-  nor reaches `csv-parse` through any chain. Type-only imports into web are allowed — erased
-  before the browser sees them.
+- `pnpm lint:deps` enforces the boundaries in
+  [architecture.md](docs/architecture.md#boundaries-and-why-they-exist). Type-only imports
+  into web are allowed — erased before the browser sees them.
 
-### Git hooks
+### Hooks
 
-lefthook, installed by `pnpm install` via the root `prepare` script.
-
-- **pre-commit** (seconds, staged files): staged-data guard → gitleaks → prettier → eslint.
-  Stops at the first failure.
-- **commit-msg**: commitlint, Conventional Commits.
-- **pre-push**: `check.mjs --push` — deps, unused, dupes, typecheck, unit with coverage. Format and
-  lint already ran per commit; Playwright runs in CI, which runs everything.
-
-gitleaks is a Go binary, not an npm package — `brew install gitleaks`. The hook fails rather
-than skips when it is missing, so the gate cannot quietly pass.
-
-Bypass only in a real emergency: `LEFTHOOK=0 git commit ...`, or skip one job with
-`LEFTHOOK_EXCLUDE=gitleaks git commit ...`.
+- **Claude Code hooks** (`.claude/hooks/`) refuse edits to fixtures, the generated Prisma
+  client, `.env` files and databases; reads of the user's database; and shell commands that
+  skip git hooks. The refusal says what to do instead — do that.
+- **Git hooks** (lefthook): pre-commit data guard → gitleaks → Prettier → ESLint on staged
+  files; commitlint; pre-push the rest of `pnpm check`. gitleaks is a Go binary —
+  `brew install gitleaks`; the hook fails rather than skips without it.
+- **Never skip a hook.** `LEFTHOOK=0` and `--no-verify` are for the user in an emergency, not
+  for the agent. If a gate looks wrong, say so and hand it back.
 
 ## WHY
 
@@ -183,8 +153,8 @@ Import → categorize → report is the whole product. Weigh new work against it
   including a type-only one. Enforced by `pnpm lint:deps` (`.dependency-cruiser.cjs`).
 - **Never commit real bank data.** Test data is synthetic and lives in `fixtures/`. `data/`,
   `*.db` and `*.csv` are git-ignored, with `fixtures/**/*.csv` as the one exception, and
-  `scripts/check-staged-data.mjs` blocks the rest at commit time. When a bug needs a real
-  statement to reproduce, hand-write a synthetic fixture that reproduces it.
+  `scripts/check-staged-data.mjs` blocks the rest at commit time and in CI. When a bug needs a
+  real statement to reproduce, hand-write a synthetic fixture that reproduces it.
 - **Research goes in `docs/research/`, plans go in `docs/plans/`**, one Markdown file per
   topic, committed. Check there before researching something twice. Reviews and test
   sessions go in `docs/reports/`, dated. Raw session output (`dogfood-output/`) stays local.
