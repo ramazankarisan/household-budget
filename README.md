@@ -1,162 +1,152 @@
 # household-budget
 
-A pnpm monorepo for a household budgeting app, for one person's own bank data on
-their own machine. All three product steps — import, categorize, report — are
-built: a Sparkasse CSV-CAMT or Deutsche Bank export can be uploaded, parsed, stored
-and listed — the format is detected from the file's header — with duplicate detection
-that survives overlapping exports; user-defined rules assign each
-transaction a category — with a category set by hand always winning; and each month's
-spending is shown per category against a limit, with a six-month trend.
+A local household budget app. It imports bank CSV exports, sorts each transaction into a
+category by rules you write, and shows each month's spending per category against a limit.
+One person's bank history, on their own machine, in SQLite — nothing is uploaded anywhere.
 
-## Layout
+![Überblick: one month's spending per category against its limit](docs/images/overview.png)
 
-```
-packages/core   Pure TypeScript domain logic — CSV parsing, categorization
-                rules, budget math. No framework dependencies. Compiles to
-                dist/ (ESM + .d.ts); both apps import the built output.
-apps/api        NestJS 12 REST API. SQLite via Prisma 7.
-apps/web        React 19 + Vite 8 + MUI 9 + react-router, inside one app shell
-                (sidebar ≥ 1024 px, icon rail ≥ 720 px, bottom bar below).
-                Look and rules: DESIGN.md.
-fixtures/       Synthetic bank CSVs, byte-exact as each bank ships them: Sparkasse
-                CRLF (Windows-1252 for the primary fixture), Deutsche Bank LF and
-                UTF-8. Never real statements.
-docs/           research/ and plans/, one Markdown file per topic; reports/ for
-                reviews and test sessions (security review, dogfood session).
-```
+<sub>Screenshots show the synthetic data in `fixtures/`, never a real statement.</sub>
 
-Both apps depend on `@household-budget/core` as `workspace:*`. core has two entry
-points: the root one is browser-safe, and `@household-budget/core/csv` holds the
-CSV parser, which pulls in csv-parse's Node build and is imported only by `apps/api`.
+Built with Claude Code as the implementing agent, under a set of gates that make it prove
+each change before it may call it done. How that works: [docs/best-practices.md](docs/best-practices.md).
+How the code is cut and why: [docs/architecture.md](docs/architecture.md).
 
-## Prerequisites
+## What it does
 
-- Node 24 (`.nvmrc`)
-- pnpm 12 (`corepack enable`)
-- Network access to `binaries.prisma.sh` on install — `prisma generate` and
-  `prisma db push` fetch their binaries from it.
+1. **Import.** Upload a Sparkasse CSV-CAMT or Deutsche Bank export. The format is detected from
+   the header, never asked. An overlapping export imports only what is new; a bad row is
+   reported with its line number while the rest of the file imports. Every upload can be
+   removed again, with undo.
+2. **Categorize.** Write rules as sentences — `Wenn Empfänger enthält müller → Wohnen`. The first
+   matching rule wins; a category set by hand is never overwritten by a rule.
+3. **Report.** Each month: spend per category against its limit, what is still unsorted, and a
+   six-month trend.
 
-## Getting started
+The UI is German, with an English switch and a light/dark theme.
+
+## Setup
+
+You need macOS or Linux with network access (`pnpm install` downloads Prisma's binaries from
+`binaries.prisma.sh`).
+
+1. **Node 24.** `nvm install` in the repo root reads `.nvmrc`.
+2. **pnpm 12.** `corepack enable` — the exact version comes from `packageManager` in
+   `package.json`.
+3. **Install.** Clone the repository, then in its root:
+   ```bash
+   pnpm install
+   ```
+   This also generates the Prisma client and installs the git hooks.
+4. **Configure the API.**
+   ```bash
+   cp apps/api/.env.example apps/api/.env
+   ```
+   The defaults work: the database at `apps/api/data/budget.db`, the API on port 3000.
+5. **Create the database.**
+   ```bash
+   pnpm --filter @household-budget/api db:push
+   ```
+6. **Run it.**
+   ```bash
+   pnpm dev
+   ```
+   Open http://localhost:5173. The API listens on `127.0.0.1:3000` only; the web dev server
+   proxies `/api` to it.
+7. **Try it.** Create an account, then drop `fixtures/sparkasse-camt-18.csv` or
+   `fixtures/deutsche-bank.csv` anywhere on the window (or press **Importieren**). Both are
+   synthetic exports.
+
+Only needed for some tasks:
+
+- **Committing:** `brew install gitleaks`. The pre-commit hook fails rather than skips without it.
+- **End-to-end tests:** `pnpm e2e:install` downloads the Chromium build Playwright uses.
+- **After pulling a schema change** (`apps/api/prisma/schema.prisma`): run
+  `pnpm --filter @household-budget/api prisma:generate`, then `db:push` again. `db:push` adds
+  the new columns to your existing database without touching its rows.
+
+CI runs steps 3–4 and the full check suite on a fresh Ubuntu runner for every PR.
+
+## Checks
+
+| Command          | What it runs                                                                                                         | Time    |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------- | ------- |
+| `pnpm check`     | format → lint → architecture rules → unused code → duplicated code → typecheck → unit tests with coverage thresholds | ~20 s   |
+| `pnpm check:all` | the above plus Playwright against a real API and browser — what CI runs                                              | minutes |
+| `pnpm mutation`  | Stryker mutation tests over `packages/core` — CI runs it weekly                                                      | ~3 min  |
+
+`pnpm check` prints one line per step and nothing else unless a step fails; then it prints that
+step's output and stops.
+
+Where each check runs:
+
+| When                      | What                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| Agent edits a file        | Claude Code hooks: protected files, forbidden shell commands                          |
+| Agent says it is done     | Claude Code Stop hook: `pnpm check`                                                   |
+| `git commit`              | bank-data guard, gitleaks, Prettier and ESLint on staged files; commitlint            |
+| `git push`                | architecture rules, unused code, duplicated code, typecheck, unit tests with coverage |
+| Every PR (GitHub Actions) | all of the above, plus Playwright, gitleaks over history, `pnpm audit`                |
+| Weekly                    | mutation tests                                                                        |
+
+Narrower runs:
 
 ```bash
-pnpm install                      # also runs `prisma generate` for apps/api
-cp apps/api/.env.example apps/api/.env
-pnpm --filter @household-budget/api db:push   # creates apps/api/data/budget.db
-pnpm dev
+pnpm --filter @household-budget/api test
+pnpm --filter @household-budget/api exec vitest run src/import/import.service.test.ts
+pnpm --filter @household-budget/core exec vitest run -t 'parses both date widths'
 ```
 
-After pulling a change to `apps/api/prisma/schema.prisma`, run
-`pnpm --filter @household-budget/api prisma:generate` and `db:push` again — `db:push`
-adds new columns to your existing `budget.db` without touching its rows.
+Vitest has no root config; run it inside a package. `dev`, `test`, `typecheck` and `lint:deps`
+build `packages/core` first — the apps consume its compiled `.d.ts`.
 
-Then open http://localhost:5173. Create an account, then drop a Sparkasse CSV-CAMT or
-Deutsche Bank CSV export anywhere on the window — or press **Importieren** in the top bar — and the transactions
-appear on every page. **Importe** lists every upload, the ones that brought nothing new
-included, and can remove one — with undo. `fixtures/sparkasse-camt-18.csv` and `fixtures/deutsche-bank.csv` are
-synthetic exports to try it with.
+## Repo map
 
-Under **Regeln**, add a category and write a rule as the sentence it is —
-`Wenn Empfänger enthält müller → Wohnen`; the preview counts what it would reach before
-it is saved — and press _Regeln anwenden_. The first matching rule wins, so order is
-priority: drag a rule, use its ↑/↓ buttons or `Alt+↑`/`Alt+↓`, and the whole order is
-saved at once. Each category's colour is chosen there too. Matching runs in `packages/core` rather than in SQL
-because SQLite folds case for ASCII only, so `LIKE '%müller%'` would miss
-`MÜLLER GmbH`. Choosing a category by hand on a transaction locks that row: the
-rules engine will not touch it again until the category is cleared.
+```
+packages/core        Domain logic: CSV parsing, categorization rules, budget math.
+                     Pure TypeScript, no framework. Both apps import its built dist/.
+apps/api             NestJS REST API, SQLite via Prisma. Loopback only.
+apps/web             React + Vite + MUI. The UI.
+fixtures/            Synthetic bank CSVs, byte-exact as each bank ships them.
+docs/research/       What was found out before building — CSV formats, UI, budgets.
+docs/plans/          One plan per feature: the decisions, and where the build departed from them.
+docs/reports/        Dated reviews and test sessions (dogfood, security).
+docs/architecture.md Boundaries and data flow.
+docs/best-practices.md  The agent workflow and its gates.
+DESIGN.md            The UI rulebook.
+CLAUDE.md            What the agent reads first.
+.claude/             Claude Code hooks (with tests) and project skills.
+scripts/             check runner, bank-data guard, gitleaks wrapper, e2e database reset.
+.github/workflows/   CI on every PR, mutation tests weekly.
+lefthook.yml         Git hooks.
+```
 
-The month every page shows lives in the URL (`?m=2025-09`): the stepper in the top
-bar, or `[` and `]`, move it, and the back button undoes a move. Above the table, the
-toolbar narrows what is shown by category and by a search over payee, purpose and IBAN.
-The search runs in the browser over the rows
-already loaded, for the same case-folding reason — typing `müller` finds
-`MÜLLER GmbH`, and a grouped `DE89 3704 …` finds the IBAN as it is stored. **Umsätze** reads like a statement: grouped by day, every account at once unless one is
-chosen, each row's category a pill that opens a searchable menu. The chip on the right
-counts the booked transactions in the chosen month that still have no category, and clicking
-it shows them.
+## Pages
 
-**Überblick** (`/`) shows one month for the whole household: the booked total against
-the limits, a bar per category (vorgemerkt hatched, never added in; „über“ past the
-limit), what is still unsorted, and a six-month trend. „Budgets bearbeiten“ turns the
-limits into fields. Its „Ohne Kategorie“ links open Umsätze narrowed to exactly those rows,
-on the same month.
+- **Überblick** (`/`) — one month for the whole household: the booked total against the
+  limits, a bar per category (vorgemerkt hatched, never added in; „über“ past the limit), what
+  is still unsorted, a six-month trend. „Budgets bearbeiten“ turns the limits into fields.
+- **Umsätze** (`/transactions`) — every transaction, grouped by day like a statement. Filter by
+  account, category and a search over payee, purpose and IBAN. Each row's category is a pill
+  that opens a searchable menu; choosing one by hand locks the row against rules. The chip on
+  the right counts the month's booked rows with no category and shows them on click
+  (`/inbox` is a shortcut to that filter).
 
-## Scripts
+  ![Umsätze](docs/images/transactions.png)
 
-Run from the repo root:
+- **Regeln** (`/rules`) — categories and rules. A rule's preview counts what it would reach
+  before it is saved; drag, ↑/↓ or `Alt+↑`/`Alt+↓` reorders; _Regeln anwenden_ re-runs every
+  rule over every account.
 
-| Script               | What it does                                                                                                                                                    |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm check`         | format, lint, architecture rules, unused code, typecheck, unit tests with coverage — one line per step                                                          |
-| `pnpm check:all`     | the above plus the Playwright suite (real API and browser) — what CI runs                                                                                       |
-| `pnpm dev`           | core in watch mode + api on :3000 + web on :5173, in parallel                                                                                                   |
-| `pnpm build`         | builds every package in dependency order                                                                                                                        |
-| `pnpm typecheck`     | `tsc --noEmit` across all three packages                                                                                                                        |
-| `pnpm lint`          | ESLint over the whole workspace (one flat config at the root)                                                                                                   |
-| `pnpm lint:deps`     | dependency-cruiser — core stays framework-free, apps import core's build only, api and web never import each other, no cycles, no Node/Prisma/`core/csv` in web |
-| `pnpm lint:unused`   | knip — unused files, exports and dependencies                                                                                                                   |
-| `pnpm test`          | Vitest in all three packages, plus the Claude Code hook tests                                                                                                   |
-| `pnpm test:coverage` | the same, failing below each package's coverage thresholds                                                                                                      |
-| `pnpm test:fast`     | core + api only, dot reporter, stops at the first failure                                                                                                       |
-| `pnpm test:e2e`      | Playwright, booting the API and web servers against a throwaway database                                                                                        |
-| `pnpm e2e:install`   | downloads the Chromium build Playwright needs (once)                                                                                                            |
-| `pnpm mutation`      | Stryker mutation tests over `packages/core` (slow; CI runs it weekly)                                                                                           |
-| `pnpm format`        | Prettier write                                                                                                                                                  |
+  ![Regeln](docs/images/rules.png)
 
-Hooks (lefthook, installed by `pnpm install`) run the data guard, gitleaks, Prettier and ESLint
-on staged files per commit, commitlint on the message, and `node scripts/check.mjs --push`
-before a push. CI runs `pnpm check:all`, gitleaks and `pnpm audit` on every PR. Why each
-guardrail exists: [plan 09](docs/plans/09-guardrails.md).
+- **Importe** (`/imports`) — every upload, the ones that brought nothing new included. Removing
+  one takes its rows out, with undo.
 
-`dev`, `typecheck`, and `test` build `packages/core` first, because the apps
-consume its compiled `.d.ts` rather than its source.
+  ![Importe](docs/images/imports.png)
 
-## How the pieces connect
-
-- **core → apps.** The response shapes (`AccountPayload`, `TransactionPayload`,
-  `ImportSummary`, `BudgetPayload`) are defined once in core; `apps/api` builds them and `apps/web`
-  renders them. A break in either import path fails `pnpm typecheck`.
-- **web → api.** The Vite dev server proxies `/api` to `127.0.0.1:3000`, so the
-  browser only ever talks to one origin. There is no API base URL to configure. The API
-  binds `127.0.0.1` only, sends no CORS headers, and answers `403` to a request whose
-  `Host` or `Origin` is not loopback (`apps/api/src/security/loopback.ts`).
-- **api → SQLite.** Prisma 7 is driver-adapter based (`@prisma/adapter-better-sqlite3`),
-  so there is no Rust query engine at runtime. `Account`, `ImportBatch`, `Transaction`,
-  `Category`, `Rule` and `Budget` live there; transactions are soft-deleted so a re-import can bring
-  them back.
-- **bytes → core.** `apps/api` decodes the upload (UTF-8, falling back to
-  Windows-1252) and hashes it; core takes a `string` and returns transactions. That
-  split is not a preference: core sets `"types": []`, so it has neither
-  `TextDecoder` nor `node:crypto`, and `apps/web` bundles it.
-
-## Conventions worth knowing
-
-- **Strict TypeScript everywhere.** `tsconfig.base.json` holds the strict flag
-  set (including `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`);
-  each package only adds `module`/`lib`/`jsx`/output settings.
-- **`packages/core` and `apps/api` are ESM** (NestJS 12 is ESM-only), so relative
-  imports there need explicit `.js` extensions.
-- **Lint is mostly not type-aware** on purpose — `pnpm typecheck` already runs full
-  tsc, so ESLint stays fast and avoids "file is not in any project" failures. The
-  one exception is a small overlay enabling `no-floating-promises` and
-  `no-misused-promises`, scoped to `*/src/**` and the Playwright specs. Those two
-  rules need type information and catch the one thing tsc does not: a promise
-  nobody awaited. The scoping is what keeps `vite.config.ts` and `prisma.config.ts`
-  out of the project service.
-- **Prerequisites for the commit hooks.** `gitleaks` is a Go binary, not an npm
-  package — `brew install gitleaks`. Playwright browsers are a separate download —
-  `pnpm e2e:install`.
-- **`@typescript-eslint/consistent-type-imports` is off in `apps/api`.** A Nest
-  constructor parameter type looks type-only to that rule, but Nest reads it at
-  runtime via `design:paramtypes`; rewriting those to `import type` breaks DI.
-
-## Version pins that are deliberate
-
-- **TypeScript `~6.0.3`, not 7.x.** `typescript-eslint@8` peers `typescript <6.1.0`
-  and `@nestjs/cli@12` bundles `typescript ~6.0.2`. Revisit once both support the
-  TS 7 native compiler.
-- **Prisma `^7.10.0` for both `prisma` and `@prisma/client`.** The `prisma` package's
-  `latest` dist-tag currently points at an `8.0.0-rc`, so installing with `latest`
-  would produce a mismatched pair.
+The month every page shows lives in the URL (`?m=2025-09`); the stepper in the top bar, or `[`
+and `]`, moves it.
 
 ## License
 
