@@ -5,7 +5,7 @@ on it.
 
 ## Premise
 
-As in the ACF training has been thought, that an agent is a tool and a collaborator. It can read and write files, run commands, and make decisions. It can also be wrong, and it can forget. The repo's workflow and guardrails are designed to catch both.
+As taught in the ACF training, an agent is a tool and a collaborator. It can read and write files, run commands, and make decisions. It can also be wrong, and it can forget. The repo's workflow and guardrails are designed to catch both.
 
 What the repo does about it: CLAUDE.md says "after every change, run `pnpm check` before saying
 you are done". The Stop hook makes that true whether or not the agent remembers
@@ -83,7 +83,7 @@ hooks and the commit-time data guard, so the two cannot disagree.
 
 ### Why they came second
 
-I thought the git hooks was enough then I realized the agent could skip them. The hooks came later.
+I thought the git hooks were enough, then I realized the agent could skip them. The hooks came later.
 That was a cautious choice.
 
 ## Growing the guardrails
@@ -156,7 +156,7 @@ Tests check what someone thought to assert. Two sessions looked for what nobody 
   `.gitignore` gaps. Fixed in [plan 06](plans/06-security-hardening.md): loopback bind,
   Host/Origin guard, no CORS, upload limits, capped and sanitised errors and logs.
 
-Still the agent was able to find some open points and suggesting improvemnets. That was suprising for me. Especially for agent-browser it was doing it with browser and was very fast. I was using normally playwright and it was taking a lot of time to find the issues. But agent-browser was doing it in seconds. I was suprised.
+Still the agent was able to find some open points and suggest improvements. That was surprising for me. Especially for agent-browser it was doing it with browser and was very fast. I was using normally playwright and it was taking a lot of time to find the issues. But agent-browser was doing it in seconds. I was surprised.
 
 ## Data safety
 
@@ -173,5 +173,5 @@ And the agent's hooks refuse to read the real database at all.
 ## Lessons
 
 - small goals for RPI skills, with a clear output path, make it easier to review and verify the agent's work.
-- new guardraisl like fast-check and Stryker mutation tests are worth the effort, because they catch what the agent misses.
+- new guardrails like fast-check and Stryker mutation tests are worth the effort, because they catch what the agent misses.
 - always use dogfood and security review to find what the agent cannot find. The agent is fast, but it is not perfect.
