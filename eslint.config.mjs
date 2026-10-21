@@ -137,7 +137,7 @@ export default tseslint.config(
   // `project`: the project service only auto-discovers tsconfig.json, and e2e is covered by
   // apps/web/tsconfig.e2e.json.
   {
-    files: ['apps/web/e2e/**/*.spec.ts', 'apps/web/playwright.config.ts'],
+    files: ['apps/web/e2e/**/*.{spec,capture}.ts', 'apps/web/playwright.config.ts'],
     languageOptions: {
       parserOptions: {
         project: './apps/web/tsconfig.e2e.json',
