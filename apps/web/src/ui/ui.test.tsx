@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AmountText } from './AmountText';
 import { CategoryPill } from './CategoryPill';
 import { DelayedSkeleton, SKELETON_DELAY_MS } from './DelayedSkeleton';
 import { DropOverlay } from './DropOverlay';
+import { PageErrorBoundary } from './ErrorBoundary';
 import { StatusIcon } from './StatusIcon';
 
 /** `Intl` puts U+00A0 between the amount and the €. */
@@ -130,5 +132,34 @@ describe('DropOverlay', () => {
     fireEvent.drop(screen.getByText('Ablage'), files);
 
     expect(onDrop).not.toHaveBeenCalled();
+  });
+});
+
+describe('PageErrorBoundary', () => {
+  it('replaces only a page that throws, and lets it try again', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let broken = true;
+    function Page() {
+      if (broken) {
+        throw new Error('render failed');
+      }
+      return <p>Überblick</p>;
+    }
+    render(
+      <MemoryRouter>
+        <nav>Navigation</nav>
+        <PageErrorBoundary>
+          <Page />
+        </PageErrorBoundary>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Ihre Daten sind unverändert');
+    expect(screen.getByText('Navigation')).toBeInTheDocument();
+
+    broken = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
+    expect(screen.getByText('Überblick')).toBeInTheDocument();
+    vi.mocked(console.error).mockRestore();
   });
 });

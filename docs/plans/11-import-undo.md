@@ -73,3 +73,9 @@ existing `budget.db` without touching its rows.
   and `restore` found nothing to bring back. A re-import now restores the removed upload
   whole, as `restore` would, and `restored` counts every row that came back. Not changed: a
   revive does not check the stack rule of decision 6 (it never did).
+- 2026-10-21, `fix/keep-manual-category-on-undo`: decision 3 is reversed. Releasing the lock
+  meant that a removal undone within the six seconds, or a re-import, handed the row back to
+  the rules, and the next apply overwrote what the user chose. Its reason was a lock nothing
+  could clear; but `CategoryService.remove` already counts live rows only, and it now
+  releases the locks of deleted rows pointing at the category, so a deleted row cannot pin
+  one. `AccountService.softDeleteTransaction` keeps the lock the same way.

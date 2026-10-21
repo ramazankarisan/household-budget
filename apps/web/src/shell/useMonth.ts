@@ -10,10 +10,26 @@ export const MONTH_PARAM = 'm';
 export const ACCOUNT_PARAM = 'a';
 export const CATEGORY_PARAM = 'c';
 
+/** The month on the user's wall calendar, `'YYYY-MM'` — local time, as "this month" means. */
+function currentMonth(): string {
+  const today = new Date();
+  return `${String(today.getFullYear())}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * The month a page opens on: the newest one that has begun. A vorgemerkt standing order
+ * already carries next month's date, so near a month's end the newest month with data is
+ * one that has barely a row in it. Only when every month lies ahead is one of those it.
+ */
+function newestBegun(available: readonly string[]): string {
+  const now = currentMonth();
+  return available.find((month) => month <= now) ?? available.at(-1) ?? '';
+}
+
 interface UseMonthOptions {
   /**
-   * What the page shows without a valid `?m`: the newest month with data (Überblick), or
-   * every month (the list).
+   * What the page shows without a valid `?m`: the newest month with data that has begun
+   * (Überblick), or every month (the list).
    */
   readonly defaultTo: 'newest' | 'all';
 }
@@ -40,7 +56,7 @@ export function useMonth(available: readonly string[], { defaultTo }: UseMonthOp
   const [params, setParams] = useSearchParams();
   const raw = params.get(MONTH_PARAM);
   const allowAll = defaultTo === 'all';
-  const fallback = allowAll ? ALL_MONTHS : (available[0] ?? '');
+  const fallback = allowAll ? ALL_MONTHS : newestBegun(available);
   const month =
     raw !== null && (available.includes(raw) || (allowAll && raw === ALL_MONTHS)) ? raw : fallback;
 

@@ -160,7 +160,7 @@ Six Prisma models in `apps/api/prisma/schema.prisma`:
 Two fields carry most of the behaviour:
 
 - `Transaction.categoryLockedAt` — set when a category is chosen by hand. Rules never touch that
-  row again until the category is cleared. `POST /api/rules/apply` writes `null` as well as
+  row again until the category is cleared — also not after the row is deleted and brought back. `POST /api/rules/apply` writes `null` as well as
   matches, so a rule-given category never outlives the rule that explains it.
 - `ImportBatch.undoneAt` — a removed upload is not one the user still has, so the same file is
   new to the account again.

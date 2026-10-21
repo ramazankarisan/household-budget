@@ -14,7 +14,8 @@ Each point is deliberate; where there is a link, it is the reason. Do not undo o
 - `POST /api/rules/apply` re-runs the rules over every account and writes `null` as well as
   matches, so a category never outlives the rule that explains it.
 - A category set by hand sets `Transaction.categoryLockedAt`; rules never touch that row again
-  until it is cleared.
+  until it is cleared. Deleting the row or its upload keeps the lock, so a restore or re-import
+  brings the choice back; removing the category releases it.
 - Budgets are one limit per category per month, household-wide, measured against every account.
 - `consistent-type-imports` is off here: Nest reads constructor parameter types at runtime
   (`design:paramtypes`), so `import type` breaks DI.

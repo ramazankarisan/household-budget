@@ -275,6 +275,10 @@ export const en: Messages<typeof de> = {
     },
     unknownApi: 'request refused ({{code}})',
     requestFailed: 'Request failed: {{detail}}',
+    crash: {
+      message: 'This page could not be shown. Your data is unchanged.',
+      retry: 'Try again',
+    },
     rule: {
       FIELD_UNKNOWN: 'unknown field',
       OPERATOR_UNKNOWN: 'unknown operator',

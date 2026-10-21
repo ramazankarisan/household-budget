@@ -8,6 +8,7 @@ import { TransactionsPage } from './pages/TransactionsPage';
 import { AccountsList } from './shell/AccountsList';
 import { AppShell } from './shell/AppShell';
 import { CATEGORY_PARAM } from './shell/useMonth';
+import { PageErrorBoundary } from './ui/ErrorBoundary';
 import { UNCATEGORIZED } from './filter';
 
 /** `/budgets` was the report before Überblick answered it; old links land there, month kept. */
@@ -36,16 +37,18 @@ export function App() {
     <BrowserRouter>
       <HouseholdProvider>
         <AppShell sidebarExtra={<AccountsList />}>
-          <Routes>
-            <Route path="/" element={<OverviewPage />} />
-            <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/inbox" element={<InboxRedirect />} />
-            <Route path="/rules" element={<RulesPage />} />
-            <Route path="/imports" element={<ImportsPage />} />
-            <Route path="/budgets" element={<BudgetsRedirect />} />
-            {/* An address no page answers lands on Überblick rather than an empty frame. */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <PageErrorBoundary>
+            <Routes>
+              <Route path="/" element={<OverviewPage />} />
+              <Route path="/transactions" element={<TransactionsPage />} />
+              <Route path="/inbox" element={<InboxRedirect />} />
+              <Route path="/rules" element={<RulesPage />} />
+              <Route path="/imports" element={<ImportsPage />} />
+              <Route path="/budgets" element={<BudgetsRedirect />} />
+              {/* An address no page answers lands on Überblick rather than an empty frame. */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </PageErrorBoundary>
         </AppShell>
       </HouseholdProvider>
     </BrowserRouter>
