@@ -64,3 +64,12 @@ empty frame.
 
 `pnpm --filter @household-budget/api db:push` adds the nullable `undoneAt` column to an
 existing `budget.db` without touching its rows.
+
+## Later changes
+
+- 2026-10-21, `fix/import-integrity`: decision 7 brought back only the rows the new file
+  shared with the removed upload, then marked the whole upload standing. With a file that
+  overlaps only part of it, the other rows stayed deleted under an upload listed as standing,
+  and `restore` found nothing to bring back. A re-import now restores the removed upload
+  whole, as `restore` would, and `restored` counts every row that came back. Not changed: a
+  revive does not check the stack rule of decision 6 (it never did).

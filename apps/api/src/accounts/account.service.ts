@@ -6,11 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CategoryService } from '../rules/category.service.js';
-
-/** Prisma's code for a unique-constraint violation. `Account.iban` is the only one here. */
-const UNIQUE_CONSTRAINT = 'P2002';
 
 function normalizeIban(raw: string): string {
   return raw.replaceAll(' ', '').toUpperCase();
@@ -84,7 +82,7 @@ export class AccountService {
       });
       return { id: account.id, iban: account.iban, name: account.name };
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(`An account for ${normalized} already exists`);
       }
       throw error;
