@@ -271,6 +271,7 @@ export const en: Messages<typeof de> = {
       IMPORT_RESTORE_BLOCKED:
         'This import can no longer be brought back — another one was removed after it.',
       RULE_ORDER_INVALID: 'That order is not valid.',
+      IBAN_INVALID: 'This IBAN is not valid — please check it against a bank statement.',
     },
     unknownApi: 'request refused ({{code}})',
     requestFailed: 'Request failed: {{detail}}',
