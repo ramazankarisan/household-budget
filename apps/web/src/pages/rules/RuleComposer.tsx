@@ -23,7 +23,8 @@ interface RuleComposerProps {
   readonly categories: readonly CategoryPayload[];
   readonly rules: readonly RulePayload[];
   readonly transactions: readonly TransactionPayload[];
-  readonly onCreated: () => void;
+  /** `uncategorized`: rows without a category the new rule matches — what applying it would sort. */
+  readonly onCreated: (uncategorized: number) => void;
   readonly onError: (cause: unknown) => void;
 }
 
@@ -67,7 +68,7 @@ export function RuleComposer({
     createRule(appended)
       .then(() => {
         setDraft({ ...current, value: '' });
-        onCreated();
+        onCreated(preview.uncategorized);
       })
       .catch((cause: unknown) => {
         const refused = ruleErrorsOf(cause);
@@ -105,9 +106,11 @@ export function RuleComposer({
               onChange={setDraft}
               marks={describeRuleErrors(t, errors)}
             />
+            {/* Counts for an empty keyword are noise: "trifft 0" before anything is typed. */}
             <Typography variant="body2" color="text.secondary" role="status">
-              {describeRulePreview(t, preview)} ·{' '}
-              {t('rules.willBeRule', { position: rules.length + 1 })}
+              {current.value.trim() === ''
+                ? t('rules.previewHint')
+                : `${describeRulePreview(t, preview)} · ${t('rules.willBeRule', { position: rules.length + 1 })}`}
             </Typography>
           </>
         )}

@@ -3,6 +3,7 @@ import {
   type CategoryPayload,
   type DeletedRulePayload,
   type RulePayload,
+  type TransactionPayload,
 } from '@household-budget/core';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -39,6 +40,23 @@ function rule(overrides: Partial<RulePayload> = {}): RulePayload {
 let rules: RulePayload[] = [];
 /** Set to make both list requests fail, which is how the page is reached with nothing. */
 let listFailure: Error | undefined;
+/** One account's rows; none by default, so most tests see a household with nothing in it. */
+let ledger: TransactionPayload[] = [];
+const MUELLER: TransactionPayload = {
+  id: 'tx-1',
+  bookingDate: '2025-09-22',
+  valueDate: null,
+  amountCents: -83290,
+  currency: 'EUR',
+  status: 'booked',
+  counterpartyName: 'Müller GmbH',
+  counterpartyIban: null,
+  purpose: 'Rechnung 4711',
+  bookingText: null,
+  bankCategory: null,
+  categoryId: null,
+  categoryLockedAt: null,
+};
 const created = vi.fn();
 const applied = vi.fn<() => Promise<ApplySummary>>();
 const removedCategory = vi.fn<(id: string) => Promise<void>>();
@@ -65,8 +83,11 @@ vi.mock('../api/client', () => ({
       this.details = details;
     }
   },
-  listAccounts: () => Promise.resolve([]),
-  listTransactions: () => Promise.resolve([]),
+  listAccounts: () =>
+    Promise.resolve(
+      ledger.length > 0 ? [{ id: 'acc-1', iban: 'DE89370400440532013000', name: 'Giro' }] : [],
+    ),
+  listTransactions: () => Promise.resolve(ledger),
   listCategories: () =>
     listFailure === undefined ? Promise.resolve(categories) : Promise.reject(listFailure),
   listRules: () =>
@@ -87,6 +108,7 @@ vi.mock('../api/client', () => ({
 
 beforeEach(() => {
   rules = [];
+  ledger = [];
   listFailure = undefined;
   created.mockClear();
   applied.mockReset();
@@ -331,6 +353,27 @@ describe('RulesPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('offers to apply a new rule that would sort rows still without a category', async () => {
+    // Rules run on import or on request: without the offer, a saved rule changes nothing visible.
+    ledger = [MUELLER];
+    applied.mockResolvedValue({ evaluated: 1, assigned: 1, cleared: 0, locked: 0 });
+    render(page());
+    await screen.findByRole('button', { name: 'Regel anlegen' });
+    expect(screen.getByRole('status')).toHaveTextContent('Suchbegriff eingeben');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Suchbegriff' }), {
+      target: { value: 'müller' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Regel anlegen' }));
+
+    const offer = await screen.findByText(/würde 1 ohne Kategorie einsortieren/);
+    fireEvent.click(
+      within(offer.closest('[role="alert"]') as HTMLElement).getByRole('button', {
+        name: 'Jetzt anwenden',
+      }),
+    );
+    expect(await screen.findByText(/1 zugeordnet/)).toBeInTheDocument();
+  });
+
   it('reports what an apply changed', async () => {
     applied.mockResolvedValue({ evaluated: 412, assigned: 318, cleared: 4, locked: 11 });
     render(page());
@@ -338,7 +381,9 @@ describe('RulesPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Regeln anwenden' }));
 
     expect(
-      await screen.findByText(/412 geprüft · 318 zugeordnet · 4 gelöscht · 11 manuell/),
+      await screen.findByText(
+        /412 geprüft · 318 zugeordnet · 4 Kategorie entfernt · 11 von Hand gesetzt/,
+      ),
     ).toBeInTheDocument();
   });
 

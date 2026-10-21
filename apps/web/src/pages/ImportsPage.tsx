@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { listImports, restoreImport, undoImport } from '../api/client';
 import { useHousehold } from '../household/context';
 import { describeFailure } from '../locales/sentences';
+import { useImport } from '../shell/importContext';
 import { TopBar } from '../shell/TopBar';
 import { DelayedSkeleton } from '../ui/DelayedSkeleton';
 import { EmptyState } from '../ui/EmptyState';
@@ -40,6 +41,7 @@ const WHEN = new Intl.DateTimeFormat('de-DE', {
  */
 export function ImportsPage() {
   const { t } = useTranslation();
+  const { openImport } = useImport();
   const { accounts, transactions, reload } = useHousehold();
   const [batches, setBatches] = useState<readonly ImportBatchPayload[] | undefined>(undefined);
   const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
@@ -110,7 +112,20 @@ export function ImportsPage() {
         {batches === undefined ? (
           <DelayedSkeleton rows={4} label={t('common.loading')} />
         ) : batches.length === 0 ? (
-          <EmptyState message={t('imports.empty')} />
+          <EmptyState
+            message={t('imports.empty')}
+            action={
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => {
+                  openImport();
+                }}
+              >
+                {t('common.import.title')}
+              </Button>
+            }
+          />
         ) : (
           <Card>
             <Box

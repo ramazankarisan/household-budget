@@ -9,10 +9,13 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { createAccount } from '../../api/client';
+import { UNCATEGORIZED, uncategorizedRows } from '../../filter';
 import { useHousehold } from '../../household/context';
 import { describeFailure } from '../../locales/sentences';
+import { CATEGORY_PARAM } from '../../shell/useMonth';
 import { ImportPanel } from '../ImportPanel';
 import { NewAccountForm } from './NewAccountForm';
 
@@ -36,7 +39,11 @@ interface ImportDialogProps {
  */
 export function ImportDialog({ open, onClose, file, newAccount = false }: ImportDialogProps) {
   const { t } = useTranslation();
-  const { accounts, addAccount, reload } = useHousehold();
+  const { accounts, addAccount, reload, transactions } = useHousehold();
+  const navigate = useNavigate();
+  // Shown once something was imported: sorting what the rules left is the next step.
+  const [imported, setImported] = useState(false);
+  const unsorted = imported ? uncategorizedRows(transactions ?? []).length : 0;
   const [chosen, setChosen] = useState('');
   const [adding, setAdding] = useState(newAccount);
   const [error, setError] = useState<{ readonly cause: unknown } | undefined>(undefined);
@@ -109,7 +116,10 @@ export function ImportDialog({ open, onClose, file, newAccount = false }: Import
                 <ImportPanel
                   key={accountId}
                   accountId={accountId}
-                  onImported={reload}
+                  onImported={() => {
+                    setImported(true);
+                    reload();
+                  }}
                   initialFile={!fileSent && accountId === fileTarget ? file : undefined}
                 />
               )}
@@ -128,6 +138,17 @@ export function ImportDialog({ open, onClose, file, newAccount = false }: Import
           </Button>
         )}
         <Button onClick={onClose}>{t('common.import.close')}</Button>
+        {unsorted > 0 && (
+          <Button
+            variant="contained"
+            onClick={() => {
+              onClose();
+              void navigate(`/transactions?${CATEGORY_PARAM}=${UNCATEGORIZED}`);
+            }}
+          >
+            {t('common.import.sortNext', { count: unsorted })}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

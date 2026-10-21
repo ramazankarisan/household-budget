@@ -20,6 +20,8 @@ import { RuleList } from './rules/RuleList';
 
 type ApplyState =
   | { readonly status: 'idle' }
+  // A rule was just added that would sort rows still without a category: offer the run.
+  | { readonly status: 'offered'; readonly uncategorized: number }
   | { readonly status: 'applying' }
   | { readonly status: 'done'; readonly summary: ApplySummary }
   | { readonly status: 'error'; readonly cause: unknown };
@@ -160,6 +162,18 @@ export function RulesPage() {
           <Alert severity="error">{describeFailure(t, loadError.cause)}</Alert>
         )}
         {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
+        {apply.status === 'offered' && (
+          <Alert
+            severity="info"
+            action={
+              <Button color="inherit" size="small" onClick={runRules}>
+                {t('rules.applyNow')}
+              </Button>
+            }
+          >
+            {t('rules.applyOffer', { count: apply.uncategorized })}
+          </Alert>
+        )}
         {apply.status === 'done' && (
           <Alert severity="success">{describeApplySummary(t, apply.summary)}</Alert>
         )}
@@ -180,7 +194,12 @@ export function RulesPage() {
               categories={categories}
               rules={rules}
               transactions={transactions ?? []}
-              onCreated={changed}
+              onCreated={(uncategorized) => {
+                changed();
+                if (uncategorized > 0) {
+                  setApply({ status: 'offered', uncategorized });
+                }
+              }}
               onError={fail}
             />
             <RuleList
