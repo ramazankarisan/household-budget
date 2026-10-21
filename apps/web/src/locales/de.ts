@@ -17,9 +17,10 @@ import {
 
 /**
  * Raised by the API rather than by core: the upload check before the parser sees the file,
- * and the check that the parsed rows belong to the chosen account.
+ * the check that the parsed rows belong to the chosen account, and an upload that raced
+ * another one of an overlapping file.
  */
-type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE' | 'ACCOUNT_IBAN_MISMATCH';
+type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE' | 'ACCOUNT_IBAN_MISMATCH' | 'IMPORT_CONFLICT';
 
 /** The structural codes csv-parse raises that have wording of their own; the set is open. */
 type CsvErrorCode =
@@ -35,6 +36,7 @@ type ApiRefusalCode =
   | 'RULE_ORDER_STALE'
   | 'IMPORT_NOT_LATEST'
   | 'IMPORT_RESTORE_BLOCKED'
+  | 'IBAN_INVALID'
   | 'RULE_ORDER_INVALID';
 
 export const de = {
@@ -296,6 +298,8 @@ export const de = {
         'Dateityp nicht unterstützt — bitte den CSV-Export der Bank hochladen',
       ACCOUNT_IBAN_MISMATCH:
         'Die Datei gehört zu einem anderen Konto — bitte das passende Konto wählen oder anlegen. IBAN in der Datei',
+      IMPORT_CONFLICT:
+        'Gleichzeitig lief ein anderer Import für dieses Konto — bitte die Datei noch einmal hochladen',
       HEADER_NOT_FOUND:
         'Keine Kopfzeile erkannt — unterstützt sind der CSV-CAMT-Export der Sparkasse und der Umsatz-Export der Deutschen Bank',
       REQUIRED_COLUMN_MISSING: 'Pflichtspalte fehlt',
@@ -319,6 +323,7 @@ export const de = {
       IMPORT_RESTORE_BLOCKED:
         'Dieser Import lässt sich nicht mehr zurückholen — danach wurde ein weiterer entfernt.',
       RULE_ORDER_INVALID: 'Diese Reihenfolge ist ungültig.',
+      IBAN_INVALID: 'Diese IBAN ist ungültig — bitte noch einmal mit dem Kontoauszug vergleichen.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */
     unknownApi: 'Anfrage abgelehnt ({{code}})',

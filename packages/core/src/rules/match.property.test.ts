@@ -11,10 +11,14 @@ import { normalize } from './normalize.js';
 import { RULE_FIELDS, type Rule } from './rule.js';
 
 /**
- * Payee-like text. `ß` is left out on purpose: `'ß'.toUpperCase()` is `'SS'`, which folds
- * back to `ss`, so an uppercased payee genuinely is different text.
+ * Payee-like text, `ß` included: `'ß'.toUpperCase()` is `'SS'`, and matching folds both
+ * to `ss`.
  */
-const payee = fc.stringMatching(/^[a-zäöüA-ZÄÖÜ0-9 .,&-]{1,30}$/u);
+const payee = fc.stringMatching(/^[a-zäöüßA-ZÄÖÜ0-9 .,&-]{1,30}$/u);
+
+/** How SEPA text often spells a German name: upper case, umlauts and ß written out. */
+const transliterate = (value: string): string =>
+  value.toUpperCase().replaceAll('Ä', 'AE').replaceAll('Ö', 'OE').replaceAll('Ü', 'UE');
 
 describe('normalize (properties)', () => {
   it('is idempotent', () => {
@@ -41,6 +45,20 @@ describe('matchRule (properties)', () => {
             {
               counterpartyName: exported,
             },
+          ),
+        ).toBe(true);
+      }),
+    );
+  });
+
+  it('finds a payee typed with umlauts in an export that wrote them out', () => {
+    fc.assert(
+      fc.property(payee, (name) => {
+        fc.pre(normalize(name) !== '');
+        expect(
+          matchRule(
+            { field: 'counterpartyName', operator: 'contains', value: name },
+            { counterpartyName: transliterate(name) },
           ),
         ).toBe(true);
       }),

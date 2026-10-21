@@ -359,7 +359,7 @@ describe('ImportService', () => {
   });
 
   it('refuses a file whose Auftragskonto is not the chosen account, and stores nothing', async () => {
-    const accountId = await account('DE00000000000000000000');
+    const accountId = await account('DE27100777770209299700');
 
     await expect(importFile(accountId, 'sparkasse-camt-18.csv')).rejects.toMatchObject({
       response: { code: 'ACCOUNT_IBAN_MISMATCH', columns: ['DE89…3000'] },
@@ -589,6 +589,37 @@ describe('ImportService.undo and restore', () => {
     await imports.undo(again.batchId);
     await imports.undo(first.batchId);
     expect(await liveRows(accountId)).toHaveLength(0);
+  });
+
+  it('brings a removed upload back whole when an overlapping file holds only some of its rows', async () => {
+    const accountId = await account();
+    const older = await importFile(accountId, 'sparkasse-camt-18.csv');
+    await imports.undo(older.batchId);
+
+    const newer = await importFile(accountId, 'sparkasse-camt-18-next.csv');
+
+    // The overlap alone would bring back only the shared rows, under an upload listed as standing.
+    expect(newer.restored).toBe(older.imported);
+    const olderRows = await prisma.transaction.count({
+      where: { importBatchId: older.batchId, status: 'booked', deletedAt: null },
+    });
+    expect(olderRows).toBe(older.imported);
+    const listed = await imports.listBatches();
+    expect(listed.find((batch) => batch.id === older.batchId)?.undoneAt).toBeNull();
+  });
+
+  it('answers an import that collides with a concurrent one with a retryable 409', async () => {
+    const accountId = await account();
+    const collision = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    const spy = vi.spyOn(prisma, '$transaction').mockRejectedValueOnce(collision);
+
+    await expect(importFile(accountId, 'sparkasse-camt-18.csv')).rejects.toMatchObject({
+      response: { code: 'IMPORT_CONFLICT' },
+    });
+    spy.mockRestore();
+    await expect(importFile(accountId, 'sparkasse-camt-18.csv')).resolves.toMatchObject({
+      imported: expect.any(Number) as unknown,
+    });
   });
 
   it('keeps the undo working when the same upload is removed twice at once', async () => {

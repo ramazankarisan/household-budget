@@ -1,4 +1,9 @@
-import { AccountPayload, BookingStatus, TransactionPayload } from '@household-budget/core';
+import {
+  AccountPayload,
+  BookingStatus,
+  isValidIban,
+  TransactionPayload,
+} from '@household-budget/core';
 import {
   BadRequestException,
   ConflictException,
@@ -6,11 +11,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CategoryService } from '../rules/category.service.js';
-
-/** Prisma's code for a unique-constraint violation. `Account.iban` is the only one here. */
-const UNIQUE_CONSTRAINT = 'P2002';
 
 function normalizeIban(raw: string): string {
   return raw.replaceAll(' ', '').toUpperCase();
@@ -74,6 +77,11 @@ export class AccountService {
     if (normalized === '') {
       throw new BadRequestException('iban is required');
     }
+    // Every upload is checked against the account's IBAN, and an account cannot be edited:
+    // a typo here would make an account no export ever fits.
+    if (!isValidIban(normalized)) {
+      throw new BadRequestException({ code: 'IBAN_INVALID' });
+    }
     if (trimmedName === '') {
       throw new BadRequestException('name is required');
     }
@@ -84,7 +92,7 @@ export class AccountService {
       });
       return { id: account.id, iban: account.iban, name: account.name };
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(`An account for ${normalized} already exists`);
       }
       throw error;

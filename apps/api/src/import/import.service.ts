@@ -20,6 +20,7 @@ import {
 
 import { AccountService } from '../accounts/account.service.js';
 import { type ImportBatch } from '../generated/prisma/client.js';
+import { isUniqueViolation, LONG_TRANSACTION_OPTIONS } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RuleService } from '../rules/rule.service.js';
 import { sanitizeForLog } from '../security/sanitize-log.js';
@@ -68,6 +69,40 @@ function csvErrorCode(error: unknown): string | undefined {
  */
 function storedDialect(value: string | null): BankDialectId {
   return value === null ? 'sparkasse-camt' : (value as BankDialectId);
+}
+
+/**
+ * What an import inserts was classified before its transaction began, so an overlapping
+ * upload that committed in between makes an insert hit the unique index. That is a conflict
+ * the user can retry — the retry sees the other upload's rows as already stored — not a
+ * server error.
+ */
+function asImportConflict(error: unknown): never {
+  if (isUniqueViolation(error)) {
+    throw new ConflictException({ code: 'IMPORT_CONFLICT' });
+  }
+  throw error;
+}
+
+/** What restoring a removed upload writes with: the client of an enclosing `$transaction`. */
+type ImportTransactionClient = Pick<PrismaService, 'transaction' | 'importBatch'>;
+
+/**
+ * Brings back exactly the rows a removal deleted, found by the timestamp they share with the
+ * batch, and marks the batch standing. A row deleted by hand carries another timestamp and
+ * stays deleted. Returns how many rows came back.
+ */
+async function restoreRemovedBatch(
+  tx: ImportTransactionClient,
+  batchId: string,
+  undoneAt: Date,
+): Promise<number> {
+  const { count } = await tx.transaction.updateMany({
+    where: { importBatchId: batchId, deletedAt: undoneAt },
+    data: { deletedAt: null },
+  });
+  await tx.importBatch.update({ where: { id: batchId }, data: { undoneAt: null } });
+  return count;
 }
 
 /** Uploads to the same account listed above this one: the order `listBatches` shows. */
@@ -269,10 +304,7 @@ export class ImportService {
         data: { undoneAt: null },
       });
       if (claimed.count === 1) {
-        await tx.transaction.updateMany({
-          where: { importBatchId: batchId, deletedAt: undoneAt },
-          data: { deletedAt: null },
-        });
+        await restoreRemovedBatch(tx, batchId, undoneAt);
       }
       return tx.importBatch.findUniqueOrThrow({ where: { id: batchId } });
     });
@@ -328,92 +360,111 @@ export class ImportService {
     const stale = await this.isStaleExport(account.id, booked);
     const pendingToStore = stale ? [] : pending;
 
-    const { batchId, categorized } = await this.prisma.$transaction(async (tx) => {
-      // Pending rows are a snapshot, not a ledger: the newest export is always right,
-      // so the stored set is replaced wholesale rather than reconciled. Inside the
-      // transaction, so a crash cannot leave them deleted but not reinserted. An older
-      // export is not the newest anything, so it replaces nothing.
-      //
-      // Deliberately unfiltered by `deletedAt`: a pending row the user deleted is removed
-      // with the rest and comes back as a *new* row when the file still lists it, where a
-      // deleted booked row is restored in place and keeps its id. Both honour "delete
-      // locally, re-import, get it back"; only pending cannot keep the id, because it
-      // carries no dedupKey to match the incoming row against.
-      if (!stale) {
-        await tx.transaction.deleteMany({
-          where: { accountId: account.id, status: 'pending' },
-        });
-      }
+    const { batchId, restored, categorized } = await this.prisma
+      .$transaction(async (tx) => {
+        // Pending rows are a snapshot, not a ledger: the newest export is always right,
+        // so the stored set is replaced wholesale rather than reconciled. Inside the
+        // transaction, so a crash cannot leave them deleted but not reinserted. An older
+        // export is not the newest anything, so it replaces nothing.
+        //
+        // Deliberately unfiltered by `deletedAt`: a pending row the user deleted is removed
+        // with the rest and comes back as a *new* row when the file still lists it, where a
+        // deleted booked row is restored in place and keeps its id. Both honour "delete
+        // locally, re-import, get it back"; only pending cannot keep the id, because it
+        // carries no dedupKey to match the incoming row against.
+        if (!stale) {
+          await tx.transaction.deleteMany({
+            where: { accountId: account.id, status: 'pending' },
+          });
+        }
 
-      const batch = await tx.importBatch.create({
-        data: {
-          accountId: account.id,
-          fileName: request.fileName,
-          fileHash,
-          encoding,
-          dialect,
-          rowsParsed: transactions.length,
-          rowsImported: toInsert.length,
-          rowsSkipped: skipped,
-          rowsRestored: toRestore.length,
-          rowsFailed: errors.length,
-        },
-        select: { id: true },
-      });
+        let restored = 0;
+        if (toRestore.length > 0) {
+          // Restored, not re-inserted: the unique index covers soft-deleted rows, so an
+          // insert would hit P2002. The original batch stays as the row's provenance.
+          restored = (
+            await tx.transaction.updateMany({
+              where: { id: { in: toRestore.map(({ id }) => id) } },
+              data: { deletedAt: null },
+            })
+          ).count;
+          // A removed upload whose rows this file brings back stands again: it holds live rows,
+          // so it must be removable again, and must not claim to be gone. It comes back whole,
+          // as a restore would bring it: an overlapping file may hold only some of its rows,
+          // and the rest would otherwise stay deleted under an upload listed as standing —
+          // which `restore` then treats as having nothing to bring back.
+          const revived = await tx.importBatch.findMany({
+            where: {
+              id: { in: [...new Set(toRestore.map(({ importBatchId }) => importBatchId))] },
+              undoneAt: { not: null },
+            },
+            select: { id: true, undoneAt: true },
+          });
+          for (const { id, undoneAt } of revived) {
+            if (undoneAt !== null) {
+              restored += await restoreRemovedBatch(tx, id, undoneAt);
+            }
+          }
+        }
 
-      if (toInsert.length > 0) {
-        await tx.transaction.createMany({
-          data: toInsert.map(({ transaction, dedupKey }) =>
-            toRow(transaction, account.id, batch.id, dedupKey),
-          ),
-        });
-      }
-
-      if (toRestore.length > 0) {
-        // Restored, not re-inserted: the unique index covers soft-deleted rows, so an
-        // insert would hit P2002. The original batch stays as the row's provenance.
-        await tx.transaction.updateMany({
-          where: { id: { in: toRestore.map(({ id }) => id) } },
-          data: { deletedAt: null },
-        });
-        // A removed upload whose rows this file brings back stands again: it holds live rows,
-        // so it must be removable again, and must not claim to be gone.
-        await tx.importBatch.updateMany({
-          where: {
-            id: { in: [...new Set(toRestore.map(({ importBatchId }) => importBatchId))] },
-            undoneAt: { not: null },
+        const batch = await tx.importBatch.create({
+          data: {
+            accountId: account.id,
+            fileName: request.fileName,
+            fileHash,
+            encoding,
+            dialect,
+            rowsParsed: transactions.length,
+            rowsImported: toInsert.length,
+            rowsSkipped: skipped,
+            rowsRestored: restored,
+            rowsFailed: errors.length,
           },
-          data: { undoneAt: null },
+          select: { id: true },
         });
-      }
 
-      if (pendingToStore.length > 0) {
-        await tx.transaction.createMany({
-          data: pendingToStore.map((transaction) => toRow(transaction, account.id, batch.id, null)),
+        if (toInsert.length > 0) {
+          await tx.transaction.createMany({
+            data: toInsert.map(({ transaction, dedupKey }) =>
+              toRow(transaction, account.id, batch.id, dedupKey),
+            ),
+          });
+        }
+
+        if (pendingToStore.length > 0) {
+          await tx.transaction.createMany({
+            data: pendingToStore.map((transaction) =>
+              toRow(transaction, account.id, batch.id, null),
+            ),
+          });
+        }
+
+        /*
+         * Categorized here, in the same transaction, so an import is one step rather than
+         * one step plus a button the user has to remember. Scoped to the rows this import
+         * inserted or restored: rows already stored keep whatever they hold, which is what
+         * stops an import from quietly undoing a hand-set category.
+         *
+         * createMany does not return ids, so the inserted rows are read back by the batch
+         * that owns them — every row of this batch is a row this import just wrote.
+         */
+        const inserted = await tx.transaction.findMany({
+          where: { importBatchId: batch.id },
+          select: { id: true },
         });
-      }
+        const touched = [...inserted.map((row) => row.id), ...toRestore.map(({ id }) => id)];
 
-      /*
-       * Categorized here, in the same transaction, so an import is one step rather than
-       * one step plus a button the user has to remember. Scoped to the rows this import
-       * inserted or restored: rows already stored keep whatever they hold, which is what
-       * stops an import from quietly undoing a hand-set category.
-       *
-       * createMany does not return ids, so the inserted rows are read back by the batch
-       * that owns them — every row of this batch is a row this import just wrote.
-       */
-      const inserted = await tx.transaction.findMany({
-        where: { importBatchId: batch.id },
-        select: { id: true },
-      });
-      const touched = [...inserted.map((row) => row.id), ...toRestore.map(({ id }) => id)];
-
-      return { batchId: batch.id, categorized: await this.rules.applyToRows(tx, touched) };
-    });
+        return {
+          batchId: batch.id,
+          restored,
+          categorized: await this.rules.applyToRows(tx, touched),
+        };
+      }, LONG_TRANSACTION_OPTIONS)
+      .catch(asImportConflict);
 
     this.logger.log(
       `import ${batchId} imported=${String(toInsert.length)} skipped=${String(skipped)} ` +
-        `restored=${String(toRestore.length)} pendingReplaced=${String(pendingToStore.length)} ` +
+        `restored=${String(restored)} pendingReplaced=${String(pendingToStore.length)} ` +
         `categorized=${String(categorized)}` +
         (stale ? ' (older export: pending left untouched)' : ''),
     );
@@ -423,7 +474,7 @@ export class ImportService {
       parsed: transactions.length,
       imported: toInsert.length,
       skipped,
-      restored: toRestore.length,
+      restored,
       pendingReplaced: pendingToStore.length,
       categorized,
       failed: reported,

@@ -53,6 +53,17 @@ describe('matchRule', () => {
     }
   });
 
+  it('finds an umlaut or ß typed in a rule in an export that wrote them out', () => {
+    // SEPA text is often transliterated; a rule typed as the user knows the name must still hit.
+    expect(matchRule(needle, { counterpartyName: 'MUELLER GMBH' })).toBe(true);
+    expect(
+      matchRule(
+        { field: 'purpose', operator: 'contains', value: 'Hauptstraße' },
+        { purpose: 'MIETE HAUPTSTRASSE 5' },
+      ),
+    ).toBe(true);
+  });
+
   it('sees through the CRLF the bank put inside a Verwendungszweck', () => {
     expect(
       matchRule(

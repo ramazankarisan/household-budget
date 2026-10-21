@@ -248,6 +248,8 @@ export const en: Messages<typeof de> = {
       UNSUPPORTED_CONTENT_TYPE: 'unsupported file type — upload the bank’s CSV export',
       ACCOUNT_IBAN_MISMATCH:
         'this file belongs to a different account — choose or create the matching account. IBAN in the file',
+      IMPORT_CONFLICT:
+        'another import for this account ran at the same time — please upload the file again',
       HEADER_NOT_FOUND:
         'no header row recognised — supported are the Sparkasse CSV-CAMT export and the Deutsche Bank transactions export',
       REQUIRED_COLUMN_MISSING: 'required column missing',
@@ -269,6 +271,7 @@ export const en: Messages<typeof de> = {
       IMPORT_RESTORE_BLOCKED:
         'This import can no longer be brought back — another one was removed after it.',
       RULE_ORDER_INVALID: 'That order is not valid.',
+      IBAN_INVALID: 'This IBAN is not valid — please check it against a bank statement.',
     },
     unknownApi: 'request refused ({{code}})',
     requestFailed: 'Request failed: {{detail}}',
