@@ -329,6 +329,11 @@ export const de = {
     unknownApi: 'Anfrage abgelehnt ({{code}})',
     /** No code at all: the network, or a server error. The detail is the browser's or the server's. */
     requestFailed: 'Anfrage fehlgeschlagen: {{detail}}',
+    /** A page threw while rendering; the shell around it still stands. */
+    crash: {
+      message: 'Diese Seite konnte nicht angezeigt werden. Ihre Daten sind unverändert.',
+      retry: 'Erneut versuchen',
+    },
     rule: {
       FIELD_UNKNOWN: 'Unbekanntes Feld',
       OPERATOR_UNKNOWN: 'Unbekannter Operator',
