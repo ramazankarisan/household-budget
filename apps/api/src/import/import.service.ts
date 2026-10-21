@@ -217,8 +217,10 @@ export class ImportService {
   /**
    * Removes an upload: every row it inserted that is still live is soft-deleted, all with
    * one timestamp that the batch keeps as `undoneAt`. Soft, like deleting a single row, so
-   * `restore` can put them back — and like a single row, the hand-set lock goes with it
-   * (see `AccountService.softDeleteTransaction`). The batch stays listed, marked removed.
+   * `restore` can put them back — and like a single row, a hand-set category stays locked,
+   * so a restore or a re-import brings back the user's choice rather than letting the next
+   * apply overwrite it (see `AccountService.softDeleteTransaction`). The batch stays listed,
+   * marked removed.
    *
    * Only the account's newest standing upload (`IMPORT_NOT_LATEST` otherwise). A row an
    * overlapping later export skipped as already stored still belongs to the older upload,
@@ -263,7 +265,7 @@ export class ImportService {
       if (claimed.count === 1) {
         await tx.transaction.updateMany({
           where: { importBatchId: batchId, deletedAt: null },
-          data: { deletedAt: undoneAt, categoryLockedAt: null },
+          data: { deletedAt: undoneAt },
         });
       }
       return tx.importBatch.findUniqueOrThrow({ where: { id: batchId } });

@@ -720,12 +720,12 @@ describe('RuleService, decisions that must not be undone', () => {
     );
   });
 
-  it('does not leave a deleted row holding a lock nothing can clear', async () => {
+  it('does not let a deleted row holding a lock keep its category undeletable', async () => {
     /*
-     * Lock a row by hand, then delete it, and every route back is closed: the row is
-     * invisible in the UI, `setTransactionCategory` refuses a deleted row, and an apply
-     * skips a locked one — while the category it points at stays undeletable forever, with
-     * nothing on screen to point at. Deleting the row withdraws the decision with it.
+     * A deleted row keeps its hand-set category and lock, so a re-import brings the user's
+     * choice back. It must not pin the category: the row is invisible, so nothing on screen
+     * explains why the category could not go. Removing the category releases the lock, or
+     * the row would come back pinned to no category, out of every rule's reach.
      */
     const accountId = await imported();
     const wohnen = await categories.create('Wohnen');
@@ -738,9 +738,11 @@ describe('RuleService, decisions that must not be undone', () => {
 
     const hidden = await prisma.transaction.findFirstOrThrow({ where: { id: row.id } });
     expect(hidden.deletedAt).not.toBeNull();
-    expect(hidden.categoryLockedAt).toBeNull();
-    // The category is deletable again: nothing the user can see points at it.
+    expect(hidden.categoryLockedAt).not.toBeNull();
     await expect(categories.remove(wohnen.id)).resolves.toBeUndefined();
+    const released = await prisma.transaction.findFirstOrThrow({ where: { id: row.id } });
+    expect(released.categoryId).toBeNull();
+    expect(released.categoryLockedAt).toBeNull();
   });
 
   it('refuses to write a row that was locked after the apply had read it', async () => {

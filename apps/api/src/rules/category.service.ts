@@ -179,7 +179,15 @@ export class CategoryService implements OnModuleInit {
       throw new ConflictException({ code: 'CATEGORY_IN_USE', rules, transactions, budgets });
     }
 
-    await this.prisma.category.delete({ where: { id: categoryId } });
+    // The delete nulls `categoryId` on deleted rows; their lock goes too, or a re-import would
+    // bring a row back pinned to no category, out of every rule's reach.
+    await this.prisma.$transaction([
+      this.prisma.transaction.updateMany({
+        where: { categoryId, deletedAt: { not: null } },
+        data: { categoryLockedAt: null },
+      }),
+      this.prisma.category.delete({ where: { id: categoryId } }),
+    ]);
   }
 
   /**

@@ -547,7 +547,7 @@ describe('ImportService.undo and restore', () => {
     expect(rows).toHaveLength(before.length - 1);
   });
 
-  it('releases a hand-set category lock, as deleting a single row does', async () => {
+  it('keeps a hand-set category locked, so a restore brings back the choice', async () => {
     const accountId = await account();
     const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
     const wohnen = await categories.create('Wohnen');
@@ -555,8 +555,13 @@ describe('ImportService.undo and restore', () => {
     await accounts.setTransactionCategory(row?.id ?? '', wohnen.id);
 
     await imports.undo(batchId);
+    await imports.restore(batchId);
+    // Unlocked, the next apply would re-derive the row and drop what the user chose.
+    await rules.applyAll();
 
-    expect(await prisma.transaction.count({ where: { categoryLockedAt: { not: null } } })).toBe(0);
+    const after = await prisma.transaction.findUniqueOrThrow({ where: { id: row?.id ?? '' } });
+    expect(after.categoryId).toBe(wohnen.id);
+    expect(after.categoryLockedAt).not.toBeNull();
   });
 
   it('treats the file as new to the account once its upload is removed', async () => {
@@ -720,6 +725,22 @@ describe('ImportService and the rules engine', () => {
     const summary = await importFile(accountId, 'sparkasse-camt-18.csv');
 
     expect(summary.categorized).toBe(0);
+  });
+
+  it('keeps a hand-set category when a removed upload is imported again', async () => {
+    await wohnenRule();
+    const accountId = await account();
+    const { batchId } = await importFile(accountId, 'sparkasse-camt-18.csv');
+    const lebensmittel = await categories.create('Lebensmittel');
+    const row = await muellerRow(accountId);
+    await accounts.setTransactionCategory(row.id, lebensmittel.id);
+    await imports.undo(batchId);
+
+    await importFile(accountId, 'sparkasse-camt-18.csv');
+
+    const after = await muellerRow(accountId);
+    expect(after.id).toBe(row.id);
+    expect(after.categoryId).toBe(lebensmittel.id);
   });
 
   it('does not touch a hand-set category when the same file is imported again', async () => {

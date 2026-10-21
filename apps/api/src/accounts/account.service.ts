@@ -171,12 +171,10 @@ export class AccountService {
    * truth, so the next import of a file containing this row brings it back — which only
    * works if the row is still there to restore.
    *
-   * Releases the hand-set lock on the way out, and only the lock. Deleting is the user
-   * withdrawing the row, which withdraws the decision they made about it: a lock that
-   * outlives the row it explains is a lock nothing can clear, because
-   * `setTransactionCategory` refuses a deleted row and an apply skips a locked one. The
-   * category itself stays until the next apply re-derives it, so a restore that happens
-   * before then still shows what it showed before.
+   * The category and its hand-set lock stay with the row: a re-import that brings it back
+   * brings back the user's choice too, where a released lock would let the next apply
+   * overwrite it. A deleted row cannot hold its category hostage — `CategoryService.remove`
+   * counts live rows only and releases the locks of deleted ones.
    */
   async softDeleteTransaction(transactionId: string): Promise<void> {
     const existing = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
@@ -188,7 +186,7 @@ export class AccountService {
     }
     await this.prisma.transaction.update({
       where: { id: transactionId },
-      data: { deletedAt: new Date(), categoryLockedAt: null },
+      data: { deletedAt: new Date() },
     });
   }
 }
