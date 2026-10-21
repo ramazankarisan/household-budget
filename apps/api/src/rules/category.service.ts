@@ -8,10 +8,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 
+import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-
-/** Prisma's code for a unique-constraint violation. `Category.name` is the only one here. */
-const UNIQUE_CONSTRAINT = 'P2002';
 
 /** What a rename or a recolour may carry; either field alone is a complete request. */
 export interface CategoryUpdate {
@@ -101,7 +99,7 @@ export class CategoryService implements OnModuleInit {
       });
       return toPayload(created);
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(`A category named ${trimmed} already exists`);
       }
       throw error;
@@ -141,7 +139,7 @@ export class CategoryService implements OnModuleInit {
       const updated = await this.prisma.category.update({ where: { id: categoryId }, data });
       return toPayload(updated);
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException(`A category named ${data.name ?? ''} already exists`);
       }
       throw error;

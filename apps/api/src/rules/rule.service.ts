@@ -20,11 +20,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { isUniqueViolation, LONG_TRANSACTION_OPTIONS } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CategoryService } from './category.service.js';
-
-/** Prisma's code for a unique-constraint violation; here, a rule id restored twice. */
-const UNIQUE_CONSTRAINT = 'P2002';
 
 /**
  * What an apply is allowed to write with. `$transaction`'s client is the same shape as
@@ -32,15 +30,6 @@ const UNIQUE_CONSTRAINT = 'P2002';
  * why this is a `Pick` rather than the client type.
  */
 export type RuleTransactionClient = Pick<PrismaService, 'transaction' | 'rule'>;
-
-/**
- * An apply reads every unlocked row and writes one statement per category, all inside one
- * interactive transaction. Prisma's default budget for those is 5 s, which is the JS
- * matching cost (measured at 27 ms for 50 000 rows × 20 rules) plus SQLite round trips
- * that were never measured — so on a long history the default fails with P2028 and
- * applies nothing. Stated explicitly rather than inherited.
- */
-const APPLY_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 120_000 };
 
 /** A body worth merging a stored rule with. Arrays and `null` are not. */
 function isObject(body: unknown): body is Record<string, unknown> {
@@ -284,7 +273,7 @@ export class RuleService {
       this.logger.log(`restore rule=${restored.id} field=${restored.field}`);
       return toPayload(restored);
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === UNIQUE_CONSTRAINT) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException({ code: 'RULE_EXISTS' });
       }
       throw error;
@@ -313,7 +302,7 @@ export class RuleService {
    */
   async applyAll(client?: RuleTransactionClient): Promise<ApplySummary> {
     if (client === undefined) {
-      return this.prisma.$transaction((tx) => this.applyAll(tx), APPLY_TRANSACTION_OPTIONS);
+      return this.prisma.$transaction((tx) => this.applyAll(tx), LONG_TRANSACTION_OPTIONS);
     }
 
     const ordered = orderRules((await client.rule.findMany()).map(toCoreRule));
