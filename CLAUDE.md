@@ -24,6 +24,13 @@ also `pnpm check:all`. Traps:
 - Never skip a hook (`--no-verify`, `LEFTHOOK=0`): that bypass is the user's, for an emergency.
   If a gate looks wrong, say so. Commits need `gitleaks` installed (`brew install gitleaks`).
 
+## Workflow
+
+- `main` changes only through a PR, from a `<type>/<topic>` branch. Commit with the `commit`
+  skill; the PR body follows `.github/pull_request_template.md`.
+- Before opening it: `pnpm check:all`, then `/code-review high` on the diff, its findings fixed
+  in the same PR. Merge with a merge commit once CI is green.
+
 ## RULES
 
 - **`packages/core` must never import NestJS, React, or Prisma.** It is where budget logic is

@@ -18,7 +18,7 @@ status: implemented
 > (`BudgetField.test.tsx`, `RulesPage.test.tsx`, `category.service.test.ts`).
 
 This plan fixes five findings from the exploratory test session recorded in
-[`dogfood-output/report.md`](../../dogfood-output/report.md), and Phase 5 two more the user found
+[`docs/reports/2026-09-23-dogfood.md`](../reports/2026-09-23-dogfood.md), and Phase 5 two more the user found
 afterwards (ISSUE-011, ISSUE-012). Issue numbers below are the report's.
 That report is also the change log for this work. Each phase ends by writing a **Resolution** note
 under its issue there, so the report stays the one place that tracks each finding from start to finish.
@@ -403,7 +403,7 @@ During implementation, document user feedback, problems, and decisions here.
 
 ## References
 
-- Findings and change log: [`dogfood-output/report.md`](../../dogfood-output/report.md)
+- Findings and change log: [`docs/reports/2026-09-23-dogfood.md`](../reports/2026-09-23-dogfood.md)
 - Invariants: [CLAUDE.md](../../CLAUDE.md), where rule matching and search run in JS, and budgets
   are household-wide
 - Prior plans for context (not edited): [02 categorization rules](02-categorization-rules.md),

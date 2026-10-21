@@ -5,7 +5,9 @@ on it.
 
 ## Premise
 
-As taught in the ACF training, an agent is a tool and a collaborator. It can read and write files, run commands, and make decisions. It can also be wrong, and it can forget. The repo's workflow and guardrails are designed to catch both.
+An agent is a tool and a collaborator: it reads and writes files, runs commands and makes
+decisions. It can also be wrong, and it can forget. The workflow and the guardrails here exist to
+catch both.
 
 What the repo does about it: CLAUDE.md says "after every change, run `pnpm check` before saying
 you are done". The Stop hook makes that true whether or not the agent remembers
@@ -38,8 +40,9 @@ A few departures the notes recorded:
 
 ## Checking the build against the plan
 
-Evaluating the implementation against the plan is necessary because even with plan.md file, deviations can come in.
-Either the agent misread the plan or interpreted it differently, or the plan was wrong. I saw it with same points.
+A plan does not guarantee the build follows it: the agent can misread it, read it differently,
+or the plan itself can be wrong. All three happened here, so every implementation is checked
+against its plan before it counts as done.
 
 What the history shows:
 
@@ -83,13 +86,15 @@ hooks and the commit-time data guard, so the two cannot disagree.
 
 ### Why they came second
 
-I thought the git hooks were enough, then I realized the agent could skip them. The hooks came later.
-That was a cautious choice.
+Git hooks came first. The agent's own hooks followed once it was clear that anything a person
+can skip, the agent can skip too.
 
 ## Growing the guardrails
 
-I added as a first step guardrails in the repo but then I asked to agent and even more suggestions came from it. The agent suggested to add a11y checks, commitlint, and Stryker mutation tests. I agreed and added them.
-For CI, I was not planning as well but again agent can skip any local check, so I added CI to run all checks on every PR and weekly Stryker mutation tests.
+The first guardrails were mine; asking the agent what was missing added more — a11y checks,
+commitlint, mutation tests. CI came for the same reason as the agent's hooks: every local check
+can be skipped, so every PR runs all of them again where nobody can, and mutation tests run
+weekly.
 
 What came out of it ([plan 09](plans/09-guardrails.md)), each check placed where it fits:
 
@@ -164,7 +169,9 @@ Tests check what someone thought to assert. Two sessions looked for what nobody 
   `.gitignore` gaps. Fixed in [plan 06](plans/06-security-hardening.md): loopback bind,
   Host/Origin guard, no CORS, upload limits, capped and sanitised errors and logs.
 
-Still the agent was able to find some open points and suggest improvements. That was surprising for me. Especially for agent-browser it was doing it with browser and was very fast. I was using normally playwright and it was taking a lot of time to find the issues. But agent-browser was doing it in seconds. I was surprised.
+Both found what the test suite could not, because nobody had thought to assert it. Exploring
+with agent-browser was much faster than writing Playwright specs to hunt for issues; the specs
+then pin down what it found.
 
 ## Data safety
 
@@ -180,6 +187,8 @@ And the agent's hooks refuse to read the real database at all.
 
 ## Lessons
 
-- small goals for RPI skills, with a clear output path, make it easier to review and verify the agent's work.
-- new guardrails like fast-check and Stryker mutation tests are worth the effort, because they catch what the agent misses.
-- always use dogfood and security review to find what the agent cannot find. The agent is fast, but it is not perfect.
+- Small research and plan steps, each with a committed output, make the agent's work reviewable.
+- Property and mutation tests are worth their cost: they catch tests that pass without proving
+  anything, which an agent writes as readily as a person.
+- Gates catch what someone thought of; dogfood and security sessions find what nobody did. Run
+  both before calling a feature finished.

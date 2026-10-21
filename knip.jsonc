@@ -24,7 +24,9 @@
       "ignoreDependencies": ["@prisma/client"],
     },
     "apps/web": {
-      "entry": ["e2e/**/*.spec.ts"],
+      "entry": ["e2e/**/*.spec.ts", "e2e/**/*.capture.ts"],
+      // A system tool (`brew install webp`), optional: the capture skips the demo without it.
+      "ignoreBinaries": ["img2webp"],
       "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
     },
   },

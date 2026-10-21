@@ -67,6 +67,10 @@ export default defineConfig({
       testMatch: 'deutsche-bank.spec.ts',
       dependencies: ['chromium'],
     },
+    // `pnpm docs:images` only: regenerates the README's images on a database of its own.
+    ...(process.env['CAPTURE'] === '1'
+      ? [{ name: 'docs-images', testMatch: '*.capture.ts', use: { ...devices['Desktop Chrome'] } }]
+      : []),
   ],
 
   webServer: [
