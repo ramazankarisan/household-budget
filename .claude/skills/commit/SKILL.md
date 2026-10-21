@@ -17,9 +17,9 @@ pnpm check
 
 **If it fails, stop.** Do not commit, do not `--no-verify`, do not "fix it in the next commit". Report which step failed and its output, then either fix the cause or hand it back to the user.
 
-`pnpm check` prints one line per step (`format`, `lint`, `deps`, `unused`, `types`, `unit`) and dumps full output only for the step that failed, so the failure is already the only thing on screen. It takes ~20s and needs no servers.
+`pnpm check` prints one line per step and dumps full output only for the step that failed, so the failure is already the only thing on screen. It takes ~20s and needs no servers.
 
-Do not substitute `pnpm check:all` here. That adds Playwright, which boots two servers — it is what CI runs, not the commit gate.
+`pnpm check` is the commit gate. `pnpm check:all` (adds Playwright, boots two servers) is the "done" gate for HTTP or UI changes per CLAUDE.md — run it before opening the PR, not before every commit.
 
 ## 2. Refuse forbidden paths
 
