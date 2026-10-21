@@ -101,6 +101,11 @@ export const en: Messages<typeof de> = {
     noMatches: 'No transactions match this selection.',
     uncategorizedCount: '{{uncategorized}} uncategorized',
     allCategorized: 'All categorized',
+    always: {
+      saved: 'Category set.',
+      offer: 'Always like this: add a rule for ‘{{name}}’',
+      created: 'Rule added.',
+    },
     columns: {
       date: 'Date',
       counterparty: 'Payee',

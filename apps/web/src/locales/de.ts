@@ -144,6 +144,15 @@ export const de = {
     noMatches: 'Keine Umsätze für diese Auswahl.',
     uncategorizedCount: '{{uncategorized}} ohne Kategorie',
     allCategorized: 'Alle kategorisiert',
+    /**
+     * After a category is set by hand: the save said quietly, and the one step that saves
+     * doing it again next month. `name` is the payee, the rule's keyword.
+     */
+    always: {
+      saved: 'Kategorie gesetzt.',
+      offer: 'Immer so: Regel für ‚{{name}}‘ anlegen',
+      created: 'Regel angelegt.',
+    },
     columns: {
       date: 'Datum',
       counterparty: 'Empfänger',

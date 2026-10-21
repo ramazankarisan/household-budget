@@ -27,6 +27,15 @@ export interface RulePreview {
 }
 
 /**
+ * The rules that compete for a row, as core's `Rule`s: the active ones, in the order the
+ * API lists them. That list is already in engine order; `createdAt` only breaks ties it
+ * has broken, so the payloads walk the same way as core's own `Rule`s.
+ */
+export function competingRules(rules: readonly RulePayload[]): readonly Rule[] {
+  return rules.filter((rule) => rule.active).map((rule) => ({ ...rule, createdAt: '' }));
+}
+
+/**
  * What a rule would do if it were appended now. `rules` in the engine's order, as the API
  * lists them; only active ones compete for a row.
  */
@@ -35,11 +44,7 @@ export function previewRule(
   transactions: readonly TransactionPayload[],
   rules: readonly RulePayload[],
 ): RulePreview {
-  // The API lists rules in engine order; `createdAt` only breaks ties the list has
-  // already broken, so the payloads walk the same way as core's own `Rule`s.
-  const ordered: readonly Rule[] = rules
-    .filter((rule) => rule.active)
-    .map((rule) => ({ ...rule, createdAt: '' }));
+  const ordered = competingRules(rules);
   const matching =
     condition.value.trim() === '' ? [] : transactions.filter((row) => matchRule(condition, row));
   return {

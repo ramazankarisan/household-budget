@@ -4,8 +4,11 @@ import { setTransactionCategory } from '../api/client';
 import { useHousehold } from './context';
 
 export interface Categorize {
-  /** `null` clears the category and its lock. */
-  readonly changeCategory: (transactionId: string, categoryId: string | null) => Promise<void>;
+  /**
+   * `null` clears the category and its lock. Resolves `true` once this change is the
+   * row's, `false` when it was refused or a later change superseded it.
+   */
+  readonly changeCategory: (transactionId: string, categoryId: string | null) => Promise<boolean>;
   /** Rows whose own change is in flight. */
   readonly savingIds: ReadonlySet<string>;
 }
@@ -30,7 +33,7 @@ export function useCategorize(onError?: (cause: unknown) => void): Categorize {
   const changeSeq = useRef(new Map<string, number>());
 
   const changeCategory = useCallback(
-    (transactionId: string, categoryId: string | null): Promise<void> => {
+    (transactionId: string, categoryId: string | null): Promise<boolean> => {
       const seq = (changeSeq.current.get(transactionId) ?? 0) + 1;
       changeSeq.current.set(transactionId, seq);
       setSavingIds((current) => new Set(current).add(transactionId));
@@ -39,14 +42,17 @@ export function useCategorize(onError?: (cause: unknown) => void): Categorize {
 
       return setTransactionCategory(transactionId, categoryId)
         .then((updated) => {
-          if (current()) {
-            replaceTransaction(updated);
+          if (!current()) {
+            return false;
           }
+          replaceTransaction(updated);
+          return true;
         })
         .catch((cause: unknown) => {
           if (current()) {
             report(cause);
           }
+          return false;
         })
         .finally(() => {
           if (!current()) {
