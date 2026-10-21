@@ -132,7 +132,7 @@ export const en: Messages<typeof de> = {
     rulesTitle: 'Rules',
     applyRules: 'Apply rules',
     applying: 'Applying…',
-    applyOffer: 'Rule added. It matches {{count}} uncategorized transactions — apply rules now?',
+    applyOffer: 'Rule added — it would sort {{count}} uncategorized. Apply now?',
     applyNow: 'Apply now',
     addRule: 'Add rule',
     editRule: 'Edit rule',

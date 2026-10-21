@@ -365,7 +365,7 @@ describe('RulesPage', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Regel anlegen' }));
 
-    const offer = await screen.findByText(/Sie trifft 1 Umsätze ohne Kategorie/);
+    const offer = await screen.findByText(/würde 1 ohne Kategorie einsortieren/);
     fireEvent.click(
       within(offer.closest('[role="alert"]') as HTMLElement).getByRole('button', {
         name: 'Jetzt anwenden',

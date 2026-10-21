@@ -176,8 +176,7 @@ export const de = {
     applyRules: 'Regeln anwenden',
     applying: 'Regeln laufen…',
     /** After a rule is added: rules only run on import or on request, so say so and offer it. */
-    applyOffer:
-      'Regel angelegt. Sie trifft {{count}} Umsätze ohne Kategorie — Regeln jetzt anwenden?',
+    applyOffer: 'Regel angelegt — sie würde {{count}} ohne Kategorie einsortieren. Jetzt anwenden?',
     applyNow: 'Jetzt anwenden',
     addRule: 'Regel anlegen',
     editRule: 'Regel bearbeiten',
