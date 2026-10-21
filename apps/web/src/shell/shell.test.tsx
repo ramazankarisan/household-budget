@@ -43,6 +43,13 @@ describe('useMonth', () => {
     expect(month()).toBe('2025-10');
   });
 
+  it('opens on the newest month that has begun, not on a vorgemerkt row from next month', () => {
+    vi.useFakeTimers({ now: new Date(2025, 8, 30), toFake: ['Date'] });
+    renderMonth('newest');
+    expect(month()).toBe('2025-09');
+    vi.useRealTimers();
+  });
+
   it('opens on every month where the page allows it', () => {
     renderMonth('all');
     expect(month()).toBe(ALL_MONTHS);
