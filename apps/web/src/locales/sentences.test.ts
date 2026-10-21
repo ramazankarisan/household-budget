@@ -18,6 +18,7 @@ import {
   describeFailure,
   describeFileError,
   describeImportFailure,
+  describeImportSummary,
   describeLeft,
   describeMonthTotal,
   describeOverBy,
@@ -235,12 +236,35 @@ describe('describeRuleDeleted', () => {
   });
 });
 
+describe('describeImportSummary', () => {
+  const summary = {
+    batchId: 'b',
+    parsed: 9,
+    imported: 8,
+    skipped: 0,
+    restored: 0,
+    pendingReplaced: 1,
+    categorized: 6,
+    failed: [],
+    failedCount: 0,
+    encoding: 'windows-1252' as const,
+    dialect: 'sparkasse-camt' as const,
+  };
+
+  it('leaves out what is zero, and says what the rules sorted', () => {
+    expect(describeImportSummary(de, summary)).toBe('8 importiert · 6 per Regel einsortiert');
+    expect(describeImportSummary(en, { ...summary, categorized: 0, skipped: 8, imported: 0 })).toBe(
+      '0 imported · 8 duplicates skipped',
+    );
+  });
+});
+
 describe('describeApplySummary', () => {
   const summary = { evaluated: 412, assigned: 318, cleared: 4, locked: 11 };
 
   it('states all four counts in both languages', () => {
     expect(describeApplySummary(de, summary)).toBe(
-      '412 geprüft · 318 zugeordnet · 4 gelöscht · 11 manuell',
+      '412 geprüft · 318 zugeordnet · 4 Kategorie entfernt · 11 von Hand gesetzt',
     );
     expect(describeApplySummary(en, summary)).toBe(
       '412 checked · 318 assigned · 4 cleared · 11 set by hand',

@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { listBudgets, listTransactions } from '../api/client';
 import { HouseholdProvider } from '../household/HouseholdProvider';
 import i18n from '../locales/i18n';
+import { ImportContext } from '../shell/importContext';
 import { OverviewPage } from './OverviewPage';
 
 const ACCOUNTS: AccountPayload[] = [
@@ -360,17 +361,16 @@ describe('OverviewPage', () => {
     expect(callout).toHaveAttribute('href', '/transactions?m=2025-09&c=uncategorized');
   });
 
-  it('invites an import when no account has anything to report on', async () => {
-    render(app());
+  it('answers an empty household with the import it is missing, not a link away', async () => {
+    const openImport = vi.fn();
+    render(<ImportContext value={{ openImport }}>{app()}</ImportContext>);
     await answerAccounts([], []);
 
     expect(
       await screen.findByText('Noch keine Umsätze. Importieren Sie einen CSV-Export.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zu den Umsätzen' })).toHaveAttribute(
-      'href',
-      '/transactions',
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'CSV importieren' }));
+    expect(openImport).toHaveBeenCalledWith({ newAccount: false });
   });
 
   it('keeps the page on screen while another month’s limits load', async () => {

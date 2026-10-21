@@ -58,7 +58,7 @@ test.describe.serial('categorization rules', () => {
 
     await page.getByRole('navigation').getByRole('link', { name: 'Regeln' }).click();
     await page.getByRole('button', { name: 'Regeln anwenden' }).click();
-    await expect(page.getByText(/1 manuell/)).toBeVisible();
+    await expect(page.getByText(/1 von Hand gesetzt/)).toBeVisible();
 
     await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
     const afterApply = ledgerRow(page, 'REWE SAGT DANKE; FILIALE 42').first();

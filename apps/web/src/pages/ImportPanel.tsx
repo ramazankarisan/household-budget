@@ -2,6 +2,7 @@ import { type ImportSummary } from '@household-budget/core';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
@@ -10,11 +11,15 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { uploadImport } from '../api/client';
-import { describeImportFailure, describeRowError } from '../locales/sentences';
+import {
+  describeImportFailure,
+  describeImportSummary,
+  describeRowError,
+} from '../locales/sentences';
 
 interface ImportPanelProps {
   readonly accountId: string;
-  readonly onImported: () => void;
+  readonly onImported: (summary: ImportSummary) => void;
   /** A file dropped before the panel existed: uploaded once, as soon as it mounts. */
   readonly initialFile?: File | undefined;
 }
@@ -42,7 +47,7 @@ export function ImportPanel({ accountId, onImported, initialFile }: ImportPanelP
     uploadImport(accountId, file)
       .then((summary) => {
         setState({ status: 'done', summary });
-        onImported();
+        onImported(summary);
       })
       .catch((error: unknown) => {
         setState({ status: 'error', cause: error });
@@ -103,7 +108,20 @@ export function ImportPanel({ accountId, onImported, initialFile }: ImportPanelP
             <Typography>{t('common.import.uploading')}</Typography>
           </Stack>
         ) : (
-          <Typography color="text.secondary">{t('common.import.dropHint')}</Typography>
+          <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Typography color="text.secondary">{t('common.import.dropHint')}</Typography>
+            {/* The zone itself only takes a mouse; this is the way in for a keyboard. */}
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                inputRef.current?.click();
+              }}
+            >
+              {t('common.import.pickFile')}
+            </Button>
+          </Stack>
         )}
         <input
           id={inputId}
@@ -148,14 +166,7 @@ export function ImportResult({ summary }: { readonly summary: ImportSummary }) {
           useFlexGap
           sx={{ flexWrap: 'wrap', alignItems: 'center' }}
         >
-          <Typography variant="body2">
-            {t('common.import.summary', {
-              imported: summary.imported,
-              skipped: summary.skipped,
-              restored: summary.restored,
-              failed: summary.failedCount,
-            })}
-          </Typography>
+          <Typography variant="body2">{describeImportSummary(t, summary)}</Typography>
           <Chip
             label={t(`common.import.dialect.${summary.dialect}`)}
             size="small"

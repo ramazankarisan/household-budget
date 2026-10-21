@@ -5,12 +5,12 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 
 import { clearBudget, listBudgets, setBudget } from '../api/client';
 import { monthOf, monthsOf, UNCATEGORIZED, uncategorizedRows } from '../filter';
 import { useHousehold } from '../household/context';
 import { describeFailure } from '../locales/sentences';
+import { useImport } from '../shell/importContext';
 import { TopBar } from '../shell/TopBar';
 import { CATEGORY_PARAM, MONTH_PARAM, useMonth } from '../shell/useMonth';
 import { monthTotals, trailingMonths } from '../trend';
@@ -62,7 +62,8 @@ const TOP_SPENDS = 4;
  */
 export function OverviewPage() {
   const { t } = useTranslation();
-  const { transactions, categories, error: loadError } = useHousehold();
+  const { accounts, transactions, categories, error: loadError } = useHousehold();
+  const { openImport } = useImport();
 
   /*
    * The limits per month, kept for as long as the page is. A month switch shows the
@@ -237,11 +238,20 @@ export function OverviewPage() {
       {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
 
       {empty ? (
+        // First run lands here: the one action is the step that is missing, not a link away.
         <EmptyState
-          message={t('transactions.noTransactions')}
+          message={t(
+            accounts?.length === 0 ? 'common.accounts.none' : 'transactions.noTransactions',
+          )}
           action={
-            <Button size="small" component={Link} to="/transactions">
-              {t('budgets.toTransactions')}
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => {
+                openImport({ newAccount: accounts?.length === 0 });
+              }}
+            >
+              {t(accounts?.length === 0 ? 'common.accounts.add' : 'common.import.title')}
             </Button>
           }
         />

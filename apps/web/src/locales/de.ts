@@ -103,11 +103,19 @@ export const de = {
       uploading: 'Import läuft…',
       dropHint: 'CSV-Export (Sparkasse, Deutsche Bank) hierher ziehen oder klicken zum Auswählen',
       chooseFile: 'CSV-Datei auswählen',
+      pickFile: 'Datei auswählen',
       failed: 'Import fehlgeschlagen',
       alreadyUploaded: 'Diese Datei wurde bereits einmal hochgeladen.',
       notImported: 'Nicht importierte Zeilen',
-      summary:
-        '{{imported}} importiert · {{skipped}} Duplikate übersprungen · {{restored}} wiederhergestellt · {{failed}} fehlerhaft',
+      result: {
+        imported: '{{count}} importiert',
+        categorized: '{{count}} per Regel einsortiert',
+        skipped: '{{count}} Duplikate übersprungen',
+        restored: '{{count}} wiederhergestellt',
+        failed: '{{count}} fehlerhaft',
+      },
+      /** The step after an import: what is left to sort, one click away. */
+      sortNext: '{{count}} ohne Kategorie sortieren',
       notListed: '… und {{notListed}} weitere',
       /** The format the header was recognised as — shown so the user sees which parser ran. */
       dialect: {
@@ -153,6 +161,7 @@ export const de = {
     wins: 'gewinnt {{count}}',
     inactive: 'inaktiv',
     willBeRule: 'wird Regel {{position}}',
+    previewHint: 'Suchbegriff eingeben — die Vorschau zählt, welche Umsätze die Regel trifft.',
     colorLabel: 'Farbe',
     colorN: 'Farbe {{n}}',
     changeColor: 'Farbe ändern',
@@ -166,6 +175,10 @@ export const de = {
     rulesTitle: 'Regeln',
     applyRules: 'Regeln anwenden',
     applying: 'Regeln laufen…',
+    /** After a rule is added: rules only run on import or on request, so say so and offer it. */
+    applyOffer:
+      'Regel angelegt. Sie trifft {{count}} Umsätze ohne Kategorie — Regeln jetzt anwenden?',
+    applyNow: 'Jetzt anwenden',
     addRule: 'Regel anlegen',
     editRule: 'Regel bearbeiten',
     saveRule: 'Speichern',
@@ -198,7 +211,7 @@ export const de = {
     categoryDeleted: '„{{name}}“ gelöscht',
     ruleDeleted: 'Regel „{{label}}“ gelöscht',
     applySummary:
-      '{{evaluated}} geprüft · {{assigned}} zugeordnet · {{cleared}} gelöscht · {{locked}} manuell',
+      '{{evaluated}} geprüft · {{assigned}} zugeordnet · {{cleared}} Kategorie entfernt · {{locked}} von Hand gesetzt',
   },
   imports: {
     empty: 'Noch nichts importiert.',
@@ -274,7 +287,6 @@ export const de = {
     noBudgets: 'kein Budget gesetzt',
     /** What the uncategorized row's button does, for its title. */
     showUncategorized: 'Umsätze ohne Kategorie in diesem Monat zeigen',
-    toTransactions: 'Zu den Umsätzen',
     /** The chart's caption, and its accessible name. */
     chartTitle: 'Ausgaben nach Kategorie',
     /** The `…` in a Budget or Rest cell while the month's limits are still on their way. */

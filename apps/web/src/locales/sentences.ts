@@ -1,5 +1,6 @@
 import {
   type ApplySummary,
+  type ImportSummary,
   type BudgetInputError,
   type MonthlyReport,
   type RowError,
@@ -65,6 +66,27 @@ export function describeFileError(
     ? t(`errors.file.${code}`)
     : t('errors.unknownFile', { code });
   return columns.length > 0 ? `${head}: ${columns.join(', ')}` : head;
+}
+
+/**
+ * What an import did, counts of zero left out — "0 wiederhergestellt · 0 fehlerhaft" is
+ * four numbers to read for one fact. What was imported is always said, nothing included.
+ */
+export function describeImportSummary(t: TFunction, summary: ImportSummary): string {
+  const parts = [t('common.import.result.imported', { count: summary.imported })];
+  if (summary.categorized > 0) {
+    parts.push(t('common.import.result.categorized', { count: summary.categorized }));
+  }
+  if (summary.skipped > 0) {
+    parts.push(t('common.import.result.skipped', { count: summary.skipped }));
+  }
+  if (summary.restored > 0) {
+    parts.push(t('common.import.result.restored', { count: summary.restored }));
+  }
+  if (summary.failedCount > 0) {
+    parts.push(t('common.import.result.failed', { count: summary.failedCount }));
+  }
+  return parts.join(' · ');
 }
 
 // ── rules ─────────────────────────────────────────────────────────────────────────────

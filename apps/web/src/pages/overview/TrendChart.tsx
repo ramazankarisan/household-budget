@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { ChartsReferenceLine } from '@mui/x-charts/ChartsReferenceLine';
@@ -51,7 +51,12 @@ export function TrendChart({ totals, limitCents, width, height = 190 }: TrendCha
       : Math.round(withData.reduce((sum, total) => sum + total.bookedCents, 0) / withData.length);
   const months = totals.map((total) => total.month);
   const shown = months[months.length - 1];
-  const soft = theme.palette.primary.soft ?? theme.palette.action.selected;
+  // The other months. In dark the soft token sits a shade off the card and the bars all but
+  // vanish, so they are the primary at reduced strength there instead.
+  const soft =
+    theme.palette.mode === 'dark'
+      ? alpha(theme.palette.primary.main, 0.45)
+      : (theme.palette.primary.soft ?? theme.palette.action.selected);
 
   return (
     <Card>
