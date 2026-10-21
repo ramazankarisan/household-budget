@@ -85,9 +85,13 @@ export class ImportController {
     return this.imports.restore(id);
   }
 
-  /** POST /api/imports — multipart: `file` plus an `accountId` field. */
+  /**
+   * POST /api/imports — multipart: `file` plus an `accountId` field. `defParamCharset`:
+   * multer reads the filename as latin1 by default, and browsers send it as UTF-8, so
+   * `Umsätze.csv` would be listed as `UmsÃ¤tze.csv`.
+   */
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS, defParamCharset: 'utf8' }))
   upload(
     @UploadedFile() file: UploadedCsv | undefined,
     @Body('accountId') accountId: unknown,
