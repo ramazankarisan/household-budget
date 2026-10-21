@@ -1,9 +1,6 @@
-import {
-  matchingRule,
-  type Rule,
-  type RulePayload,
-  type TransactionPayload,
-} from '@household-budget/core';
+import { matchingRule, type RulePayload, type TransactionPayload } from '@household-budget/core';
+
+import { competingRules } from './rulePreview';
 
 /**
  * How many rows each rule wins right now (plan 08, decision 12): for every row a rule may
@@ -17,10 +14,7 @@ export function ruleWins(
   rules: readonly RulePayload[],
   transactions: readonly TransactionPayload[],
 ): ReadonlyMap<string, number> {
-  // The list is already in engine order; `createdAt` only breaks ties it has broken.
-  const ordered: readonly Rule[] = rules
-    .filter((rule) => rule.active)
-    .map((rule) => ({ ...rule, createdAt: '' }));
+  const ordered = competingRules(rules);
   const wins = new Map<string, number>();
   for (const row of transactions) {
     if (row.categoryLockedAt !== null) {

@@ -66,6 +66,29 @@ test.describe.serial('categorization rules', () => {
     await expect(afterApply.getByLabel('von Hand gesetzt — Regeln ändern das nicht')).toBeVisible();
   });
 
+  test('„Immer so“ turns a category set by hand into a rule', async ({ page }) => {
+    await page.goto('/rules');
+    const keyword = page
+      .getByRole('list', { name: 'Regeln' })
+      .getByText('„Sparkasse Musterstadt“', { exact: true });
+    // Asked for only when missing: on a retry the rule is there, and „Immer so“ is
+    // rightly not offered for a rule that already exists.
+    if ((await keyword.count()) === 0) {
+      await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
+      await pickCategory(page, ledgerRow(page, 'Sparkasse Musterstadt'), 'Wohnen');
+      await page
+        .getByRole('button', { name: 'Immer so: Regel für ‚Sparkasse Musterstadt‘ anlegen' })
+        .click();
+      await expect(page.getByText('Regel angelegt.')).toBeVisible();
+      await page.getByRole('navigation').getByRole('link', { name: 'Regeln' }).click();
+    }
+
+    await expect(keyword).toHaveCount(1);
+    // Removed again: left in place it would sort this payee on every later import.
+    await page.getByRole('button', { name: 'Regel löschen: Sparkasse Musterstadt' }).click();
+    await expect(keyword).toHaveCount(0);
+  });
+
   test('the order is changed by dragging and by Alt+↑, and saved', async ({ page }) => {
     await page.goto('/rules');
     const composer = page.getByRole('region', { name: 'Neue Regel' });

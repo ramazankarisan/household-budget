@@ -2,10 +2,11 @@ import { type TransactionPayload } from '@household-budget/core';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
+import { alwaysRuleFor } from '../alwaysRule';
 import { createCategory } from '../api/client';
 import {
   filterTransactions,
@@ -24,6 +25,7 @@ import { TopBar } from '../shell/TopBar';
 import { ACCOUNT_PARAM, CATEGORY_PARAM, useMonth } from '../shell/useMonth';
 import { DelayedSkeleton } from '../ui/DelayedSkeleton';
 import { EmptyState } from '../ui/EmptyState';
+import { type AlwaysOffer, AlwaysRuleSnackbar } from './transactions/AlwaysRuleSnackbar';
 import { FilterBar } from './transactions/FilterBar';
 import { Ledger } from './transactions/Ledger';
 
@@ -41,7 +43,14 @@ const EMPTY_ROWS: readonly TransactionPayload[] = [];
 export function TransactionsPage() {
   const { t } = useTranslation();
   const household = useHousehold();
-  const { accounts, rowsByAccount, transactions: all, categories, setCategories } = household;
+  const {
+    accounts,
+    rowsByAccount,
+    transactions: all,
+    categories,
+    rules,
+    setCategories,
+  } = household;
   const { openImport } = useImport();
   // Read once, on mount: another page may have sent the user here already narrowed
   // (`?a=…&c=uncategorized`). A later change of filter is the user's.
@@ -57,6 +66,9 @@ export function TransactionsPage() {
     setError({ cause });
   }, []);
   const { changeCategory, savingIds } = useCategorize(fail);
+  // „Immer so“: the rule offered after the last category set by hand, if there is one.
+  const [always, setAlways] = useState<AlwaysOffer | undefined>(undefined);
+  const alwaysSeq = useRef(0);
 
   // An account that is not there (a stale link) means every account.
   const accountId = accounts?.some((account) => account.id === filters.accountId)
@@ -95,13 +107,29 @@ export function TransactionsPage() {
     return names;
   }, [accountId, accounts, rowsByAccount]);
 
+  /**
+   * Sets a category by hand, and once it is saved offers the rule that would set it every
+   * time — unless there is none worth offering (`alwaysRuleFor`). A refused save offers
+   * nothing: the row did not change.
+   */
+  function categorize(transactionId: string, categoryId: string | null): void {
+    const row = rows.find((candidate) => candidate.id === transactionId);
+    const rule = row === undefined ? undefined : alwaysRuleFor(row, categoryId, rules);
+    void changeCategory(transactionId, categoryId).then((saved) => {
+      if (saved && rule !== undefined) {
+        alwaysSeq.current += 1;
+        setAlways({ key: alwaysSeq.current, rule });
+      }
+    });
+  }
+
   function createAndAssign(transactionId: string, name: string): void {
     createCategory(name)
       .then((created) => {
         setCategories((current) =>
           [...current, created].sort((a, b) => a.name.localeCompare(b.name)),
         );
-        void changeCategory(transactionId, created.id);
+        categorize(transactionId, created.id);
       })
       .catch(fail);
   }
@@ -111,90 +139,94 @@ export function TransactionsPage() {
     (accountId === '' ? all === undefined : !rowsByAccount.has(accountId));
 
   return (
-    <Stack spacing={3}>
-      <TopBar
-        title={t('common.pages.transactions')}
-        month={
-          rows.length > 0 ? { state: monthState, available: months, allowAll: true } : undefined
-        }
-      />
-
-      {household.error !== undefined && (
-        <Alert severity="error">{describeFailure(t, household.error.cause)}</Alert>
-      )}
-      {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
-
-      {accounts?.length === 0 ? (
-        <EmptyState
-          message={t('common.accounts.none')}
-          action={
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => {
-                openImport({ newAccount: true });
-              }}
-            >
-              {t('common.accounts.add')}
-            </Button>
+    <>
+      <Stack spacing={3}>
+        <TopBar
+          title={t('common.pages.transactions')}
+          month={
+            rows.length > 0 ? { state: monthState, available: months, allowAll: true } : undefined
           }
         />
-      ) : loading ? (
-        <DelayedSkeleton rows={6} label={t('common.loading')} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          message={t('transactions.noTransactions')}
-          action={
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => {
-                openImport();
-              }}
-            >
-              {t('common.import.title')}
-            </Button>
-          }
-        />
-      ) : (
-        <Stack spacing={2}>
-          <FilterBar
-            filters={{ ...filters, accountId }}
-            categories={categories}
-            accounts={accounts ?? []}
-            uncategorized={uncategorized}
-            onChange={setFilters}
+
+        {household.error !== undefined && (
+          <Alert severity="error">{describeFailure(t, household.error.cause)}</Alert>
+        )}
+        {error !== undefined && <Alert severity="error">{describeFailure(t, error.cause)}</Alert>}
+
+        {accounts?.length === 0 ? (
+          <EmptyState
+            message={t('common.accounts.none')}
+            action={
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => {
+                  openImport({ newAccount: true });
+                }}
+              >
+                {t('common.accounts.add')}
+              </Button>
+            }
           />
-          {visible.length === 0 ? (
-            <EmptyState
-              message={filtering ? t('transactions.noMatches') : t('transactions.noTransactions')}
-              action={
-                filtering ? (
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      setFilters(NO_FILTERS);
-                    }}
-                  >
-                    {t('transactions.resetFilters')}
-                  </Button>
-                ) : undefined
-              }
-            />
-          ) : (
-            <Ledger
-              transactions={visible}
+        ) : loading ? (
+          <DelayedSkeleton rows={6} label={t('common.loading')} />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            message={t('transactions.noTransactions')}
+            action={
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => {
+                  openImport();
+                }}
+              >
+                {t('common.import.title')}
+              </Button>
+            }
+          />
+        ) : (
+          <Stack spacing={2}>
+            <FilterBar
+              filters={{ ...filters, accountId }}
               categories={categories}
-              accountNames={accountNames}
-              savingIds={savingIds}
-              onCategoryChange={(id, categoryId) => {
-                void changeCategory(id, categoryId);
-              }}
-              onCreateCategory={createAndAssign}
+              accounts={accounts ?? []}
+              uncategorized={uncategorized}
+              onChange={setFilters}
             />
-          )}
-        </Stack>
+            {visible.length === 0 ? (
+              <EmptyState
+                message={filtering ? t('transactions.noMatches') : t('transactions.noTransactions')}
+                action={
+                  filtering ? (
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setFilters(NO_FILTERS);
+                      }}
+                    >
+                      {t('transactions.resetFilters')}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <Ledger
+                transactions={visible}
+                categories={categories}
+                accountNames={accountNames}
+                savingIds={savingIds}
+                onCategoryChange={categorize}
+                onCreateCategory={createAndAssign}
+              />
+            )}
+          </Stack>
+        )}
+      </Stack>
+
+      {always !== undefined && (
+        <AlwaysRuleSnackbar key={always.key} offer={always} onError={fail} />
       )}
-    </Stack>
+    </>
   );
 }

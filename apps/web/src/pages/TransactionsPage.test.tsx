@@ -1,13 +1,21 @@
 import {
   type AccountPayload,
   type ImportBatchPayload,
+  type RulePayload,
   type TransactionPayload,
 } from '@household-budget/core';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { listTransactions, restoreImport, undoImport, uploadImport } from '../api/client';
+import {
+  applyRules,
+  createRule,
+  listTransactions,
+  restoreImport,
+  undoImport,
+  uploadImport,
+} from '../api/client';
 import { HouseholdProvider } from '../household/HouseholdProvider';
 import i18n from '../locales/i18n';
 import { ImportDialog } from './import/ImportDialog';
@@ -16,6 +24,7 @@ import { TransactionsPage } from './TransactionsPage';
 
 let accounts: AccountPayload[] = [];
 let stored: Record<string, TransactionPayload[]> = {};
+let rules: RulePayload[] = [];
 
 /** Every category write, still unanswered, so a test can decide when and how it lands. */
 const writes: {
@@ -50,7 +59,13 @@ vi.mock('../api/client', () => ({
     Promise.resolve({ id: 'acc-new', iban, name }),
   ),
   listCategories: () => Promise.resolve([{ id: 'cat-wohnen', name: 'Wohnen', colorIndex: 0 }]),
-  listRules: () => Promise.resolve([]),
+  listRules: () => Promise.resolve(rules),
+  createRule: vi.fn((input: Omit<RulePayload, 'id' | 'priority'>) =>
+    Promise.resolve({ ...input, id: 'r-new', priority: 10 }),
+  ),
+  applyRules: vi.fn(() =>
+    Promise.resolve({ evaluated: 2, assigned: 1, cleared: 0, locked: 1, unchanged: 0 }),
+  ),
   // Counted: "narrowing issues no request" is a claim about how many times this was called.
   listTransactions: vi.fn((accountId: string) => Promise.resolve(stored[accountId] ?? [])),
   listImports: () => Promise.resolve(batches),
@@ -118,10 +133,13 @@ const OLD = row('t-2', 'Versicherung AG', { bookingDate: '2014-03-24' });
 beforeEach(() => {
   accounts = [GIRO];
   stored = {};
+  rules = [];
   batches = BATCHES;
   writes.length = 0;
   vi.mocked(listTransactions).mockClear();
   vi.mocked(uploadImport).mockClear();
+  vi.mocked(createRule).mockClear();
+  vi.mocked(applyRules).mockClear();
 });
 
 async function withRows(rows: TransactionPayload[], entry = '/transactions'): Promise<void> {
@@ -208,6 +226,108 @@ describe('TransactionsPage, the ledger', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Kategorie: Ohne Kategorie' })).toBeEnabled();
     });
+  });
+});
+
+describe('TransactionsPage, „Immer so“', () => {
+  const REWE = row('r-1', 'REWE Markt');
+  const REWE_AGAIN = row('r-2', 'REWE Markt', { bookingDate: '2025-09-21' });
+  const LOCKED = '2026-09-23T08:00:00.000Z';
+
+  /** Picks Wohnen on the first REWE row and lets the server agree. */
+  async function pickWohnen(): Promise<void> {
+    fireEvent.click(
+      within(screen.getAllByRole('listitem', { name: 'REWE Markt' })[0] as HTMLElement).getByRole(
+        'button',
+        { name: 'Kategorie: Ohne Kategorie' },
+      ),
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Wohnen/ }));
+    await waitFor(() => {
+      expect(writes).toHaveLength(1);
+    });
+    act(() => {
+      writes[0]?.resolve({ ...REWE, categoryId: 'cat-wohnen', categoryLockedAt: LOCKED });
+    });
+  }
+
+  it('offers the payee as a rule once the pick is saved, then the run it would make', async () => {
+    await withRows([REWE, REWE_AGAIN]);
+    await pickWohnen();
+
+    expect(await screen.findByText('Kategorie gesetzt.')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Immer so: Regel für ‚REWE Markt‘ anlegen' }),
+    );
+
+    await waitFor(() => {
+      expect(createRule).toHaveBeenCalledTimes(1);
+    });
+    // Appended: no priority sent, so it goes after every rule there is.
+    expect(vi.mocked(createRule).mock.calls[0]?.[0]).toEqual({
+      field: 'counterpartyName',
+      operator: 'contains',
+      value: 'REWE Markt',
+      categoryId: 'cat-wohnen',
+      active: true,
+    });
+    // The other REWE row is still without a category: the run would sort it.
+    expect(
+      await screen.findByText(
+        'Regel angelegt — sie würde 1 ohne Kategorie einsortieren. Jetzt anwenden?',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jetzt anwenden' }));
+    expect(await screen.findByText(/1 zugeordnet/)).toBeInTheDocument();
+    expect(applyRules).toHaveBeenCalledTimes(1);
+  });
+
+  it('says only that the rule was added when there is nothing left for it to sort', async () => {
+    await withRows([REWE]);
+    await pickWohnen();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Immer so: Regel für ‚REWE Markt‘ anlegen' }),
+    );
+
+    expect(await screen.findByText('Regel angelegt.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Jetzt anwenden' })).toBeNull();
+  });
+
+  it('offers nothing when the same rule is already there', async () => {
+    rules = [
+      {
+        id: 'r-1',
+        field: 'counterpartyName',
+        operator: 'contains',
+        value: 'rewe markt',
+        priority: 10,
+        categoryId: 'cat-wohnen',
+        active: false,
+      },
+    ];
+    await withRows([REWE]);
+    await pickWohnen();
+
+    expect(await screen.findByRole('img', { name: /^von Hand gesetzt/ })).toBeInTheDocument();
+    expect(screen.queryByText('Kategorie gesetzt.')).toBeNull();
+  });
+
+  it('offers nothing when the write is refused', async () => {
+    await withRows([REWE]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kategorie: Ohne Kategorie' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Wohnen/ }));
+    await waitFor(() => {
+      expect(writes).toHaveLength(1);
+    });
+    act(() => {
+      writes[0]?.reject(new Error('Kategorie nicht gefunden'));
+    });
+
+    expect(await screen.findByText(/Kategorie nicht gefunden/)).toBeInTheDocument();
+    expect(screen.queryByText('Kategorie gesetzt.')).toBeNull();
   });
 });
 
