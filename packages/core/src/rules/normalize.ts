@@ -24,6 +24,22 @@ export function normalize(value: string | null | undefined): string {
   return (value ?? '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
 }
 
+/**
+ * {@link normalize}, plus the transliteration SEPA text often arrives in: banks and payment
+ * processors write `MUELLER GMBH` and `HAUPTSTRASSE` for `Müller GmbH` and `Hauptstraße`,
+ * so a rule typed with umlauts would miss them. For matching only — never for the dedup
+ * fingerprint, whose keys must not change under rows already stored. Coarser than
+ * `normalize` is the safe direction: a rule never tells apart two spellings the
+ * deduplicator considers identical.
+ */
+export function normalizeForMatching(value: string | null | undefined): string {
+  return normalize(value)
+    .replaceAll('ä', 'ae')
+    .replaceAll('ö', 'oe')
+    .replaceAll('ü', 'ue')
+    .replaceAll('ß', 'ss');
+}
+
 /** An IBAN is the same IBAN whether or not the user typed it in groups of four. */
 export function normalizeIban(value: string | null | undefined): string {
   return normalize(value).replaceAll(' ', '');

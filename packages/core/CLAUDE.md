@@ -17,6 +17,9 @@ Each point is deliberate; where there is a link, it is the reason. Do not undo o
   Matching and search run in JavaScript over loaded rows, never as SQL — SQLite folds case
   for ASCII only, so `LIKE '%müller%'` misses `MÜLLER GmbH`.
   [research 02 §3](../../docs/research/02-categorization-rules.md)
+- Matching also folds ä/ö/ü/ß to ae/oe/ue/ss (`normalizeForMatching`), because SEPA text
+  writes `MUELLER`. The dedup fingerprint keeps plain `normalize`: changing its keys would
+  duplicate rows already stored.
 - `monthlyReport` counts money out only, keeps booked and vorgemerkt apart, and gives every
   category a row; the uncategorized bucket is `null` and never has a limit.
   [research 04 §4](../../docs/research/04-monthly-budgets.md)

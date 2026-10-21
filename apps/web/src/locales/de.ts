@@ -35,6 +35,7 @@ type ApiRefusalCode =
   | 'RULE_ORDER_STALE'
   | 'IMPORT_NOT_LATEST'
   | 'IMPORT_RESTORE_BLOCKED'
+  | 'IBAN_INVALID'
   | 'RULE_ORDER_INVALID';
 
 export const de = {
@@ -319,6 +320,7 @@ export const de = {
       IMPORT_RESTORE_BLOCKED:
         'Dieser Import lässt sich nicht mehr zurückholen — danach wurde ein weiterer entfernt.',
       RULE_ORDER_INVALID: 'Diese Reihenfolge ist ungültig.',
+      IBAN_INVALID: 'Diese IBAN ist ungültig — bitte noch einmal mit dem Kontoauszug vergleichen.',
     } satisfies Record<ApiRefusalCode, string>,
     /** A coded refusal this UI has no sentence for — the code is still worth quoting. */
     unknownApi: 'Anfrage abgelehnt ({{code}})',

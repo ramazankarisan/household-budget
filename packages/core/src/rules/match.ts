@@ -11,7 +11,7 @@
  * Living in `packages/core` is what lets the browser preview a rule and the server apply
  * it and both reach the same answer.
  */
-import { normalize, normalizeIban } from './normalize.js';
+import { normalizeForMatching, normalizeIban } from './normalize.js';
 import type { Rule, RuleField, RuleOperator } from './rule.js';
 
 /**
@@ -58,14 +58,15 @@ function applyOperator(haystack: string, operator: RuleOperator, needle: string)
 /**
  * Whether one rule claims one transaction.
  *
- * Both sides go through the same normalizer, so `müller` finds `MÜLLER GmbH`, the NFD
- * spelling of the same name, and the `Verwendungszweck` whose address sits behind a CRLF.
+ * Both sides go through the same normalizer, so `müller` finds `MÜLLER GmbH`, `MUELLER GMBH`,
+ * the NFD spelling of the same name, and the `Verwendungszweck` whose address sits behind a
+ * CRLF.
  * A field the bank left empty normalizes to `''` and matches nothing a form could store —
  * `parseRuleInput` rejects an empty value, so no stored rule has the needle that would.
  */
 export function matchRule(rule: RuleCondition, transaction: MatchableTransaction): boolean {
   const raw = fieldValue(transaction, rule.field);
-  const canonical = rule.field === 'counterpartyIban' ? normalizeIban : normalize;
+  const canonical = rule.field === 'counterpartyIban' ? normalizeIban : normalizeForMatching;
 
   return applyOperator(canonical(raw), rule.operator, canonical(rule.value));
 }

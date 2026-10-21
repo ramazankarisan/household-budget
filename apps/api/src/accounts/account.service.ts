@@ -1,4 +1,9 @@
-import { AccountPayload, BookingStatus, TransactionPayload } from '@household-budget/core';
+import {
+  AccountPayload,
+  BookingStatus,
+  isValidIban,
+  TransactionPayload,
+} from '@household-budget/core';
 import {
   BadRequestException,
   ConflictException,
@@ -73,6 +78,11 @@ export class AccountService {
 
     if (normalized === '') {
       throw new BadRequestException('iban is required');
+    }
+    // Every upload is checked against the account's IBAN, and an account cannot be edited:
+    // a typo here would make an account no export ever fits.
+    if (!isValidIban(normalized)) {
+      throw new BadRequestException({ code: 'IBAN_INVALID' });
     }
     if (trimmedName === '') {
       throw new BadRequestException('name is required');
