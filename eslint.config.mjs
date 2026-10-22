@@ -32,6 +32,8 @@ export default tseslint.config(
       // Stryker's sandbox copies: an interrupted `pnpm mutation` leaves instrumented source.
       '**/.stryker-tmp/**',
       '**/reports/mutation/**',
+      // Agent worktrees: other checkouts of this repo, often mid-change. Each lints itself.
+      '.claude/worktrees/**',
     ],
   },
 

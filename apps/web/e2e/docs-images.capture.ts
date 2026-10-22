@@ -13,6 +13,7 @@ import {
   DEMO_IBAN,
   DEMO_SETUP,
 } from '../src/demo/household';
+import { ledgerRow, pickCategory } from './support';
 
 /**
  * Regenerates the README's screenshots and its animated demo: `pnpm docs:images`.
@@ -81,7 +82,7 @@ async function seedRulesAndBudgets(request: APIRequestContext): Promise<void> {
         data: { field: 'counterpartyName', operator: 'contains', value, categoryId: category.id },
       });
     }
-    for (const m of budgetMonths(EXPORT_DAY)) {
+    for (const m of limit > 0 ? budgetMonths(EXPORT_DAY) : []) {
       await request.put(`/api/budgets/${m}/${category.id}`, { data: { amountCents: limit } });
     }
   }
@@ -161,6 +162,12 @@ test('captures the README images', async ({ page, request }, testInfo) => {
   await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
   await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
   await page.screenshot({ path: resolve(IMAGES, 'transactions.png') });
+  // A category set by hand, and the offer to make it a rule: a demo frame once the
+  // snackbar has finished sliding in.
+  await pickCategory(page, ledgerRow(page, 'Beispiel AG').first(), 'Einkommen');
+  await expect(page.getByRole('button', { name: /^Immer so:/u })).toBeVisible();
+  await page.waitForTimeout(400);
+  await frame(page, frames, framesDir);
   await page.getByRole('navigation').getByRole('link', { name: 'Importe' }).click();
   await expect(page.getByText(DEMO_FILE_NAME)).toBeVisible();
   await page.screenshot({ path: resolve(IMAGES, 'imports.png') });
