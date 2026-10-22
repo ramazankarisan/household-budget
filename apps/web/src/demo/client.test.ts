@@ -61,7 +61,7 @@ describe('the seed', () => {
     expect(rules.map((rule) => rule.priority)).toEqual(
       rules.map((_rule, index) => 100 + index * 10),
     );
-    expect(budgets).toHaveLength(DEMO_SETUP.length);
+    expect(budgets).toHaveLength(DEMO_SETUP.filter(([, , limit]) => limit > 0).length);
     expect(await demo.listBudgets('2026-07')).toEqual([]);
     expect(imports[0]?.rowsImported).toBe(bookings(END).length);
   });
@@ -150,7 +150,7 @@ describe('rules', () => {
 
 describe('categories', () => {
   it('refuses to delete one in use, with the counts', async () => {
-    const [category] = await demo.listCategories();
+    const category = (await demo.listCategories()).find(({ name }) => name === 'Wohnen');
     const error = await rejection(demo.deleteCategory(category?.id ?? ''));
     expect(error.code).toBe('CATEGORY_IN_USE');
     expect(error.details).toMatchObject({ budgets: 3 });

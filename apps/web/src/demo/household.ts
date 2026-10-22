@@ -82,7 +82,10 @@ export function bookings(end: ExportDay): Booking[] {
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-/** Category name → [rules typed as the user knows the payee, monthly limit in cents]. */
+/**
+ * Category name → [rules typed as the user knows the payee, monthly limit in cents]. A limit
+ * of 0 means no limit is set at all, not a limit of nothing.
+ */
 export const DEMO_SETUP: ReadonlyArray<readonly [string, readonly string[], number]> = [
   ['Wohnen', ['Hausverwaltung', 'Stadtwerke'], 125_000],
   ['Lebensmittel', ['REWE', 'Bäckerei'], 50_000],
@@ -90,6 +93,8 @@ export const DEMO_SETUP: ReadonlyArray<readonly [string, readonly string[], numb
   ['Mobilität', ['Aral', 'DB Fernverkehr'], 15_000],
   ['Freizeit', ['Trattoria'], 6_000],
   ['Gesundheit', ['Apotheke'], 3_000],
+  // No rule on purpose: the salary is sorted by hand, which is where „Immer so“ comes in.
+  ['Einkommen', [], 0],
 ];
 
 /** The months the limits are set for: the export's last three. */

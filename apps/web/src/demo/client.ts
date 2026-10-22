@@ -305,7 +305,7 @@ function seed(end: ExportDay): State {
         }),
       );
     }
-    for (const month of budgetMonths(end)) {
+    for (const month of limit > 0 ? budgetMonths(end) : []) {
       state.budgets.push({ categoryId: category.id, month, amountCents: limit });
     }
   }
