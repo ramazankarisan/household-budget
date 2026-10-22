@@ -144,6 +144,10 @@ A local app still has a network surface: any web page the user visits can try to
 Details and the findings that led here: [security review](reports/2026-09-24-security-review.html),
 [plan 06](plans/06-security-hardening.md).
 
+The hosted demo does not move this boundary: it is `apps/web` built with `--mode demo`, which
+swaps `src/api/client.ts` for an in-memory client over synthetic data (`src/demo/`). GitHub
+Pages serves static files; no API is deployed anywhere ([plan 12](plans/12-hosted-demo.md)).
+
 ## Data model
 
 Six Prisma models in `apps/api/prisma/schema.prisma`:

@@ -5,6 +5,7 @@ import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { ImportDialog } from '../pages/import/ImportDialog';
 import { DropOverlay } from '../ui/DropOverlay';
 import { BottomNav } from './BottomNav';
+import { DemoBanner } from './DemoBanner';
 import { ImportContext, type ImportControl, type ImportRequest } from './importContext';
 import { NavRail } from './NavRail';
 import { Sidebar } from './Sidebar';
@@ -59,6 +60,8 @@ export function AppShell({
               pb: { xs: 2, md: 5 },
             }}
           >
+            {/* Statically false outside `--mode demo`, so the real build drops the banner. */}
+            {import.meta.env.MODE === 'demo' && <DemoBanner />}
             {children}
           </Box>
         </Box>

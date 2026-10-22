@@ -24,6 +24,11 @@ export const en: Messages<typeof de> = {
       imports: 'Imports',
       budgets: 'Budgets',
     },
+    demo: {
+      label: 'Demo',
+      text: 'Made-up sample data. Changes stay in this tab and are gone after a reload.',
+      link: 'Install locally',
+    },
     accounts: {
       title: 'Accounts',
       add: 'Create account',
@@ -270,6 +275,8 @@ export const en: Messages<typeof de> = {
       CSV_QUOTE_NOT_CLOSED: 'a quoted value in the file is never closed',
       CSV_INVALID_CLOSING_QUOTE: 'invalid closing quote',
       CSV_RECORD_INCONSISTENT_FIELDS_LENGTH: 'a row has the wrong number of columns',
+      DEMO_READ_ONLY:
+        'the demo reads no files — the sample transactions are already imported. Installed locally, the app imports your own export',
     },
     unknownFile: 'file not readable ({{code}})',
     api: {

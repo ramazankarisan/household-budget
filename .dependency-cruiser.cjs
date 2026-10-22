@@ -93,6 +93,15 @@ module.exports = {
       to: { dependencyTypes: ['core'] },
     },
     {
+      name: 'demo-only-through-its-build',
+      severity: 'error',
+      comment:
+        "src/demo/ is the hosted demo's in-memory API (plan 12). The real app must never reach " +
+        'it: the only way in is the `--mode demo` Vite plugin that swaps it for src/api/client.ts.',
+      from: { path: '^apps/web/src/', pathNot: '^apps/web/src/demo/' },
+      to: { path: '^apps/web/src/demo/' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment:

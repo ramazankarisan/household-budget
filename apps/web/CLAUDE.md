@@ -20,6 +20,9 @@ Each point is deliberate; where there is a link, it is the reason. Do not undo o
   not counted and the filter does not show them — they cannot be categorized until they book,
   so the chip opens exactly the rows it counts.
 - Überblick has no account picker: budgets are household-wide. `/budgets` redirects to it.
+- `src/demo/` is the hosted demo's in-memory API, reached only by `vite build --mode demo`
+  swapping it for `src/api/client.ts`. A new client function needs its demo twin, or
+  typecheck fails (`src/demo/client.test.ts`). [plan 12](../../docs/plans/12-hosted-demo.md)
 - Never import Node built-ins, NestJS, Prisma or `@household-budget/core/csv` at runtime;
   type-only imports are fine. `pnpm lint:deps` enforces it.
 
