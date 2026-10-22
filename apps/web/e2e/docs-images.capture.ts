@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, type APIRequestContext, type Page, test } from '@playwright/test';
 
+import { ledgerRow, pickCategory } from './support';
+
 /**
  * Regenerates the README's screenshots and its animated demo: `pnpm docs:images`.
  *
@@ -174,6 +176,8 @@ const SETUP: ReadonlyArray<readonly [string, readonly string[], number]> = [
   ['Mobilität', ['Aral', 'DB Fernverkehr'], 15_000],
   ['Freizeit', ['Trattoria'], 6_000],
   ['Gesundheit', ['Apotheke'], 3_000],
+  // No rule on purpose: the salary is sorted by hand, which is where „Immer so“ comes in.
+  ['Einkommen', [], 0],
 ];
 
 async function seedRulesAndBudgets(request: APIRequestContext): Promise<void> {
@@ -187,7 +191,7 @@ async function seedRulesAndBudgets(request: APIRequestContext): Promise<void> {
         data: { field: 'counterpartyName', operator: 'contains', value, categoryId: category.id },
       });
     }
-    for (const m of ['2026-08', '2026-09', month]) {
+    for (const m of limit > 0 ? ['2026-08', '2026-09', month] : []) {
       await request.put(`/api/budgets/${m}/${category.id}`, { data: { amountCents: limit } });
     }
   }
@@ -267,6 +271,12 @@ test('captures the README images', async ({ page, request }, testInfo) => {
   await page.getByRole('navigation').getByRole('link', { name: 'Umsätze' }).click();
   await expect(page.getByRole('main').getByRole('listitem').first()).toBeVisible();
   await page.screenshot({ path: resolve(IMAGES, 'transactions.png') });
+  // A category set by hand, and the offer to make it a rule: a demo frame once the
+  // snackbar has finished sliding in.
+  await pickCategory(page, ledgerRow(page, 'Beispiel AG').first(), 'Einkommen');
+  await expect(page.getByRole('button', { name: /^Immer so:/u })).toBeVisible();
+  await page.waitForTimeout(400);
+  await frame(page, frames, framesDir);
   await page.getByRole('navigation').getByRole('link', { name: 'Importe' }).click();
   await expect(page.getByText('Umsaetze-2026.csv')).toBeVisible();
   await page.screenshot({ path: resolve(IMAGES, 'imports.png') });
