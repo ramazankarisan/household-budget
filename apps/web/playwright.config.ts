@@ -11,6 +11,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const API_PORT = 3100;
 const WEB_PORT = 5174;
+/** `vite preview` of the hosted demo's build (plan 12). */
+const DEMO_PORT = 5175;
 const API_URL = `http://127.0.0.1:${String(API_PORT)}`;
 const WEB_URL = `http://127.0.0.1:${String(WEB_PORT)}`;
 // Playwright accepts 200 <= status < 404, and this route answers [] on an empty
@@ -54,7 +56,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: 'deutsche-bank.spec.ts',
+      testIgnore: ['deutsche-bank.spec.ts', 'demo.spec.ts'],
     },
     /*
      * After every other spec, via `dependencies`: it adds a second account and rows the
@@ -66,6 +68,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testMatch: 'deutsche-bank.spec.ts',
       dependencies: ['chromium'],
+    },
+    // The hosted demo's build: no API behind it, served under the Pages path.
+    {
+      name: 'demo',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: `http://127.0.0.1:${String(DEMO_PORT)}/household-budget/`,
+      },
+      testMatch: 'demo.spec.ts',
     },
     // `pnpm docs:images` only: regenerates the README's images on a database of its own.
     ...(process.env['CAPTURE'] === '1'
@@ -108,6 +119,18 @@ export default defineConfig({
       stderr: 'pipe',
       // Points this Vite at the e2e API rather than the dev one on :3000.
       env: { API_TARGET: API_URL },
+    },
+    {
+      // Built here, not assumed: the suite tests the files the deploy would publish.
+      command:
+        `pnpm --filter @household-budget/web build:demo && ` +
+        `pnpm --filter @household-budget/web exec vite preview --mode demo --host 127.0.0.1 ` +
+        `--port ${String(DEMO_PORT)} --strictPort`,
+      url: `http://127.0.0.1:${String(DEMO_PORT)}/household-budget/`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
     },
   ],
 });

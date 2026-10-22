@@ -2,6 +2,11 @@
 
 [![CI](https://github.com/ramazankarisan/household-budget/actions/workflows/ci.yml/badge.svg)](https://github.com/ramazankarisan/household-budget/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Live demo](https://img.shields.io/badge/live_demo-GitHub_Pages-0E5A4B)](https://ramazankarisan.github.io/household-budget/)
+
+**[Live demo →](https://ramazankarisan.github.io/household-budget/)** Try it in the browser with
+six months of made-up transactions. The demo runs the real UI against an in-memory copy of
+the API, so nothing leaves your tab and a reload starts over.
 
 A local-first household budget app for German bank exports. Drop in a Sparkasse or Deutsche Bank
 CSV, and it sorts every transaction into a category by rules you write, then shows each month's
@@ -43,7 +48,7 @@ A small product, built carefully. These are the parts worth a reviewer's time:
   coverage ratchets. Architecture boundaries are enforced as rules (dependency-cruiser): core
   can never import a framework.
 - **AI-assisted, with backpressure.** It was built with Claude Code as the implementing agent:
-  research → plan → implement, with every decision written down ([11 plans](docs/plans),
+  research → plan → implement, with every decision written down ([12 plans](docs/plans),
   [7 research notes](docs/research)). The agent works under gates it cannot skip. Hooks refuse
   `--no-verify` and any read of real bank data, a Stop hook runs the checks before it may say
   "done", and CI repeats everything. Code review, dogfooding and security-review sessions then

@@ -11,6 +11,11 @@ import {
   type TransactionPayload,
 } from '@household-budget/core';
 
+import { ApiError } from './error';
+
+// Its own module so the demo build's client (plan 12) can throw the same class.
+export { ApiError };
+
 /**
  * Requests go to a relative path: in dev the Vite proxy forwards /api to the
  * Nest server, in production the two are served from the same origin. No API
@@ -24,35 +29,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
-}
-
-/**
- * A rejection the API stated as a machine code rather than a sentence. Nest returns the
- * object thrown with it — `{ code, columns }` — verbatim and adds no `message`, so the
- * code is what reaches the UI, and `src/locales` is what words it.
- */
-export class ApiError extends Error {
-  readonly code: string;
-  /** The missing column names, for `REQUIRED_COLUMN_MISSING`. */
-  readonly columns: readonly string[];
-  /**
-   * The rest of the object the API threw, verbatim. `CATEGORY_IN_USE` carries the three
-   * counts that explain the refusal; `RULE_INVALID` carries one entry per bad form field.
-   * Kept untyped here because this layer's job is to hand it on, not to interpret it.
-   */
-  readonly details: Readonly<Record<string, unknown>>;
-
-  constructor(
-    code: string,
-    columns: readonly string[] = [],
-    details: Readonly<Record<string, unknown>> = {},
-  ) {
-    super(columns.length > 0 ? `${code}: ${columns.join(', ')}` : code);
-    this.name = 'ApiError';
-    this.code = code;
-    this.columns = columns;
-    this.details = details;
-  }
 }
 
 /**

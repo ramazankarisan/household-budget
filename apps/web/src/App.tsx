@@ -34,7 +34,8 @@ function InboxRedirect() {
  */
 export function App() {
   return (
-    <BrowserRouter>
+    // `/` in the real app; the hosted demo is served under `/household-budget/` (plan 12).
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <HouseholdProvider>
         <AppShell sidebarExtra={<AccountsList />}>
           <PageErrorBoundary>

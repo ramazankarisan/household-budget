@@ -18,9 +18,11 @@ import {
 /**
  * Raised by the API rather than by core: the upload check before the parser sees the file,
  * the check that the parsed rows belong to the chosen account, and an upload that raced
- * another one of an overlapping file.
+ * another one of an overlapping file. `DEMO_READ_ONLY` is the hosted demo's client
+ * refusing every upload (plan 12).
  */
-type UploadErrorCode = 'UNSUPPORTED_CONTENT_TYPE' | 'ACCOUNT_IBAN_MISMATCH' | 'IMPORT_CONFLICT';
+type UploadErrorCode =
+  'UNSUPPORTED_CONTENT_TYPE' | 'ACCOUNT_IBAN_MISMATCH' | 'IMPORT_CONFLICT' | 'DEMO_READ_ONLY';
 
 /** The structural codes csv-parse raises that have wording of their own; the set is open. */
 type CsvErrorCode =
@@ -62,6 +64,12 @@ export const de = {
       rules: 'Regeln',
       imports: 'Importe',
       budgets: 'Budgets',
+    },
+    /** The hosted demo's banner (plan 12); the real app never shows it. */
+    demo: {
+      label: 'Demo',
+      text: 'Erfundene Beispieldaten. Änderungen bleiben in diesem Tab und sind nach dem Neuladen weg.',
+      link: 'Lokal installieren',
     },
     accounts: {
       title: 'Konten',
@@ -326,6 +334,8 @@ export const de = {
       CSV_QUOTE_NOT_CLOSED: 'Ein Anführungszeichen in der Datei wird nie geschlossen',
       CSV_INVALID_CLOSING_QUOTE: 'Ungültiges schließendes Anführungszeichen',
       CSV_RECORD_INCONSISTENT_FIELDS_LENGTH: 'Eine Zeile hat die falsche Spaltenzahl',
+      DEMO_READ_ONLY:
+        'Die Demo liest keine Dateien — die Beispielumsätze sind schon importiert. Lokal installiert importiert die App Ihren eigenen Export',
       // A core code added without wording here fails typecheck rather than falling through
       // to `unknownFile` in front of the user.
     } satisfies Record<ImportFileErrorCode | UploadErrorCode | CsvErrorCode, string>,

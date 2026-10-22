@@ -1,0 +1,57 @@
+# Publishes the hosted demo (docs/plans/12-hosted-demo.md) to GitHub Pages: the web app built
+# with `--mode demo`, whose API client is an in-memory household of synthetic data. Static
+# files only — the API is never deployed, and its loopback guard is untouched.
+#
+# CI already proves the demo builds and works (the `demo` Playwright project), so this only
+# builds and publishes, from main.
+name: Demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer push supersedes a queued one, never a running one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version from package.json's packageManager field.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm core:build
+      - run: pnpm --filter @household-budget/web build:demo
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: apps/web/dist/demo
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only the deploy job may write to Pages, and only with the OIDC token Pages asks for.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
